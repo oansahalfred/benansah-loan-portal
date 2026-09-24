@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benansah Loan Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0b3d6b;
+    --navy-dark: #082a4c;
+    --navy-light: #124a82;
+    --red: #a8271a;
+    --red-dark: #8a2015;
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --border: #e1e6ec;
+    --text: #1a2430;
+    --text-mute: #5b6b7c;
+    --text-faint: #94a3b3;
+    --good: #1e7a45;
+    --good-bg: #e7f5ec;
+    --warn: #b5750e;
+    --warn-bg: #fdf2e0;
+    --danger: #b3261e;
+    --danger-bg: #fce8e6;
+    --radius: 10px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: 'Inter Tight', 'Inter', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1620;
+      --surface: #171f2a;
+      --border: #2a3444;
+      --text: #e7ecf2;
+      --text-mute: #9aa8b8;
+      --text-faint: #647480;
+      --good-bg: #123322;
+      --warn-bg: #3a2a0c;
+      --danger-bg: #3a1614;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1620;
+    --surface: #171f2a;
+    --border: #2a3444;
+    --text: #e7ecf2;
+    --text-mute: #9aa8b8;
+    --text-faint: #647480;
+    --good-bg: #123322;
+    --warn-bg: #3a2a0c;
+    --danger-bg: #3a1614;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+
+  /* ---------- Header ---------- */
+  .app-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: #fff;
+    padding: 18px 24px 0 24px;
+  }
+  .app-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-mark {
+    width: 40px; height: 40px;
+    border-radius: 9px;
+    background: var(--red);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .brand-text h1 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+  .brand-text .tag {
+    font-size: 11.5px;
+    opacity: 0.75;
+    margin-top: 1px;
+  }
+  .header-meta {
+    font-size: 12px;
+    opacity: 0.85;
+    text-align: right;
+  }
+  .conn-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-right: 5px;
+  }
+  .conn-dot.off { background: #f59e0b; }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.68);
+    padding: 10px 16px 12px 16px;
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+  .tab-btn:hover { color: rgba(255,255,255,0.9); }
+  .tab-btn.active {
+    color: #fff;
+    border-bottom-color: var(--red);
+  }
+
+  /* ---------- Layout ---------- */
+  .container {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 22px 20px 60px 20px;
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 28px 0 12px 0;
+    flex-wrap: wrap;
+  }
+  .section-head:first-child { margin-top: 0; }
+  .section-head h2 {
+    font-family: var(--font-display);
+    font-size: 16.5px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+  }
+  .section-head .hint {
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+  }
+  .btn:hover { background: var(--navy-light); }
+  .btn:active { transform: scale(0.98); }
+  .btn.red { background: var(--red); }
+  .btn.red:hover { background: var(--red-dark); }
+  .btn.ghost {
+    background: transparent;
+    color: var(--navy);
+    border: 1.5px solid var(--border);
+  }
+  :root[data-theme="dark"] .btn.ghost, .btn.ghost { color: var(--text); }
+  .btn.ghost:hover { border-color: var(--navy); background: rgba(11,61,107,0.06); }
+  .btn.small { padding: 6px 11px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---------- KPI cards ---------- */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 800px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .kpi-card.accent-navy { border-left-color: var(--navy); }
+  .kpi-card.accent-green { border-left-color: var(--good); }
+  .kpi-card.accent-red { border-left-color: var(--danger); }
+  .kpi-card.accent-amber { border-left-color: var(--warn); }
+  .kpi-card.accent-blue { border-left-color: #2a6fc9; }
+  .kpi-card.accent-teal { border-left-color: #0d8a8a; }
+  .kpi-card .label {
+    font-size: 11.5px;
+    color: var(--text-mute);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .kpi-card .value {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .kpi-card .value.pos { color: var(--good); }
+  .kpi-card .value.neg { color: var(--danger); }
+  .kpi-card .sub {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top: 4px;
+  }
+
+  .tier-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 800px) { .tier-row { grid-template-columns: repeat(2, 1fr); } }
+  .tier-card {
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    border: 1px solid var(--border);
+  }
+  .tier-card .n { font-family: var(--font-display); font-size: 20px; font-weight: 800; }
+  .tier-card .t { font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .tier-excellent { background: var(--good-bg); }
+  .tier-good { background: #e8f1fb; }
+  .tier-standard { background: var(--warn-bg); }
+  .tier-risk { background: var(--danger-bg); }
+
+  /* ---------- Table ---------- */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-faint);
+    font-weight: 700;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(11,61,107,0.035); }
+  tbody tr.clickable-row { cursor: pointer; }
+  tbody tr.row-paid { border-left: 4px solid var(--good); }
+  tbody tr.row-partial { border-left: 4px solid #2a6fc9; }
+  tbody tr.row-pending { border-left: 4px solid var(--warn); }
+  tbody tr.row-overdue { border-left: 4px solid var(--danger); }
+  tbody tr.row-paid td:first-child,
+  tbody tr.row-partial td:first-child,
+  tbody tr.row-pending td:first-child,
+  tbody tr.row-overdue td:first-child { padding-left: 10px; }
+  .mono { font-variant-numeric: tabular-nums; }
+  .cell-name { font-weight: 600; }
+  .cell-sub { font-size: 11.5px; color: var(--text-faint); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-paid { background: var(--good-bg); color: var(--good); }
+  .badge-partial { background: #e8f1fb; color: var(--navy); }
+  .badge-pending { background: var(--warn-bg); color: var(--warn); }
+  .badge-overdue { background: var(--danger-bg); color: var(--danger); }
+
+  .search-bar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .search-input {
+    flex: 1; min-width: 180px;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-family: var(--font);
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  select.search-input { cursor: pointer; }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(10,15,22,0.55);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 30px 16px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 560px;
+    padding: 24px 26px 26px 26px;
+    margin: auto;
+  }
+  .modal h3 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    margin: 0 0 3px 0;
+  }
+  .modal .modal-sub {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-bottom: 18px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-grid.single { grid-template-columns: 1fr; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.span2 { grid-column: 1 / -1; }
+  .field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-mute);
+  }
+  .field input, .field select, .field textarea {
+    padding: 9px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-family: var(--font);
+    font-size: 13.5px;
+    background: var(--surface);
+    color: var(--text);
+    width: 100%;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--navy);
+  }
+  .field .calc-note {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 20px;
+  }
+  .modal-close {
+    position: absolute; top: 18px; right: 20px;
+    background: none; border: none; font-size: 20px;
+    color: var(--text-faint); cursor: pointer; line-height: 1;
+  }
+  .modal { position: relative; }
+
+  /* ---------- Loan detail drawer ---------- */
+  .loan-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .loan-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 14px 0;
+  }
+  @media (max-width: 700px) { .loan-detail-grid { grid-template-columns: repeat(2, 1fr); } }
+  .loan-detail-grid .dl { font-size: 11px; color: var(--text-faint); font-weight: 600; }
+  .loan-detail-grid .dv { font-size: 14px; font-weight: 700; font-family: var(--font-display); margin-top: 2px; }
+
+  /* ---------- Rate card table ---------- */
+  .rate-table th, .rate-table td { text-align: center; }
+  .rate-table td:first-child, .rate-table th:first-child { text-align: left; }
+
+  /* ---------- SMS templates ---------- */
+  .sms-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .sms-card.cat-approval { border-left-color: #2a6fc9; }
+  .sms-card.cat-schedule { border-left-color: var(--navy); }
+  .sms-card.cat-reminder { border-left-color: var(--warn); }
+  .sms-card.cat-overdue { border-left-color: var(--danger); }
+  .sms-card.cat-escalation { border-left-color: #6b1622; }
+  .sms-card.cat-receipt { border-left-color: var(--good); }
+  .sms-card .sms-title {
+    font-weight: 700; font-size: 13px; margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .sms-card .sms-id {
+    font-size: 10.5px; color: var(--text-faint); font-weight: 700;
+    background: var(--bg); padding: 2px 7px; border-radius: 5px;
+  }
+  .sms-card .sms-cat-tag {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+    margin-right: 6px; white-space: nowrap;
+  }
+  .cat-approval .sms-cat-tag { background: #e8f1fb; color: #2a6fc9; }
+  .cat-schedule .sms-cat-tag { background: #e8ecf3; color: var(--navy); }
+  .cat-reminder .sms-cat-tag { background: var(--warn-bg); color: var(--warn); }
+  .cat-overdue .sms-cat-tag { background: var(--danger-bg); color: var(--danger); }
+  .cat-escalation .sms-cat-tag { background: #f5dde1; color: #6b1622; }
+  .cat-receipt .sms-cat-tag { background: var(--good-bg); color: var(--good); }
+  .sms-card .sms-text {
+    font-size: 12.5px; color: var(--text-mute); line-height: 1.55;
+    background: var(--bg); padding: 10px 12px; border-radius: 7px;
+    white-space: pre-wrap;
+  }
+  .sms-card .sms-actions { margin-top: 8px; display: flex; gap: 8px; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--navy-dark); color: #fff;
+    padding: 11px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+    z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .card-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .subcard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    flex: 1;
+    min-width: 260px;
+  }
+  .subcard.theme-in { border-top: 3px solid var(--good); }
+  .subcard.theme-in h4 { color: var(--good); }
+  .subcard.theme-out { border-top: 3px solid #c9711a; }
+  .subcard.theme-out h4 { color: #c9711a; }
+  .subcard h4 { margin: 0 0 10px 0; font-family: var(--font-display); font-size: 14px; }
+  .mini-list { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+  .mini-row { display: flex; justify-content: space-between; font-size: 12.5px; border-bottom: 1px dashed var(--border); padding-bottom: 6px; }
+  .mini-row .m1 { color: var(--text); font-weight: 600; }
+  .mini-row .m2 { color: var(--text-faint); }
+
+  .footer-note {
+    text-align: center; font-size: 11.5px; color: var(--text-faint);
+    margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+  }
+
+  .module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.module-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}.module-card h3{margin:0 0 6px;font-size:14px}.module-card .big{font-size:22px;font-weight:800;font-family:var(--font-display)}.sort-btn{background:none;border:0;font:inherit;font-weight:700;color:var(--text-mute);cursor:pointer}.sort-btn:hover{color:var(--navy)}.due-soon{color:var(--warn);font-weight:700}.customer-card{cursor:pointer}.customer-card:hover{border-color:var(--navy)}.report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}@media(max-width:800px){.module-grid{grid-template-columns:1fr}}
+</style>
+
+<style id="login-security-style">
+  #loginGate {
+    position:fixed; inset:0; z-index:99999; display:flex; align-items:center;
+    justify-content:center; background:rgba(8,18,32,.98); padding:20px;
+  }
+  #loginGate.hidden { display:none; }
+  .login-box {
+    width:min(420px,100%); background:#fff; border-radius:16px; padding:32px;
+    box-shadow:0 24px 70px rgba(0,0,0,.35); text-align:center;
+  }
+  .login-box h2 { margin:0 0 8px; }
+  .login-box p { margin:0 0 22px; color:#667085; font-size:14px; }
+  .login-box input {
+    width:100%; box-sizing:border-box; padding:13px 14px; border:1px solid #d0d5dd;
+    border-radius:9px; font-size:16px; margin-bottom:12px;
+  }
+  .login-box button {
+    width:100%; padding:13px 16px; border:0; border-radius:9px;
+    font-weight:700; cursor:pointer; background:#17365d; color:#fff;
+  }
+  #loginError { display:none; color:#b42318; font-size:13px; margin-top:10px; }
+  #loginUser { margin-bottom:12px; }
+  .logout-btn { cursor:pointer; }
+</style>
+
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-box">
+    <div style="font-size:38px;margin-bottom:8px;">🔐</div>
+    <h2>Benansah Loan Manager</h2>
+    <p>Staff Login — enter your password to access the system.</p>
+    <input id="loginUser" type="text" autocomplete="username" placeholder="Staff name">
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Login password">
+    <button id="loginBtn" type="button">Login</button>
+    <div id="loginError">Incorrect password. Please try again.</div>
+  </div>
+</div>
+
+
+<div class="app-header">
+  <div class="app-header-top">
+    <div class="brand">
+      <div class="brand-mark">B</div>
+      <div class="brand-text">
+        <h1>BENANSAH LOAN MANAGER</h1>
+        <div class="tag">Reliable. Transparent. Professional lending.</div>
+      </div>
+    </div>
+    <div class="header-meta" id="connMeta"><span class="conn-dot off"></span>Connecting…</div>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="dashboard">⌂ Dashboard</button>
+    <button class="tab-btn" data-tab="customers">👤 Customers</button>
+    <button class="tab-btn" data-tab="loans">💼 Loans</button>
+    <button class="tab-btn" data-tab="collections">📅 Collections</button>
+    <button class="tab-btn" data-tab="reports">📊 Reports</button>
+    <button class="tab-btn" data-tab="finances">Finances</button>
+    <button class="tab-btn" data-tab="ratecard">Rate Card</button>
+    <button class="tab-btn" data-tab="sms">SMS Templates</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ================= DASHBOARD ================= -->
+  <div class="view active" id="view-dashboard">
+    <div class="section-head"><h2>Portfolio Overview</h2><span class="hint" id="asOfLabel"></span></div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="section-head"><h2>Borrower Performance</h2></div>
+    <div class="tier-row" id="tierGrid"></div>
+
+    <div class="section-head"><h2>Capital &amp; Profitability</h2></div>
+    <div class="kpi-grid" id="kpiGrid2"></div>
+  </div>
+
+  <!-- ================= LOANS ================= -->
+  <div class="view" id="view-loans">
+    <div class="section-head">
+      <h2>All Loans</h2>
+      <button class="btn red" id="btnNewLoan">+ New Loan</button>
+    </div>
+    <div class="search-bar">
+      <input class="search-input" id="loanSearch" placeholder="Search by name, phone, or Ref No...">
+      <select class="search-input" id="loanStatusFilter" style="max-width:180px;">
+        <option value="">All statuses</option>
+        <option value="Fully Paid">Fully Paid</option>
+        <option value="Partially Paid">Partially Paid</option>
+        <option value="Pending Payment">Pending Payment</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+    </div>
+    <div id="loanDetailArea"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref No.</th><th>Borrower</th><th>Principal</th><th>Term</th>
+            <th>Paid</th><th>Balance</th><th>Next Due</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="loansTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="loansEmpty" style="display:none;">No loans yet — click "+ New Loan" to add your first one.</div>
+    </div>
+  </div>
+
+  <!-- ================= CUSTOMERS ================= -->
+  <div class="view" id="view-customers">
+    <div class="section-head"><h2>Customer Management</h2><span class="hint">One profile per borrower, with complete loan history</span></div>
+    <div class="search-bar"><input class="search-input" id="customerSearch" placeholder="Search customer ID, name, phone or Ghana Card..."></div>
+    <div class="table-wrap"><table><thead><tr><th>Customer ID</th><th>Borrower</th><th>Phone</th><th>Loans</th><th>Total Borrowed</th><th>Total Paid</th><th>Outstanding</th><th>Status</th></tr></thead><tbody id="customersTableBody"></tbody></table><div class="empty-state" id="customersEmpty" style="display:none">No customers found.</div></div>
+  </div>
+
+  <!-- ================= COLLECTIONS ================= -->
+  <div class="view" id="view-collections">
+    <div class="section-head"><h2>Collections</h2><span class="hint">Monitor payments before and after the due date</span></div>
+    <div class="module-grid" id="collectionCards"></div>
+    <div class="section-head"><h2>Collection Queue</h2></div>
+    <div class="table-wrap"><table><thead><tr><th>Ref No.</th><th>Borrower</th><th>Due Date</th><th>Amount Due</th><th>Days</th><th>Status</th><th></th></tr></thead><tbody id="collectionsTableBody"></tbody></table></div>
+  </div>
+
+  <!-- ================= REPORTS ================= -->
+  <div class="view" id="view-reports">
+    <div class="section-head"><h2>Reports & Data Export</h2><span class="hint">Download records for backup, accounting and analysis</span></div>
+    <div class="report-actions">
+      <button class="btn" data-export="customers">⬇ Customers CSV</button><button class="btn" data-export="loans">⬇ Loans CSV</button><button class="btn" data-export="payments">⬇ Payments CSV</button><button class="btn" data-export="overdue">⬇ Overdue CSV</button><button class="btn" data-export="audit">⬇ Audit Trail CSV</button><button class="btn red" data-export="backup">⬇ Full Backup</button>
+    </div>
+    <div class="module-grid"><div class="module-card"><h3>Active Portfolio</h3><div class="big" id="reportActive"></div></div><div class="module-card"><h3>Outstanding</h3><div class="big" id="reportOutstanding"></div></div><div class="module-card"><h3>Collected</h3><div class="big" id="reportCollected"></div></div></div>
+    <div class="section-head"><h2>Audit Trail</h2></div><div class="table-wrap"><table><thead><tr><th>Date/Time</th><th>Staff</th><th>Action</th><th>Module</th><th>Record</th><th>Details</th></tr></thead><tbody id="auditTableBody"></tbody></table></div>
+  </div>
+
+  <!-- ================= FINANCES ================= -->
+  <div class="view" id="view-finances">
+    <div class="section-head"><h2>Capital &amp; Expenses</h2><span class="hint">Track owner capital injections and operating costs</span></div>
+    <div class="card-row">
+      <div class="subcard theme-in">
+        <h4>Capital Injections</h4>
+        <div class="mini-list" id="capitalList"></div>
+        <button class="btn ghost small" id="btnAddCapital" style="margin-top:12px;">+ Add Capital Entry</button>
+      </div>
+      <div class="subcard theme-out">
+        <h4>Operating Expenses</h4>
+        <div class="mini-list" id="expenseList"></div>
+        <button class="btn ghost small" id="btnAddExpense" style="margin-top:12px;">+ Add Expense</button>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>Recent Payments</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Ref No.</th><th>Borrower</th><th>Amount</th><th>Method</th><th>Received By</th></tr></thead>
+        <tbody id="paymentsTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="paymentsEmpty" style="display:none;">No payments recorded yet.</div>
+    </div>
+
+    <div class="section-head"><h2 style="color:var(--danger);">Danger Zone</h2></div>
+    <div class="subcard" style="border-color:var(--danger);">
+      <h4 style="color:var(--danger);">Start Fresh</h4>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Permanently deletes every loan, payment, capital entry, and expense, then records new capital injections you specify in the confirmation step. Use this only when closing out an old portfolio entirely.</p>
+      <button class="btn red" id="btnResetAll">Clear All Data &amp; Start Fresh</button>
+    </div>
+  </div>
+
+  <!-- ================= RATE CARD ================= -->
+  <div class="view" id="view-ratecard">
+    <div class="section-head"><h2>Standard Loan Rate Card (Deduction Chart)</h2><span class="hint">Reference only — actual rate per loan may vary (promotions, risk-based pricing)</span></div>
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table class="rate-table">
+        <thead><tr id="rateTableHead"></tr></thead>
+        <tbody id="rateTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= SMS TEMPLATES ================= -->
+  <div class="view" id="view-sms">
+    <div class="section-head">
+      <h2>SMS Templates</h2>
+      <select class="search-input" id="smsLoanPicker" style="max-width:260px;">
+        <option value="">— Fill placeholders from a loan —</option>
+      </select>
+    </div>
+    <div id="smsList"></div>
+  </div>
+
+  <div class="footer-note">Benansah Financial Solutions — Internal Loan Manager. Data is private to your organization.</div>
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<div class="modal-backdrop" id="modalNewLoan">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>New Loan</h3>
+    <div class="modal-sub">Fields marked with an asterisk are required.</div>
+    <form id="formNewLoan">
+      <div class="form-grid">
+        <div class="field span2"><label>Borrower Full Name *</label><input required name="borrowerName"></div>
+        <div class="field"><label>Borrower Phone</label><input name="borrowerPhone" placeholder="024XXXXXXX"></div>
+        <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X"></div>
+        <div class="field"><label>Guarantor Name</label><input name="guarantorName"></div>
+        <div class="field"><label>Guarantor Phone</label><input name="guarantorPhone"></div>
+        <div class="field"><label>Disbursement Date *</label><input required type="date" name="disbursementDate"></div>
+        <div class="field"><label>Loan Term (months) *</label>
+          <select required name="loanTermMonths">
+            <option value="1">1 Month</option>
+            <option value="2">2 Months</option>
+            <option value="3">3 Months</option>
+            <option value="4">4 Months</option>
+          </select>
+        </div>
+        <div class="field"><label>Principal (GHS) *</label><input required type="number" min="1" step="0.01" name="principal"></div>
+        <div class="field"><label>Total Interest Rate (%) *</label><input required type="number" min="0" step="0.01" name="interestRatePct">
+          <span class="calc-note" id="rateAutoNote">Auto-filled from standard rate card — edit for promotions.</span>
+        </div>
+        <div class="field span2"><label>Purpose of Loan</label><input name="purpose"></div>
+        <div class="field span2" id="calcPreview" style="background:var(--bg);border-radius:7px;padding:10px 12px;font-size:12.5px;color:var(--text-mute);"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn red">Save Loan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalPayment">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Record Payment</h3>
+    <div class="modal-sub" id="paymentSub"></div>
+    <form id="formPayment">
+      <input type="hidden" name="refNo">
+      <div class="form-grid">
+        <div class="field"><label>Amount Paid (GHS) *</label><input required type="number" min="0.01" step="0.01" name="amountPaid"></div>
+        <div class="field"><label>Payment Date *</label><input required type="date" name="paymentDate"></div>
+        <div class="field"><label>Payment Method</label>
+          <select name="paymentMethod">
+            <option>MTN MoMo</option><option>Cash</option><option>Bank Transfer</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Receipt / Txn ID</label><input name="txnId" placeholder="e.g. MoMo reference"></div>
+        <div class="field"><label>Sender's Name</label><input name="senderName"></div>
+        <div class="field"><label>Received By</label><input name="receivedBy" placeholder="Staff name"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn red">Save Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalCapital">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Add Capital Entry</h3>
+    <form id="formCapital">
+      <div class="form-grid">
+        <div class="field"><label>Date *</label><input required type="date" name="date"></div>
+        <div class="field"><label>Amount (GHS) *</label><input required type="number" min="0.01" step="0.01" name="amount"></div>
+        <div class="field span2"><label>Funding Source / Owner</label><input name="source"></div>
+        <div class="field span2"><label>Notes</label><input name="notes"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn red">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalExpense">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Add Expense</h3>
+    <form id="formExpense">
+      <div class="form-grid">
+        <div class="field"><label>Date *</label><input required type="date" name="date"></div>
+        <div class="field"><label>Amount (GHS) *</label><input required type="number" min="0.01" step="0.01" name="amount"></div>
+        <div class="field"><label>Category</label>
+          <select name="category">
+            <option>Airtime / SMS</option><option>Transaction Fees</option><option>Meals &amp; Business Meetings</option>
+            <option>Equipment / Capital Expenditure</option><option>Transport</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Paid Via</label><input name="paidVia" placeholder="MTN MoMo / Cash"></div>
+        <div class="field span2"><label>Description</label><input name="description"></div>
+        <div class="field span2"><label>Authorized By</label><input name="authorizedBy"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn red">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalConfirm" style="z-index:150;">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="confirmTitle">Please Confirm</h3>
+    <div class="modal-sub" id="confirmMessage" style="font-size:13.5px; line-height:1.55; color:var(--text);"></div>
+    <div class="field" style="margin-top:6px;">
+      <label>Staff Password</label>
+      <input type="password" id="confirmPasswordInput" autocomplete="off" placeholder="Enter password to continue">
+      <div style="font-size:12px;color:var(--text-mute);margin-bottom:6px;">Staff password required for all edit/delete actions.</div><div id="confirmPasswordError" style="display:none; color:var(--danger); font-size:12px; font-weight:600;">Incorrect password — try again.</div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="confirmNoBtn">Cancel</button>
+      <button type="button" class="btn" id="confirmYesBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  "use strict";
+
+  // ---------------- State ----------------
+  let loans = [];       // from db
+  let payments = [];
+  let capitalEntries = [];
+  let expenseEntries = [];
+  let db = null;
+  let dbReady = false;
+  let expandedLoanRef = null;
+
+  const RATE_CARD = {1:0.18, 2:0.16, 3:0.14, 4:0.125}; // total rate for whole tenure, derived from monthly rates 20% / 18% / 16% / 16%
+
+  const SMS_TEMPLATES = [
+    {id:"0A", title:"Loan Application Review", text:"BENANSAH NOTICE: Dear [Customer Name], your loan application for GHS [Amount] is currently UNDER REVIEW. You will receive an SMS confirmation once reviewed and disbursed. Repayments strictly to MoMo 0243642425 (Owusu-Ansah Alfred). Ref: [Ref No.]."},
+    {id:"0B", title:"Pre-Disbursement Approval", text:"BENANSAH NOTICE: Dear [Customer Name], your loan request for GHS [Amount] with Benansah Financial Solutions has been APPROVED. Funds will be disbursed shortly. Future repayments strictly to MoMo 0243642425 (Owusu-Ansah Alfred). Ref: [Ref No.]."},
+    {id:"1A", title:"MoMo Loan Disbursement", text:"BENANSAH NOTICE: Dear [Customer Name], your loan of GHS [Amount] has been approved and disbursed to your MoMo account ([MoMo Number]). Your repayment schedule is active. Ref: [Ref No.]. Thank you for choosing Benansah Financial Solutions."},
+    {id:"1B", title:"Cash Loan Disbursement", text:"BENANSAH NOTICE: Dear [Customer Name], your loan of GHS [Amount] has been approved and disbursed in cash. Your repayment schedule is active. Ref: [Ref No.]. Thank you for choosing Benansah Financial Solutions."},
+    {id:"2A", title:"Payment Schedule (1 Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your repayment schedule for loan Ref: [Ref No.] is set. Your total payment of GHS [Amount] is due on [Due Date]. Repay to MoMo 0243642425 (Owusu-Ansah Alfred). Support: 0543717151."},
+    {id:"2B", title:"Payment Schedule (Multi-Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your repayment schedule for loan Ref: [Ref No.] is set. Your monthly installment of GHS [Amount] is scheduled for the [Day] of every month for [Term] months. Support: 0543717151."},
+    {id:"3A", title:"3-Day Pre-Due Reminder (1 Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your loan repayment of GHS [Amount] is due in 3 days on [Date]. Send payment via MoMo to 0243642425 (Owusu-Ansah Alfred) using Ref: [Ref No.]. Pay on time to maintain a good credit score."},
+    {id:"3B", title:"3-Day Pre-Due Reminder (Multi-Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your monthly loan installment of GHS [Amount] is due on [Date]. Ensure your MoMo wallet is funded for transfer to 0243642425 (Owusu-Ansah Alfred). Ref: [Ref No.]."},
+    {id:"3C", title:"Payday Settlement Prompt (1 Month)", text:"BENANSAH NOTICE: Dear [Customer Name], happy payday week! Settling your full balance of GHS [Amount] early enhances your credit rating with us and unlocks higher limits on future loans. Transfer to 0243642425 (Owusu-Ansah Alfred). Due Date: [Date]. Ref: [Ref No.]."},
+    {id:"3D", title:"Payday Settlement Prompt (Multi-Month)", text:"BENANSAH NOTICE: Dear [Customer Name], happy payday week! Paying your upcoming monthly installment of GHS [Amount] early keeps your account in excellent standing and protects your credit limit. Remit to MoMo 0243642425 (Owusu-Ansah Alfred). Due Date: [Date]. Ref: [Ref No.]."},
+    {id:"4A", title:"Due Date Notice (1 Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your full loan repayment of GHS [Amount] is due TODAY, [Date]. Transfer via MoMo to 0243642425 (Owusu-Ansah Alfred) now with Ref: [Ref No.] to clear your account and avoid a 16% late penalty."},
+    {id:"4B", title:"Due Date Notice (Multi-Month)", text:"BENANSAH NOTICE: Dear [Customer Name], your monthly installment of GHS [Amount] is due TODAY, [Date]. Transfer via MoMo to 0243642425 (Owusu-Ansah Alfred) now with Ref: [Ref No.] to keep your schedule active and avoid late penalty charges."},
+    {id:"4C", title:"Overdue & Penalty Alert (1 Month)", text:"URGENT NOTICE: Dear [Customer Name], your full loan payment of GHS [Amount] was due on [Date] and is now OVERDUE. A 16% late penalty fee of GHS [Penalty Amount] has been added. Transfer GHS [New Total Amount] immediately to MoMo 0243642425 (Owusu-Ansah Alfred) Ref: [Ref No.] to avoid further penalties."},
+    {id:"4D", title:"Overdue & Penalty Alert (Multi-Month)", text:"URGENT NOTICE: Dear [Customer Name], your monthly installment of GHS [Amount] was due on [Date] and is now OVERDUE. A 16% late penalty fee of GHS [Penalty Amount] has been added to this month's balance. Transfer GHS [New Total Amount] immediately to MoMo 0243642425 (Owusu-Ansah Alfred) Ref: [Ref No.]."},
+    {id:"4E", title:"Urgent Final Notice (48 Hours)", text:"URGENT FINAL NOTICE: Dear [Customer Name], your overdue balance of GHS [New Total Amount] for loan Ref: [Ref No.] remains UNPAID 48 hours after our last notice. Pay immediately to MoMo 0243642425 (Owusu-Ansah Alfred) to avoid further penalty and possible escalation. Helpdesk: 0543717151."},
+    {id:"6A", title:"Guarantor Escalation Notice (to Borrower)", text:"BENANSAH NOTICE: Dear [Customer Name], your loan Ref: [Ref No.] has now been overdue for 7 days as per our Loan Agreement. Your overdue balance of GHS [New Total Amount] is today being referred to your Guarantor, [Guarantor Name], for recovery. Pay immediately to MoMo 0243642425 (Owusu-Ansah Alfred) to halt this process."},
+    {id:"6B", title:"Direct Guarantor Demand", text:"BENANSAH NOTICE: Dear [Guarantor Name], your applicant [Customer Name] has been in default for 7 days on loan Ref: [Ref No.], with an overdue balance of GHS [New Total Amount]. As guarantor, kindly ensure payment is made to MoMo 0243642425 (Owusu-Ansah Alfred) promptly to avoid further recovery action. Support: 0543717151."},
+    {id:"6C", title:"Payment Extension Granted", text:"BENANSAH NOTICE: Dear [Customer Name], your payment extension request has been APPROVED. Your revised balance of GHS [New Total Amount] (including accrued penalty) is now due on [Month-End Date]. Further penalty accrual is paused until this date. Transfer strictly to MoMo 0243642425 (Owusu-Ansah Alfred) Ref: [Ref No.]."},
+    {id:"6D", title:"Extension Deadline Breached", text:"BENANSAH NOTICE: Dear [Customer Name], you have breached your agreed extension date of [Month-End Date] for loan Ref: [Ref No.]. Your account is now flagged for Default Recovery, and your Guarantor ([Guarantor Name]) is being contacted directly. Contact: 0543717151."},
+    {id:"5A", title:"Payment Received (Full Settlement)", text:"BENANSAH PAYMENT RECEIVED: Dear [Customer Name], we have successfully received your total payment of GHS [Amount] for loan Ref: [Ref No.]. Your loan is now FULLY SETTLED. Thank you for your prompt repayment! Support: 0543717151."},
+    {id:"5B", title:"Payment Received (Installment)", text:"BENANSAH PAYMENT RECEIVED: Dear [Customer Name], we have received your monthly installment of GHS [Amount] for loan Ref: [Ref No.]. Remaining loan balance: GHS [Balance]. Thank you for your payment!"},
+    {id:"5C", title:"Full Loan Clearance Certificate", text:"BENANSAH NOTICE: Congratulations [Customer Name]! Your loan Ref: [Ref No.] is FULLY SETTLED. Thank you for your excellent credit performance. You are now eligible for loan upgrades on your next request. Support: 0543717151."}
+  ];
+
+  // ---------------- Helpers ----------------
+  function fmtGHS(n) {
+    n = Number(n) || 0;
+    return "GHS " + n.toLocaleString('en-GH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso + "T00:00:00");
+    if (isNaN(d)) return "—";
+    return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+  }
+  function todayISO() {
+    return new Date().toISOString().slice(0,10);
+  }
+  function addMonths(iso, n) {
+    const d = new Date(iso + "T00:00:00");
+    d.setMonth(d.getMonth() + n);
+    return d.toISOString().slice(0,10);
+  }
+  function nextRefNo() {
+    const year = new Date().getFullYear();
+    const nums = loans
+      .map(l => l.refNo || "")
+      .filter(r => r.startsWith("BFS-" + year + "-"))
+      .map(r => parseInt(r.split("-")[2], 10))
+      .filter(n => !isNaN(n));
+    const next = (nums.length ? Math.max(...nums) : 0) + 1;
+    return "BFS-" + year + "-" + String(next).padStart(3, "0");
+  }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+  function escapeHtml(s) {
+    return (s || "").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------------- Computed loan metrics ----------------
+  const LATE_FEE_RATE = 0.16; // 16% per month (or part thereof) overdue, non-compounding
+
+  // Smallest n such that todayISO_ falls within (addMonths(dueDate, n-1), addMonths(dueDate, n)].
+  // n=1 covers "1 day to 1 month late", n=2 covers "1 month+1 day to 2 months late", etc.
+  function monthsOverdueTier(dueDateISO, todayISO_) {
+    if (todayISO_ <= dueDateISO) return 0;
+    let n = 1;
+    while (todayISO_ > addMonths(dueDateISO, n) && n < 60) n++;
+    return n;
+  }
+
+  function computeLoanMetrics(loan) {
+    const interestAmount = round2(loan.principal * loan.interestRatePct);
+    const totalRepayment = round2(loan.principal + interestAmount);
+    const monthlyInstallment = round2(totalRepayment / loan.loanTermMonths);
+    const processingFee = round2(loan.principal * 0.02);
+    const netDisbursed = round2(loan.principal - processingFee);
+
+    const loanPayments = payments.filter(p => p.refNo === loan.refNo);
+    const amountPaid = round2(loanPayments.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0));
+
+    const installmentsPaid = monthlyInstallment > 0 ? Math.floor((amountPaid / monthlyInstallment) + 0.0001) : 0;
+    const installmentsPaidClamped = Math.min(installmentsPaid, loan.loanTermMonths);
+    const nextDueDate = installmentsPaidClamped >= loan.loanTermMonths
+      ? null
+      : addMonths(loan.disbursementDate, installmentsPaidClamped + 1);
+
+    const remainingBalance = round2(Math.max(totalRepayment - amountPaid, 0));
+    const overdueTier = (nextDueDate && remainingBalance > 0) ? monthsOverdueTier(nextDueDate, todayISO()) : 0;
+    const isOverdue = overdueTier > 0;
+    const lateFeePct = overdueTier * LATE_FEE_RATE;
+    const lateFee = isOverdue ? round2(remainingBalance * lateFeePct) : 0;
+    const totalPayableWithPenalty = round2(remainingBalance + lateFee);
+    const overdueLabel = isOverdue
+      ? `${(lateFeePct*100).toFixed(0)}% penalty — ${overdueTier} month${overdueTier>1?'s':''} (or part) overdue`
+      : '';
+
+    let status;
+    if (remainingBalance <= 0) status = "Fully Paid";
+    else if (isOverdue) status = "Overdue";
+    else if (amountPaid > 0) status = "Partially Paid";
+    else status = "Pending Payment";
+
+    let performanceRating;
+    if (status === "Fully Paid") performanceRating = "Excellent";
+    else if (status === "Overdue") performanceRating = "High Risk";
+    else if (status === "Partially Paid") performanceRating = "Good";
+    else performanceRating = "Standard";
+
+    return {
+      interestAmount, totalRepayment, monthlyInstallment, processingFee, netDisbursed,
+      amountPaid, remainingBalance, nextDueDate, lateFee, totalPayableWithPenalty,
+      overdueTier, lateFeePct, overdueLabel,
+      status, performanceRating, installmentsPaid: installmentsPaidClamped
+    };
+  }
+  function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+  // ---------------- DB layer ----------------
+  async function initDb() {
+    try {
+      db = await claude.use("db");
+    } catch (e) { db = null; }
+    if (!db) {
+      document.getElementById('connMeta').innerHTML = '<span class="conn-dot off"></span>Offline preview (no save)';
+      dbReady = false;
+      render();
+      return;
+    }
+    subscribeAll();
+  }
+
+  function subscribeAll() {
+    db.collection("loans").onSnapshot(snap => {
+      loans = snap.docs.map(d => ({...d.data(), _id: d.id}));
+      dbReady = true;
+      document.getElementById('connMeta').innerHTML = '<span class="conn-dot"></span>Live';
+      render();
+    }, err => {
+      document.getElementById('connMeta').innerHTML = '<span class="conn-dot off"></span>Connection issue';
+    });
+    db.collection("payments").onSnapshot(snap => {
+      payments = snap.docs.map(d => ({...d.data(), _id: d.id}));
+      render();
+    });
+    db.collection("capital").onSnapshot(snap => {
+      capitalEntries = snap.docs.map(d => ({...d.data(), _id: d.id}));
+      render();
+    });
+    db.collection("expenses").onSnapshot(snap => {
+      expenseEntries = snap.docs.map(d => ({...d.data(), _id: d.id}));
+      render();
+    });
+  }
+
+  // Manually triggered, password-gated reset: wipes all loans, payments,
+  // capital and expense records, then records the two fresh capital
+  // injections. Used once to move from the old portfolio to a clean start.
+  function resetToFreshStart() {
+    showConfirm(
+      "This will permanently delete every loan, payment, capital entry, and expense currently recorded, and replace them with two fresh capital injections (GHS 8,813 Bank Loan + GHS 6,500 Invested by Mother, dated 10 Dec 2026). This cannot be undone.",
+      async () => {
+        try {
+          const [loanSnap, paySnap, capSnap, expSnap] = await Promise.all([
+            db.collection("loans").get(),
+            db.collection("payments").get(),
+            db.collection("capital").get(),
+            db.collection("expenses").get()
+          ]);
+          for (const d of loanSnap.docs) await db.collection("loans").doc(d.id).delete();
+          for (const d of paySnap.docs) await db.collection("payments").doc(d.id).delete();
+          for (const d of capSnap.docs) await db.collection("capital").doc(d.id).delete();
+          for (const d of expSnap.docs) await db.collection("expenses").doc(d.id).delete();
+
+          await db.collection("capital").add({date:"2026-12-10", amount:8813, source:"Bank Loan", notes:""});
+          await db.collection("capital").add({date:"2026-12-10", amount:6500, source:"Invested by Mother", notes:""});
+
+          expandedLoanRef = null;
+          showToast("Fresh start recorded — all clear");
+        } catch (err) {
+          showToast("Could not complete reset — try again");
+        }
+      },
+      {title: "Start Fresh — Clear Everything", yesLabel: "Yes, Clear Everything", danger: true}
+    );
+  }
+
+  // ---------------- Tabs ----------------
+  document.getElementById('tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + btn.dataset.tab).classList.add('active');
+  });
+
+  // ---------------- Render: Dashboard ----------------
+  function renderDashboard() {
+    document.getElementById('asOfLabel').textContent = "As of " + fmtDate(todayISO());
+
+    const metrics = loans.map(computeLoanMetrics);
+    const totalPrincipal = loans.reduce((s,l) => s + Number(l.principal||0), 0);
+    const totalInterest = metrics.reduce((s,m) => s + m.interestAmount, 0);
+    const totalExpectedRepayment = metrics.reduce((s,m) => s + m.totalRepayment, 0);
+    const totalCollected = metrics.reduce((s,m) => s + m.amountPaid, 0);
+    const totalLateFees = metrics.reduce((s,m) => s + m.lateFee, 0);
+    const totalRemaining = metrics.reduce((s,m) => s + m.totalPayableWithPenalty, 0);
+
+    const kpis = [
+      {label:"Active Loans", value: loans.length, sub: loans.length + " borrower" + (loans.length===1?"":"s") + " on file", accent:"navy"},
+      {label:"Total Principal Disbursed", value: fmtGHS(totalPrincipal), accent:"navy"},
+      {label:"Expected Interest Revenue", value: fmtGHS(totalInterest), accent:"teal"},
+      {label:"Total Expected Repayment", value: fmtGHS(totalExpectedRepayment), accent:"navy"},
+      {label:"Total Collected", value: fmtGHS(totalCollected), cls:"pos", accent:"green"},
+      {label:"Outstanding (incl. late fees)", value: fmtGHS(totalRemaining), cls: totalRemaining>0?"neg":"", accent:"red"},
+      {label:"Accumulated Late Fees", value: fmtGHS(totalLateFees), accent:"amber"},
+      {label:"Collection Rate", value: totalExpectedRepayment>0 ? Math.round(totalCollected/totalExpectedRepayment*100)+"%" : "—", accent:"blue"}
+    ];
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+      <div class="kpi-card accent-${k.accent}">
+        <div class="label">${k.label}</div>
+        <div class="value ${k.cls||''}">${k.value}</div>
+        ${k.sub ? `<div class="sub">${k.sub}</div>` : ''}
+      </div>`).join('');
+
+    const tiers = {Excellent:0, Good:0, Standard:0, "High Risk":0};
+    metrics.forEach(m => tiers[m.performanceRating]++);
+    document.getElementById('tierGrid').innerHTML = `
+      <div class="tier-card tier-excellent"><div class="n">${tiers.Excellent}</div><div class="t">Excellent — Fully Paid</div></div>
+      <div class="tier-card tier-good"><div class="n">${tiers.Good}</div><div class="t">Good — Active, On Track</div></div>
+      <div class="tier-card tier-standard"><div class="n">${tiers.Standard}</div><div class="t">Standard — New / Pending</div></div>
+      <div class="tier-card tier-risk"><div class="n">${tiers["High Risk"]}</div><div class="t">High Risk — Overdue</div></div>
+    `;
+
+    const capitalInjected = capitalEntries.reduce((s,c) => s + Number(c.amount||0), 0);
+    const expensesTotal = expenseEntries.reduce((s,e) => s + Number(e.amount||0), 0);
+    const totalNetDisbursed = metrics.reduce((s,m) => s + m.netDisbursed, 0);
+    const availableCash = round2(capitalInjected - totalNetDisbursed + totalCollected - expensesTotal);
+    const netOutstandingPrincipal = round2(totalPrincipal - totalCollected);
+    const grossRevenue = round2(totalInterest + totalLateFees);
+    const netProfit = round2(grossRevenue - expensesTotal);
+
+    const totalProcessingFees = metrics.reduce((s,m) => s + m.processingFee, 0);
+    const kpis2 = [
+      {label:"Capital Injected", value: fmtGHS(capitalInjected), accent:"blue"},
+      {label:"Net Outstanding Principal", value: fmtGHS(netOutstandingPrincipal), accent:"navy"},
+      {label:"Available Cash for New Loans", value: fmtGHS(availableCash), cls: availableCash<0?"neg":"pos",
+        sub:"Capital + Collected − Net Disbursed − Expenses", accent: availableCash<0?"red":"green"},
+      {label:"Operating Expenses", value: fmtGHS(expensesTotal), accent:"amber"},
+      {label:"Gross Revenue (Interest + Fees)", value: fmtGHS(grossRevenue), accent:"teal"},
+      {label:"Net Operating Profit", value: fmtGHS(netProfit), cls: netProfit>=0?"pos":"neg", accent: netProfit>=0?"green":"red"},
+      {label:"Processing Fees Retained", value: fmtGHS(totalProcessingFees), sub:"Kept upfront, never disbursed", accent:"teal"},
+      {label:"Total Net Disbursed", value: fmtGHS(totalNetDisbursed), sub:"Actual cash paid out to borrowers", accent:"navy"}
+    ];
+    document.getElementById('kpiGrid2').innerHTML = kpis2.map(k => `
+      <div class="kpi-card accent-${k.accent}">
+        <div class="label">${k.label}</div>
+        <div class="value ${k.cls||''}">${k.value}</div>
+        ${k.sub ? `<div class="sub">${k.sub}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // ---------------- Render: Loans ----------------
+  function statusBadge(status) {
+    const map = {"Fully Paid":"badge-paid","Partially Paid":"badge-partial","Pending Payment":"badge-pending","Overdue":"badge-overdue"};
+    return `<span class="badge ${map[status]||''}">${status}</span>`;
+  }
+  function statusRowClass(status) {
+    const map = {"Fully Paid":"row-paid","Partially Paid":"row-partial","Pending Payment":"row-pending","Overdue":"row-overdue"};
+    return map[status] || '';
+  }
+
+  function renderLoans() {
+    const search = (document.getElementById('loanSearch').value || "").toLowerCase();
+    const statusFilter = document.getElementById('loanStatusFilter').value;
+
+    let rows = loans.map(l => ({loan: l, m: computeLoanMetrics(l)}));
+    if (search) {
+      rows = rows.filter(r =>
+        (r.loan.borrowerName||"").toLowerCase().includes(search) ||
+        (r.loan.borrowerPhone||"").includes(search) ||
+        (r.loan.refNo||"").toLowerCase().includes(search)
+      );
+    }
+    if (statusFilter) rows = rows.filter(r => r.m.status === statusFilter);
+    rows.sort((a,b) => (a.loan.refNo||"").localeCompare(b.loan.refNo||""));
+
+    document.getElementById('loansEmpty').style.display = rows.length ? 'none' : 'block';
+    document.getElementById('loansTableBody').innerHTML = rows.map(({loan:l, m}) => `
+      <tr class="clickable-row ${statusRowClass(m.status)}" data-view="${escapeHtml(l.refNo)}">
+        <td class="mono">${escapeHtml(l.refNo)}</td>
+        <td>
+          <div class="cell-name">${escapeHtml(l.borrowerName)}</div>
+          <div class="cell-sub">${escapeHtml(l.borrowerPhone||'—')}</div>
+        </td>
+        <td class="mono">${fmtGHS(l.principal)}</td>
+        <td>${l.loanTermMonths} mo</td>
+        <td class="mono">${fmtGHS(m.amountPaid)}</td>
+        <td class="mono">${fmtGHS(m.remainingBalance)}</td>
+        <td>${m.nextDueDate ? fmtDate(m.nextDueDate) : '—'}</td>
+        <td>${statusBadge(m.status)}${m.overdueTier>0 ? `<div class="cell-sub" style="color:var(--danger); font-weight:700; margin-top:2px;">${(m.lateFeePct*100).toFixed(0)}% penalty</div>` : ''}</td>
+        <td>
+          <button class="btn ghost small" data-pay-row="${escapeHtml(l.refNo)}">Pay</button>
+        </td>
+      </tr>
+    `).join('');
+
+    renderLoanDetail();
+  }
+
+  function renderLoanDetail() {
+    const area = document.getElementById('loanDetailArea');
+    if (!expandedLoanRef) { area.innerHTML = ''; return; }
+    const loan = loans.find(l => l.refNo === expandedLoanRef);
+    if (!loan) { area.innerHTML = ''; expandedLoanRef = null; return; }
+    const m = computeLoanMetrics(loan);
+    const loanPayments = payments.filter(p => p.refNo === loan.refNo).sort((a,b) => (b.paymentDate||"").localeCompare(a.paymentDate||""));
+
+    area.innerHTML = `
+      <div class="loan-detail">
+        <div class="section-head" style="margin:0 0 4px 0;">
+          <h2>${escapeHtml(loan.borrowerName)} <span class="cell-sub" style="font-weight:500;">— ${escapeHtml(loan.refNo)}</span></h2>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn small" data-pay="${escapeHtml(loan.refNo)}">Record Payment</button>
+            <button class="btn ghost small" data-edit-loan="${escapeHtml(loan.refNo)}">Edit Loan</button>
+            <button class="btn ghost small" data-delete-loan="${escapeHtml(loan.refNo)}" style="color:var(--danger); border-color:var(--danger);">Delete Loan</button>
+            <button class="btn ghost small" data-close-detail>Close</button>
+          </div>
+        </div>
+        <div class="loan-detail-grid">
+          <div><div class="dl">Guarantor</div><div class="dv" style="font-size:13px;">${escapeHtml(loan.guarantorName||'—')}</div></div>
+          <div><div class="dl">Principal</div><div class="dv">${fmtGHS(loan.principal)}</div></div>
+          <div><div class="dl">Interest Rate (Total)</div><div class="dv">${(loan.interestRatePct*100).toFixed(2)}%</div></div>
+          <div><div class="dl">Term</div><div class="dv">${loan.loanTermMonths} month${loan.loanTermMonths>1?'s':''}</div></div>
+          <div><div class="dl">Monthly Installment</div><div class="dv">${fmtGHS(m.monthlyInstallment)}</div></div>
+          <div><div class="dl">Total Repayment</div><div class="dv">${fmtGHS(m.totalRepayment)}</div></div>
+          <div><div class="dl">Amount Paid</div><div class="dv" style="color:var(--good);">${fmtGHS(m.amountPaid)}</div></div>
+          <div><div class="dl">Balance (incl. late fee)</div><div class="dv" style="color:${m.totalPayableWithPenalty>0?'var(--danger)':'var(--good)'};">${fmtGHS(m.totalPayableWithPenalty)}</div>${m.overdueLabel ? `<div class="cell-sub" style="color:var(--danger); font-weight:700; margin-top:2px;">${escapeHtml(m.overdueLabel)}</div>` : ''}</div>
+          <div><div class="dl">Next Due Date</div><div class="dv" style="font-size:13px;">${m.nextDueDate ? fmtDate(m.nextDueDate) : '—'}</div></div>
+          <div><div class="dl">Status</div><div class="dv" style="font-size:13px;">${statusBadge(m.status)}</div></div>
+          <div><div class="dl">Performance</div><div class="dv" style="font-size:13px;">${escapeHtml(m.performanceRating)}</div></div>
+          <div><div class="dl">Ghana Card No.</div><div class="dv" style="font-size:13px;">${escapeHtml(loan.ghanaCardNo||'—')}</div></div>
+        </div>
+        ${loan.purpose ? `<div class="cell-sub" style="margin-bottom:10px;">Note: ${escapeHtml(loan.purpose)}</div>` : ''}
+        <div style="font-size:12px; font-weight:700; color:var(--text-mute); margin:14px 0 8px 0;">Payment History</div>
+        ${loanPayments.length ? `
+          <div class="mini-list" style="max-height:220px;">
+            ${loanPayments.map(p => `
+              <div class="mini-row">
+                <span class="m1">${fmtDate(p.paymentDate)} — ${fmtGHS(p.amountPaid)}</span>
+                <span class="m2" style="display:flex; align-items:center; gap:8px;">
+                  ${escapeHtml(p.paymentMethod||'')} · ${escapeHtml(p.receivedBy||'')}
+                  <a href="#" data-edit-payment="${escapeHtml(p._id)}" data-refno="${escapeHtml(p.refNo)}" style="color:var(--navy); font-weight:600;">Edit</a>
+                  <a href="#" data-delete-payment="${escapeHtml(p._id)}" style="color:var(--danger); font-weight:600;">Delete</a>
+                </span>
+              </div>`).join('')}
+          </div>` : `<div class="cell-sub">No payments recorded yet.</div>`}
+      </div>
+    `;
+  }
+
+  document.getElementById('loanSearch').addEventListener('input', renderLoans);
+  document.getElementById('loanStatusFilter').addEventListener('change', renderLoans);
+
+  document.getElementById('loansTableBody').addEventListener('click', e => {
+    const payBtn = e.target.closest('[data-pay-row]');
+    if (payBtn) { openPaymentModal(payBtn.dataset.payRow); return; }
+    const row = e.target.closest('[data-view]');
+    if (row) { expandedLoanRef = row.dataset.view; renderLoanDetail(); scrollToDetail(); }
+  });
+  function scrollToDetail() {
+    const el = document.getElementById('loanDetailArea');
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.getElementById('loanDetailArea').addEventListener('click', e => {
+    if (e.target.closest('[data-close-detail]')) { expandedLoanRef = null; renderLoanDetail(); }
+    const payBtn = e.target.closest('[data-pay]');
+    if (payBtn) openPaymentModal(payBtn.dataset.pay);
+    const editBtn = e.target.closest('[data-edit-loan]');
+    if (editBtn) {
+      const loanToEdit = loans.find(l => l.refNo === editBtn.dataset.editLoan);
+      if (loanToEdit) showConfirm(
+        `Enter the staff password to edit loan ${loanToEdit.refNo}.`,
+        async () => openLoanModal(loanToEdit),
+        {title: "Password Required", yesLabel: "Continue"}
+      );
+    }
+    const delBtn = e.target.closest('[data-delete-loan]');
+    if (delBtn) deleteLoan(delBtn.dataset.deleteLoan);
+    const editPayBtn = e.target.closest('[data-edit-payment]');
+    if (editPayBtn) {
+      e.preventDefault();
+      showConfirm(
+        "Enter the staff password to edit this payment.",
+        async () => openPaymentModal(editPayBtn.dataset.refno, editPayBtn.dataset.editPayment),
+        {title: "Password Required", yesLabel: "Continue"}
+      );
+    }
+    const delPayBtn = e.target.closest('[data-delete-payment]');
+    if (delPayBtn) { e.preventDefault(); deletePayment(delPayBtn.dataset.deletePayment); }
+  });
+
+  // ---------------- Render: Finances ----------------
+  function renderFinances() {
+    const capSorted = [...capitalEntries].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    document.getElementById('capitalList').innerHTML = capSorted.length ? capSorted.map(c => `
+      <div class="mini-row"><span class="m1">${fmtDate(c.date)} — ${fmtGHS(c.amount)}</span><span class="m2">${escapeHtml(c.source||'')} <a href="#" data-del-capital="${escapeHtml(c._id)}" style="color:var(--danger); font-weight:600; margin-left:6px;">Delete</a></span></div>
+    `).join('') : `<div class="cell-sub">No capital entries yet.</div>`;
+
+    const expSorted = [...expenseEntries].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    document.getElementById('expenseList').innerHTML = expSorted.length ? expSorted.map(e => `
+      <div class="mini-row"><span class="m1">${fmtDate(e.date)} — ${fmtGHS(e.amount)}</span><span class="m2">${escapeHtml(e.category||'')} <a href="#" data-del-expense="${escapeHtml(e._id)}" style="color:var(--danger); font-weight:600; margin-left:6px;">Delete</a></span></div>
+    `).join('') : `<div class="cell-sub">No expenses logged yet.</div>`;
+
+    const paySorted = [...payments].sort((a,b) => (b.paymentDate||"").localeCompare(a.paymentDate||"")).slice(0, 25);
+    document.getElementById('paymentsEmpty').style.display = paySorted.length ? 'none' : 'block';
+    document.getElementById('paymentsTableBody').innerHTML = paySorted.map(p => `
+      <tr>
+        <td>${fmtDate(p.paymentDate)}</td>
+        <td class="mono">${escapeHtml(p.refNo)}</td>
+        <td>${escapeHtml(p.borrowerName)}</td>
+        <td class="mono">${fmtGHS(p.amountPaid)}</td>
+        <td>${escapeHtml(p.paymentMethod||'')}</td>
+        <td>${escapeHtml(p.receivedBy||'')}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ---------------- Render: Rate Card ----------------
+  function renderRateCard() {
+    const principals = [500,1000,1500,2000,2500,3000,3500,4000,4500,5000,6000,7000,8000,9000,10000];
+    const terms = Object.keys(RATE_CARD).map(Number).sort((a,b) => a-b); // [1,2,3,4]
+
+    document.getElementById('rateTableHead').innerHTML = '<th>Loan (GHS)</th>' + terms.map(t => {
+      const rate = RATE_CARD[t];
+      const label = t === 1 ? `${(rate*100).toFixed(0)}% total` : `${(rate/t*100).toFixed(1)}%/mo`;
+      return `<th>${t} Month${t>1?'s':''} (${label})</th>`;
+    }).join('');
+
+    document.getElementById('rateTableBody').innerHTML = principals.map(p => {
+      const cells = terms.map(t => {
+        const total = p * (1 + RATE_CARD[t]);
+        const installment = total / t;
+        return t === 1
+          ? `<td class="mono">${fmtGHS(total)}</td>`
+          : `<td class="mono">${fmtGHS(total)} <span class="cell-sub">(${fmtGHS(installment)}/mo)</span></td>`;
+      }).join('');
+      return `<tr><td class="mono cell-name">${fmtGHS(p)}</td>${cells}</tr>`;
+    }).join('');
+  }
+
+  // ---------------- Render: SMS ----------------
+  function renderSmsPicker() {
+    const picker = document.getElementById('smsLoanPicker');
+    const current = picker.value;
+    picker.innerHTML = '<option value="">— Fill placeholders from a loan —</option>' +
+      loans.map(l => `<option value="${escapeHtml(l.refNo)}">${escapeHtml(l.borrowerName)} — ${escapeHtml(l.refNo)}</option>`).join('');
+    picker.value = current;
+  }
+  function smsCategory(id) {
+    const n = id.charAt(0);
+    if (n === '0' || n === '1') return {cls:'cat-approval', label:'Approval / Disbursement'};
+    if (n === '2') return {cls:'cat-schedule', label:'Schedule'};
+    if (n === '3') return {cls:'cat-reminder', label:'Reminder'};
+    if (n === '4') return {cls:'cat-overdue', label:'Due / Overdue'};
+    if (n === '6') return {cls:'cat-escalation', label:'Guarantor / Extension'};
+    if (n === '5') return {cls:'cat-receipt', label:'Receipt / Clearance'};
+    return {cls:'', label:''};
+  }
+
+  function renderSms() {
+    const refNo = document.getElementById('smsLoanPicker').value;
+    const loan = loans.find(l => l.refNo === refNo);
+    const m = loan ? computeLoanMetrics(loan) : null;
+
+    document.getElementById('smsList').innerHTML = SMS_TEMPLATES.map(t => {
+      let text = t.text;
+      if (loan && m) {
+        text = text
+          .replaceAll("[Customer Name]", loan.borrowerName || "")
+          .replaceAll("[Amount]", m.monthlyInstallment ? m.monthlyInstallment.toFixed(2) : "")
+          .replaceAll("[Ref No.]", loan.refNo || "")
+          .replaceAll("[Due Date]", m.nextDueDate ? fmtDate(m.nextDueDate) : "")
+          .replaceAll("[Date]", m.nextDueDate ? fmtDate(m.nextDueDate) : "")
+          .replaceAll("[Balance]", m.remainingBalance.toFixed(2))
+          .replaceAll("[Term]", String(loan.loanTermMonths))
+          .replaceAll("[MoMo Number]", loan.borrowerPhone || "")
+          .replaceAll("[Guarantor Name]", loan.guarantorName || "")
+          .replaceAll("[Penalty Amount]", m.lateFee ? m.lateFee.toFixed(2) : "")
+          .replaceAll("[New Total Amount]", m.totalPayableWithPenalty ? m.totalPayableWithPenalty.toFixed(2) : "")
+          .replaceAll("[Month-End Date]", "")
+          .replaceAll("[Day]", m.nextDueDate ? new Date(m.nextDueDate+"T00:00:00").getDate() : "");
+      }
+      const cat = smsCategory(t.id);
+      return `
+        <div class="sms-card ${cat.cls}">
+          <div class="sms-title"><span><span class="sms-cat-tag">${cat.label}</span>${escapeHtml(t.title)}</span><span class="sms-id">${t.id}</span></div>
+          <div class="sms-text" id="sms-text-${t.id}">${escapeHtml(text)}</div>
+          <div class="sms-actions"><button class="btn ghost small" data-copy="${t.id}">Copy Message</button></div>
+        </div>`;
+    }).join('');
+  }
+  document.getElementById('smsLoanPicker').addEventListener('change', renderSms);
+  document.getElementById('smsList').addEventListener('click', e => {
+    const btn = e.target.closest('[data-copy]');
+    if (!btn) return;
+    const text = document.getElementById('sms-text-' + btn.dataset.copy).textContent;
+    navigator.clipboard.writeText(text).then(() => showToast("Message copied")).catch(() => showToast("Could not copy — select and copy manually"));
+  });
+
+  // ---------------- Modals: New Loan ----------------
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // Shared staff password gating all edit/delete actions. This is a light
+  // deterrent against accidental or casual changes, not real security --
+  // anyone who views the page source can find it. Ask Claude anytime to
+  // change this value to something else.
+  const STAFF_PASSWORD = "benansah2026";
+
+  // Custom in-app confirmation dialog. Replaces native confirm(), which some
+  // sandboxed embedding contexts silently block or ignore. Also requires the
+  // shared staff password before the action is allowed to proceed.
+  function showConfirm(message, onYes, opts) {
+    opts = opts || {};
+    document.getElementById('confirmTitle').textContent = opts.title || 'Please Confirm';
+    document.getElementById('confirmMessage').textContent = message;
+    const pwInput = document.getElementById('confirmPasswordInput');
+    const pwError = document.getElementById('confirmPasswordError');
+    pwInput.value = '';
+    pwError.style.display = 'none';
+    const yesBtn = document.getElementById('confirmYesBtn');
+    yesBtn.textContent = opts.yesLabel || 'Confirm';
+    yesBtn.className = 'btn' + (opts.danger ? ' red' : '');
+    // Replace the button node to clear any previously-attached one-time listener
+    const freshYesBtn = yesBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(freshYesBtn, yesBtn);
+    freshYesBtn.addEventListener('click', async () => {
+      if (pwInput.value !== STAFF_PASSWORD) {
+        pwError.style.display = 'block';
+        pwInput.focus();
+        return;
+      }
+      closeModal('modalConfirm');
+      await onYes();
+    });
+    pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); freshYesBtn.click(); } });
+    openModal('modalConfirm');
+    setTimeout(() => pwInput.focus(), 50);
+  }
+  document.getElementById('confirmNoBtn').addEventListener('click', () => closeModal('modalConfirm'));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
+    b.closest('.modal-backdrop').classList.remove('open');
+  }));
+  document.querySelectorAll('.modal-backdrop').forEach(bd => bd.addEventListener('click', e => {
+    if (e.target === bd) bd.classList.remove('open');
+  }));
+
+  let editingLoanRefNo = null;
+
+  document.getElementById('btnNewLoan').addEventListener('click', () => openLoanModal(null));
+
+  function openLoanModal(loan) {
+    const form = document.getElementById('formNewLoan');
+    form.reset();
+    const modalTitle = document.querySelector('#modalNewLoan h3');
+    const submitBtn = document.querySelector('#formNewLoan button[type=submit]');
+
+    if (loan) {
+      editingLoanRefNo = loan.refNo;
+      modalTitle.textContent = "Edit Loan — " + loan.refNo;
+      submitBtn.textContent = "Save Changes";
+      form.borrowerName.value = loan.borrowerName || "";
+      form.borrowerPhone.value = loan.borrowerPhone || "";
+      form.ghanaCardNo.value = loan.ghanaCardNo || "";
+      form.guarantorName.value = loan.guarantorName || "";
+      form.guarantorPhone.value = loan.guarantorPhone || "";
+      form.disbursementDate.value = loan.disbursementDate || todayISO();
+      form.loanTermMonths.value = String(loan.loanTermMonths || 1);
+      form.principal.value = loan.principal;
+      form.interestRatePct.value = (loan.interestRatePct * 100).toFixed(2);
+      form.purpose.value = loan.purpose || "";
+    } else {
+      editingLoanRefNo = null;
+      modalTitle.textContent = "New Loan";
+      submitBtn.textContent = "Save Loan";
+      form.disbursementDate.value = todayISO();
+      form.loanTermMonths.value = "1";
+      form.interestRatePct.value = (RATE_CARD[1]*100).toFixed(2);
+    }
+    updateCalcPreview();
+    openModal('modalNewLoan');
+  }
+
+  function updateCalcPreview() {
+    const form = document.getElementById('formNewLoan');
+    const principal = parseFloat(form.principal.value) || 0;
+    const rate = parseFloat(form.interestRatePct.value) || 0;
+    const term = parseInt(form.loanTermMonths.value) || 1;
+    const interestAmount = round2(principal * rate / 100);
+    const total = round2(principal + interestAmount);
+    const installment = round2(total / term);
+    const fee = round2(principal * 0.02);
+    const net = round2(principal - fee);
+    document.getElementById('calcPreview').innerHTML = principal > 0 ? `
+      Total Payable: <strong>${fmtGHS(total)}</strong> &nbsp;·&nbsp;
+      Installment: <strong>${fmtGHS(installment)}</strong>/mo &nbsp;·&nbsp;
+      Processing Fee (2%): <strong>${fmtGHS(fee)}</strong> &nbsp;·&nbsp;
+      Net Disbursed: <strong>${fmtGHS(net)}</strong>
+      <div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border); color:var(--danger);">
+        Late penalty if overdue: <strong>16% of the outstanding balance</strong>, plus a further <strong>16%</strong> for each additional month (or part) it remains unpaid.
+      </div>
+    ` : 'Enter a principal amount to see the calculated repayment.';
+  }
+  const formNewLoan = document.getElementById('formNewLoan');
+  formNewLoan.loanTermMonths.addEventListener('change', () => {
+    if (editingLoanRefNo) { updateCalcPreview(); return; } // don't clobber a custom rate while editing
+    const term = parseInt(formNewLoan.loanTermMonths.value);
+    formNewLoan.interestRatePct.value = (RATE_CARD[term]*100).toFixed(2);
+    updateCalcPreview();
+  });
+  formNewLoan.principal.addEventListener('input', updateCalcPreview);
+  formNewLoan.interestRatePct.addEventListener('input', updateCalcPreview);
+
+  formNewLoan.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!dbReady) { showToast("Not connected — cannot save right now"); return; }
+    const fd = new FormData(formNewLoan);
+    const refNo = editingLoanRefNo || nextRefNo();
+    const loan = {
+      refNo,
+      borrowerName: fd.get('borrowerName').trim(),
+      borrowerPhone: fd.get('borrowerPhone').trim(),
+      ghanaCardNo: fd.get('ghanaCardNo').trim(),
+      guarantorName: fd.get('guarantorName').trim(),
+      guarantorPhone: fd.get('guarantorPhone').trim(),
+      disbursementDate: fd.get('disbursementDate'),
+      loanTermMonths: parseInt(fd.get('loanTermMonths')),
+      principal: parseFloat(fd.get('principal')),
+      interestRatePct: parseFloat(fd.get('interestRatePct')) / 100,
+      purpose: fd.get('purpose').trim()
+    };
+    const wasEditing = !!editingLoanRefNo;
+    const doSave = async () => {
+      const btn = formNewLoan.querySelector('button[type=submit]');
+      btn.disabled = true;
+      try {
+        await db.collection("loans").doc(refNo).set(loan);
+        showToast(wasEditing ? "Loan " + refNo + " updated" : "Loan " + refNo + " saved"); logAudit(wasEditing?"Edit":"Create","Loans",refNo,(wasEditing?"Loan updated: ":"Loan created: ")+loan.borrowerName);
+        closeModal('modalNewLoan');
+        if (expandedLoanRef === refNo) renderLoanDetail();
+      } catch (err) {
+        showToast("Could not save — try again");
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    if (wasEditing) {
+      showConfirm(
+        `Save these changes to loan ${refNo} (${loan.borrowerName})?`,
+        doSave,
+        {title: "Confirm Changes", yesLabel: "Save Changes"}
+      );
+    } else {
+      doSave();
+    }
+  });
+
+  function deleteLoan(refNo) {
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    const relatedPayments = payments.filter(p => p.refNo === refNo);
+    showConfirm(
+      `Delete loan ${refNo} (${loan.borrowerName})? ` +
+      (relatedPayments.length ? `This will also delete ${relatedPayments.length} payment record(s) logged against it. ` : '') +
+      `This cannot be undone.`,
+      async () => {
+        try {
+          for (const p of relatedPayments) {
+            await db.collection("payments").doc(p._id).delete();
+          }
+          await db.collection("loans").doc(refNo).delete();
+          showToast("Loan " + refNo + " deleted"); logAudit("Delete","Loans",refNo,"Loan deleted with "+relatedPayments.length+" payment(s)");
+          if (expandedLoanRef === refNo) { expandedLoanRef = null; renderLoanDetail(); }
+        } catch (err) {
+          showToast("Could not delete — try again");
+        }
+      },
+      {title: "Delete Loan", yesLabel: "Delete Loan", danger: true}
+    );
+  }
+
+  // ---------------- Modals: Payment ----------------
+  let editingPaymentId = null;
+
+  function openPaymentModal(refNo, paymentId) {
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    const form = document.getElementById('formPayment');
+    form.reset();
+    form.refNo.value = refNo;
+    const modalTitle = document.querySelector('#modalPayment h3');
+    const submitBtn = document.querySelector('#formPayment button[type=submit]');
+
+    if (paymentId) {
+      const p = payments.find(x => x._id === paymentId);
+      editingPaymentId = paymentId;
+      modalTitle.textContent = "Edit Payment";
+      submitBtn.textContent = "Save Changes";
+      if (p) {
+        form.amountPaid.value = p.amountPaid;
+        form.paymentDate.value = p.paymentDate;
+        form.paymentMethod.value = p.paymentMethod || "MTN MoMo";
+        form.txnId.value = p.txnId || "";
+        form.senderName.value = p.senderName || "";
+        form.receivedBy.value = p.receivedBy || "";
+      }
+    } else {
+      editingPaymentId = null;
+      modalTitle.textContent = "Record Payment";
+      submitBtn.textContent = "Save Payment";
+      form.paymentDate.value = todayISO();
+    }
+    document.getElementById('paymentSub').textContent = loan.borrowerName + " — " + refNo;
+    openModal('modalPayment');
+  }
+  document.getElementById('formPayment').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!dbReady) { showToast("Not connected — cannot save right now"); return; }
+    const fd = new FormData(e.target);
+    const refNo = fd.get('refNo');
+    const loan = loans.find(l => l.refNo === refNo);
+    const payment = {
+      txnId: fd.get('txnId').trim() || ("manual-" + Date.now()),
+      refNo,
+      borrowerName: loan ? loan.borrowerName : "",
+      paymentDate: fd.get('paymentDate'),
+      amountPaid: parseFloat(fd.get('amountPaid')),
+      paymentMethod: fd.get('paymentMethod'),
+      senderName: fd.get('senderName').trim(),
+      receivedBy: fd.get('receivedBy').trim()
+    };
+    const wasEditing = !!editingPaymentId;
+    const doSave = async () => {
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      try {
+        if (wasEditing) {
+          await db.collection("payments").doc(editingPaymentId).set(payment);
+          showToast("Payment updated"); logAudit("Edit","Payments",editingPaymentId,"Payment updated for "+payment.refNo);
+        } else {
+          await db.collection("payments").add(payment);
+          showToast("Payment recorded"); logAudit("Create","Payments",payment.txnId,"Payment recorded for "+payment.refNo);
+        }
+        closeModal('modalPayment');
+      } catch (err) {
+        showToast("Could not save — try again");
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    if (wasEditing) {
+      showConfirm(
+        `Save these changes to the ${fmtGHS(payment.amountPaid)} payment for ${payment.borrowerName}?`,
+        doSave,
+        {title: "Confirm Changes", yesLabel: "Save Changes"}
+      );
+    } else {
+      doSave();
+    }
+  });
+
+  function deletePayment(paymentId) {
+    const p = payments.find(x => x._id === paymentId);
+    if (!p) return;
+    showConfirm(
+      `Delete this payment of ${fmtGHS(p.amountPaid)} for ${p.borrowerName} (${p.refNo})? This cannot be undone.`,
+      async () => {
+        try {
+          await db.collection("payments").doc(paymentId).delete();
+          showToast("Payment deleted"); logAudit("Delete","Payments",paymentId,"Payment deleted for "+p.refNo);
+        } catch (err) {
+          showToast("Could not delete — try again");
+        }
+      },
+      {title: "Delete Payment", yesLabel: "Delete Payment", danger: true}
+    );
+  }
+
+  // ---------------- Modals: Capital / Expense ----------------
+  document.getElementById('capitalList').addEventListener('click', e => {
+    const btn = e.target.closest('[data-del-capital]');
+    if (!btn) return;
+    e.preventDefault();
+    showConfirm("Delete this capital entry? This cannot be undone.", async () => {
+      try { await db.collection("capital").doc(btn.dataset.delCapital).delete(); showToast("Capital entry deleted"); }
+      catch (err) { showToast("Could not delete — try again"); }
+    }, {title: "Delete Capital Entry", yesLabel: "Delete", danger: true});
+  });
+  document.getElementById('expenseList').addEventListener('click', e => {
+    const btn = e.target.closest('[data-del-expense]');
+    if (!btn) return;
+    e.preventDefault();
+    showConfirm("Delete this expense entry? This cannot be undone.", async () => {
+      try { await db.collection("expenses").doc(btn.dataset.delExpense).delete(); showToast("Expense deleted"); }
+      catch (err) { showToast("Could not delete — try again"); }
+    }, {title: "Delete Expense Entry", yesLabel: "Delete", danger: true});
+  });
+
+  document.getElementById('btnResetAll').addEventListener('click', () => {
+    showConfirm(
+      "Enter the staff password to reset the database. This action cannot be undone.",
+      async () => resetToFreshStart(),
+      {title: "Password Required", yesLabel: "Continue", danger: true}
+    );
+  });
+
+  document.getElementById('btnAddCapital').addEventListener('click', () => {
+    const form = document.getElementById('formCapital');
+    form.reset(); form.date.value = todayISO();
+    openModal('modalCapital');
+  });
+  document.getElementById('formCapital').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!dbReady) { showToast("Not connected — cannot save right now"); return; }
+    const fd = new FormData(e.target);
+    const entry = {date: fd.get('date'), amount: parseFloat(fd.get('amount')), source: fd.get('source').trim(), notes: fd.get('notes').trim()};
+    try {
+      await db.collection("capital").add(entry);
+      showToast("Capital entry saved");
+      closeModal('modalCapital');
+    } catch (err) { showToast("Could not save — try again"); }
+  });
+
+  document.getElementById('btnAddExpense').addEventListener('click', () => {
+    const form = document.getElementById('formExpense');
+    form.reset(); form.date.value = todayISO();
+    openModal('modalExpense');
+  });
+  document.getElementById('formExpense').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!dbReady) { showToast("Not connected — cannot save right now"); return; }
+    const fd = new FormData(e.target);
+    const entry = {
+      date: fd.get('date'), amount: parseFloat(fd.get('amount')), category: fd.get('category'),
+      description: fd.get('description').trim(), paidVia: fd.get('paidVia').trim(), authorizedBy: fd.get('authorizedBy').trim()
+    };
+    try {
+      await db.collection("expenses").add(entry);
+      showToast("Expense saved");
+      closeModal('modalExpense');
+    } catch (err) { showToast("Could not save — try again"); }
+  });
+
+
+  // ---------------- Professional modules ----------------
+  let loanSort={key:'refNo',dir:1};
+  let auditTrail=[];
+  function customerId(name){const key=(name||'').trim().toUpperCase();let n=0;for(const l of loans){if((l.borrowerName||'').trim().toUpperCase()===key)n++;}return 'CUS-'+String(Math.abs(hashCode(key))).slice(-5).padStart(5,'0');}
+  function hashCode(str){let h=0;for(let i=0;i<str.length;i++)h=((h<<5)-h)+str.charCodeAt(i)|0;return h;}
+  function logAudit(action,module,record,details,staff){const entry={dateTime:new Date().toISOString(),staff:staff||'System / Staff',action,module,record,details};auditTrail.unshift(entry);auditTrail=auditTrail.slice(0,500);try{localStorage.setItem('benansah_audit',JSON.stringify(auditTrail));}catch(e){}}
+  function loadAudit(){try{auditTrail=JSON.parse(localStorage.getItem('benansah_audit')||'[]');}catch(e){auditTrail=[];}}
+  function renderCustomers(){const q=(document.getElementById('customerSearch').value||'').toLowerCase();const map={};loans.forEach(l=>{const id=customerId(l.borrowerName);map[id]=map[id]||{id,name:l.borrowerName,phone:l.borrowerPhone,loans:0,borrowed:0,paid:0,out:0};const m=computeLoanMetrics(l);map[id].loans++;map[id].borrowed+=Number(l.principal||0);map[id].paid+=m.amountPaid;map[id].out+=m.totalPayableWithPenalty;});let rows=Object.values(map).filter(c=>[c.id,c.name,c.phone].join(' ').toLowerCase().includes(q));document.getElementById('customersEmpty').style.display=rows.length?'none':'block';document.getElementById('customersTableBody').innerHTML=rows.map(c=>`<tr class="customer-card"><td class="mono">${escapeHtml(c.id)}</td><td class="cell-name">${escapeHtml(c.name)}</td><td>${escapeHtml(c.phone||'—')}</td><td>${c.loans}</td><td>${fmtGHS(c.borrowed)}</td><td>${fmtGHS(c.paid)}</td><td>${fmtGHS(c.out)}</td><td>${c.out<=0?statusBadge('Fully Paid'):'Active'}</td></tr>`).join('');}
+  function daysDiff(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/86400000);}
+  function renderCollections(){const today=todayISO();let dueSoon=0,dueToday=0,overdue=0;const rows=[];loans.forEach(l=>{const m=computeLoanMetrics(l);if(!m.nextDueDate||m.remainingBalance<=0)return;const d=daysDiff(m.nextDueDate,today);if(d<0)overdue++;else if(d===0)dueToday++;else if(d<=7)dueSoon++;if(d<=7)rows.push({l,m,d});});document.getElementById('collectionCards').innerHTML=[['Due Today',dueToday,'var(--warn)'],['Due in 1–7 Days',dueSoon,'var(--navy)'],['Overdue',overdue,'var(--danger)']].map(x=>`<div class="module-card"><h3>${x[0]}</h3><div class="big" style="color:${x[2]}">${x[1]}</div></div>`).join('');document.getElementById('collectionsTableBody').innerHTML=rows.sort((a,b)=>a.d-b.d).map(x=>`<tr><td>${escapeHtml(x.l.refNo)}</td><td>${escapeHtml(x.l.borrowerName)}</td><td>${fmtDate(x.m.nextDueDate)}</td><td>${fmtGHS(x.m.monthlyInstallment)}</td><td class="${x.d<0?'due-soon':''}">${x.d<0?Math.abs(x.d)+' days overdue':x.d===0?'Today':x.d+' days'}</td><td>${x.d<0?statusBadge('Overdue'):statusBadge('Pending Payment')}</td><td><button class="btn small" data-pay-row="${escapeHtml(x.l.refNo)}">Pay</button></td></tr>`).join('');}
+  function csvEscape(v){return '"'+String(v??'').replace(/"/g,'""')+'"';}
+  function downloadCSV(name,headers,rows){const csv=[headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href);}
+  function exportData(type){if(type==='customers'){const map={};loans.forEach(l=>{const id=customerId(l.borrowerName);map[id]=map[id]||{id,name:l.borrowerName,phone:l.borrowerPhone,borrowed:0,paid:0,out:0};const m=computeLoanMetrics(l);map[id].borrowed+=Number(l.principal||0);map[id].paid+=m.amountPaid;map[id].out+=m.totalPayableWithPenalty;});downloadCSV('customers.csv',['Customer ID','Name','Phone','Total Borrowed','Total Paid','Outstanding'],Object.values(map).map(c=>[c.id,c.name,c.phone,c.borrowed.toFixed(2),c.paid.toFixed(2),c.out.toFixed(2)]));logAudit('Export','Customers','customers.csv','Customer data exported');}else if(type==='loans'||type==='overdue'){let arr=loans.map(l=>({l,m:computeLoanMetrics(l)}));if(type==='overdue')arr=arr.filter(x=>x.m.status==='Overdue');downloadCSV(type+'.csv',['Ref No','Borrower','Phone','Principal','Interest','Paid','Balance','Next Due','Status'],arr.map(x=>[x.l.refNo,x.l.borrowerName,x.l.borrowerPhone,x.l.principal,x.m.interestAmount,x.m.amountPaid,x.m.totalPayableWithPenalty,x.m.nextDueDate||'',x.m.status]));logAudit('Export','Loans',type+'.csv','Loan data exported');}else if(type==='payments'){downloadCSV('payments.csv',['Payment ID','Ref No','Borrower','Date','Amount','Method','Transaction ID','Received By'],payments.map(p=>[p._id,p.refNo,p.borrowerName,p.paymentDate,p.amountPaid,p.paymentMethod,p.txnId,p.receivedBy]));logAudit('Export','Payments','payments.csv','Payment data exported');}else if(type==='audit'){downloadCSV('audit-trail.csv',['Date/Time','Staff','Action','Module','Record','Details'],auditTrail.map(a=>[a.dateTime,a.staff,a.action,a.module,a.record,a.details]));}else if(type==='backup'){const data={exportedAt:new Date().toISOString(),loans,payments,capitalEntries,expenseEntries,auditTrail};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='benansah-full-backup.json';a.click();logAudit('Export','Backup','full-backup','Full backup exported');}}
+  function renderReports(){const metrics=loans.map(computeLoanMetrics);document.getElementById('reportActive').textContent=loans.length;document.getElementById('reportOutstanding').textContent=fmtGHS(metrics.reduce((s,m)=>s+m.totalPayableWithPenalty,0));document.getElementById('reportCollected').textContent=fmtGHS(metrics.reduce((s,m)=>s+m.amountPaid,0));document.getElementById('auditTableBody').innerHTML=auditTrail.slice(0,100).map(a=>`<tr><td>${escapeHtml(a.dateTime)}</td><td>${escapeHtml(a.staff)}</td><td>${escapeHtml(a.action)}</td><td>${escapeHtml(a.module)}</td><td>${escapeHtml(a.record)}</td><td>${escapeHtml(a.details)}</td></tr>`).join('');}
+  document.getElementById('customerSearch').addEventListener('input',renderCustomers);
+  document.querySelectorAll('[data-export]').forEach(b=>b.addEventListener('click',()=>exportData(b.dataset.export)));
+  document.getElementById('view-loans').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(!b)return;const k=b.dataset.sort;if(loanSort.key===k)loanSort.dir*=-1;else{loanSort.key=k;loanSort.dir=1;}renderLoans();});
+  loadAudit();
+  const originalRenderLoans=renderLoans;
+  renderLoans=function(){originalRenderLoans();const tbody=document.getElementById('loansTableBody');const search=(document.getElementById('loanSearch').value||'').toLowerCase();const sf=document.getElementById('loanStatusFilter').value;let rows=loans.map(l=>({loan:l,m:computeLoanMetrics(l)})).filter(r=>(!search||[r.loan.borrowerName,r.loan.borrowerPhone,r.loan.refNo].join(' ').toLowerCase().includes(search))&&(!sf||r.m.status===sf));rows.sort((a,b)=>{let av=loanSort.key==='refNo'?a.loan.refNo:loanSort.key==='borrowerName'?a.loan.borrowerName:loanSort.key==='principal'?a.loan.principal:loanSort.key==='amountPaid'?a.m.amountPaid:loanSort.key==='remainingBalance'?a.m.remainingBalance:a.m.nextDueDate||'9999-12-31';let bv=loanSort.key==='refNo'?b.loan.refNo:loanSort.key==='borrowerName'?b.loan.borrowerName:loanSort.key==='principal'?b.loan.principal:loanSort.key==='amountPaid'?b.m.amountPaid:loanSort.key==='remainingBalance'?b.m.remainingBalance:b.m.nextDueDate||'9999-12-31';return (typeof av==='number'&&typeof bv==='number'?(av-bv):String(av).localeCompare(String(bv)))*loanSort.dir;});tbody.innerHTML=rows.map(({loan:l,m})=>`<tr class="clickable-row ${statusRowClass(m.status)}" data-view="${escapeHtml(l.refNo)}"><td class="mono">${escapeHtml(l.refNo)}</td><td><div class="cell-name">${escapeHtml(l.borrowerName)}</div><div class="cell-sub">${escapeHtml(l.borrowerPhone||'—')}</div></td><td>${fmtGHS(l.principal)}</td><td>${l.loanTermMonths} mo</td><td>${fmtGHS(m.amountPaid)}</td><td>${fmtGHS(m.remainingBalance)}</td><td>${m.nextDueDate?fmtDate(m.nextDueDate):'—'}</td><td>${statusBadge(m.status)}</td><td><button class="btn ghost small" data-pay-row="${escapeHtml(l.refNo)}">Pay</button></td></tr>`).join('');renderLoanDetail();};
+  // ---------------- Master render ----------------
+  function render() {
+    renderDashboard();
+    renderLoans();
+    renderCustomers();
+    renderCollections();
+    renderReports();
+    renderFinances();
+    renderRateCard();
+    renderSmsPicker();
+    renderSms();
+  }
+
+  render();
+  initDb();
+})();
+</script>
+
+<script id="login-security-script">
+(function(){
+  const LOGIN_PASSWORD = "benansah2026";
+  const gate = document.getElementById("loginGate");
+  const user = document.getElementById("loginUser");
+  const pw = document.getElementById("loginPassword");
+  const btn = document.getElementById("loginBtn");
+  const err = document.getElementById("loginError");
+
+  function doLogin(){
+    if ((pw.value || "") !== LOGIN_PASSWORD) {
+      err.style.display = "block";
+      pw.value = "";
+      pw.focus();
+      return;
+    }
+    sessionStorage.setItem("benansah_logged_in", "1");
+    sessionStorage.setItem("benansah_staff_name", (user.value || "Staff").trim() || "Staff");
+    gate.classList.add("hidden");
+    document.body.classList.remove("login-locked");
+  }
+
+  if (sessionStorage.getItem("benansah_logged_in") === "1") {
+    gate.classList.add("hidden");
+  }
+
+  btn.addEventListener("click", doLogin);
+  pw.addEventListener("keydown", e => { if(e.key === "Enter") doLogin(); });
+  user.addEventListener("keydown", e => { if(e.key === "Enter") pw.focus(); });
+
+  window.benansahLogout = function(){
+    sessionStorage.removeItem("benansah_logged_in");
+    sessionStorage.removeItem("benansah_staff_name");
+    gate.classList.remove("hidden");
+    pw.value = "";
+    pw.focus();
+  };
+})();
+</script>
+
+</body>
+</html>
