@@ -1,0 +1,4 @@
+# Benansah Loan Manager — Netlify settings
+[build]
+  publish = "."
+  functions = "netlify/functions"
