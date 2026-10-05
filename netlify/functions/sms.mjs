@@ -1,13 +1,22 @@
 // Benansah Loan Manager — sends SMS through G Online.
 // The G Online API key lives in Netlify's environment variables, never in the website.
-// Required environment variables (Netlify → Project configuration → Environment variables):
+// Required environment variables (Netlify → Site configuration → Environment variables):
 //   GONLINE_API_KEY    your G Online API key
 //   GONLINE_SENDER_ID  your approved sender ID, e.g. BENANSAH
 //   FIREBASE_API_KEY   the apiKey from your Firebase config (used to check who is signed in)
-//   ALLOWED_EMAILS     staff emails allowed to send, separated by commas
+//   ALLOWED_EMAILS     the owner's email (staff are added in the app: Finances → Staff Access)
 
 const GONLINE = "https://sms.gonlinesites.com/app/sms/api";
 const GONLINE_HTTP = "http://sms.gonlinesites.com/app/sms/api";
+
+// Staff added on the app's Finances tab live in the "staff" collection (one record per email).
+const FS = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID || "benansah-fs"}/databases/(default)/documents`;
+async function isStaff(email, token) {
+  try {
+    const r = await fetch(`${FS}/staff/${encodeURIComponent(email)}`, { headers: { authorization: "Bearer " + token } });
+    return r.ok;
+  } catch (e) { return false; }
+}
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
@@ -46,19 +55,23 @@ export default async (req) => {
     return json({ ok: false, error: "SMS sending is not set up yet — add the settings on Netlify (Environment variables)." }, 500);
   }
 
-  // Only signed-in staff on the allowed list may send.
+  // Only the owner (ALLOWED_EMAILS) or staff added in the app (Staff Access) may send.
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return json({ ok: false, error: "Not signed in." }, 401);
-  let email = "";
+  let email = "", verified = false;
   try {
     const look = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(FB_KEY)}`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idToken: token })
     });
     const lj = await look.json().catch(() => ({}));
-    email = (look.ok && lj.users && lj.users[0] && lj.users[0].email || "").toLowerCase();
+    const u = look.ok && lj.users && lj.users[0];
+    email = (u && u.email || "").toLowerCase();
+    verified = !!(u && u.emailVerified);
   } catch (e) { /* handled below */ }
   if (!email) return json({ ok: false, error: "Your sign-in has expired — sign out and sign in again." }, 401);
-  if (!ALLOWED.includes(email)) return json({ ok: false, error: `${email} is not allowed to send SMS.` }, 403);
+  if (!ALLOWED.includes(email) && !(verified && await isStaff(email, token))) {
+    return json({ ok: false, error: `${email} is not allowed to send SMS.` }, 403);
+  }
 
   let body;
   try { body = await req.json(); } catch { return json({ ok: false, error: "Bad request." }, 400); }

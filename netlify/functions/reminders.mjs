@@ -449,10 +449,16 @@ async function callerEmail(req) {
     method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({idToken: token})
   }).catch(() => null);
   const lj = look ? await look.json().catch(() => ({})) : {};
-  const email = (look && look.ok && lj.users && lj.users[0] && lj.users[0].email || "").toLowerCase();
+  const u = look && look.ok && lj.users && lj.users[0];
+  const email = (u && u.email || "").toLowerCase();
   if (!email) return {error: "Your sign-in has expired — sign out and sign in again.", status: 401};
   const allowed = (process.env.ALLOWED_EMAILS || "").toLowerCase().split(/[\s,;]+/).filter(Boolean);
-  if (!allowed.includes(email)) return {error: `${email} is not allowed to send SMS.`, status: 403};
+  let ok = allowed.includes(email);
+  if (!ok && u.emailVerified) {   // staff added in the app (Finances → Staff Access)
+    const r = await fetch(`${FS}/staff/${encodeURIComponent(email)}`, {headers: {authorization: "Bearer " + token}}).catch(() => null);
+    ok = !!(r && r.ok);
+  }
+  if (!ok) return {error: `${email} is not allowed to send SMS.`, status: 403};
   return {email, token};
 }
 
