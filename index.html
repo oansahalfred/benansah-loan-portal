@@ -689,6 +689,7 @@
   .sms-meta { font-size: 11px; color: var(--text-faint); }
   a.btn.sms-open { text-decoration: none; }
   .sms-balance { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 600; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 10px; }
+  .sms-balance.low { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
   .sms-meta.warn { color: var(--warn); font-weight: 700; }
   .sms-flag { font-size: 11px; font-weight: 700; color: var(--danger); background: var(--danger-bg); padding: 2px 8px; border-radius: 10px; }
   .swap-card { margin-bottom: 12px; min-width: 0; }
@@ -699,6 +700,7 @@
   .staff-row .s-main { min-width: 0; overflow-wrap: anywhere; }
   .staff-row .s-tag { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--neutral-bg); color: var(--navy-text); white-space: nowrap; }
   .staff-add { display: flex; gap: 8px; flex-wrap: wrap; }
+  .bin-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
   .staff-add .search-input { flex: 1 1 180px; min-width: 0; }
   .auto-pill { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px; margin-left: 6px; vertical-align: 1px; background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
   .auto-pill.on { background: var(--good-bg); color: var(--good); border-color: transparent; }
@@ -964,6 +966,12 @@
       <button class="btn small" id="btnChangePw" data-icon="edit">Change Staff Password</button>
     </div>
 
+    <div class="section-head"><h2>Recycle Bin</h2><span class="hint">Deleted loans, payments, capital and expenses</span></div>
+    <div class="subcard">
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Anything deleted comes here first and no longer counts in the totals. <span id="binRoleNote"></span></p>
+      <div id="binList" class="staff-list"></div>
+    </div>
+
     <div class="section-head"><h2 style="color:var(--danger);">Danger Zone</h2></div>
     <div class="subcard" style="border-color:var(--danger);">
       <h4 style="color:var(--danger);">Start Fresh</h4>
@@ -1110,6 +1118,7 @@
         <div class="field"><label>Receipt / Txn ID</label><input name="txnId" placeholder="e.g. MoMo reference"></div>
         <div class="field"><label>Sender's Name</label><input name="senderName"></div>
         <div class="field"><label>Received By</label><input name="receivedBy" placeholder="Staff name"></div>
+        <label class="field span2 auto-check tick" id="receiptRow" style="display:none;"><input type="checkbox" name="sendReceipt" checked> <span><strong>Text the customer a receipt</strong> <span class="cell-sub" id="receiptHint"></span></span></label>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" data-close>Cancel</button>
@@ -1987,6 +1996,7 @@
     subscribeCollection("expenses", docs => { expenseEntries = docs; });
     subscribeCollection("auditLog", docs => { auditDocs = docs; auditLog = flattenAudit(docs); });
     if (storageMode === "firebase") subscribeCollection("staff", docs => { staffDocs = docs; });
+    subscribeCollection("trash", docs => { binDocs = docs; });
     subscribeCollection("settings", docs => {
       settingsDocs = docs;
       const sms = docs.find(d => d._id === "sms");
@@ -2089,6 +2099,7 @@
   // capital and expense records, then records the two fresh capital
   // injections. The activity log is kept and the reset itself is logged.
   function resetToFreshStart() {
+    if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can clear all data"); return; }
     showConfirm(
       "This will permanently delete every loan, payment, capital entry, and expense currently recorded, and replace them with two fresh capital injections (GHS 8,813 Bank Loan + GHS 6,500 Invested by Mother, dated 10 Dec 2026). The activity log is kept. This cannot be undone.",
       async (staffName) => {
@@ -2174,6 +2185,15 @@
     const totalRemaining = metrics.reduce((s,m) => s + m.totalPayableWithPenalty, 0);
 
     const activeCount = metrics.filter(m => m.status !== "Fully Paid").length;
+    // Principal still out with customers: each repayment is split between
+    // principal and interest in the loan's own proportion.
+    const principalOut = metrics.map(m => m.totalRepayment > 0
+      ? round2(Math.max(0, m.principal * (1 - Math.min(m.amountPaid, m.totalRepayment) / m.totalRepayment))) : 0);
+    const totalPrincipalOut = round2(principalOut.reduce((s, x) => s + x, 0));
+    const parAt = days => round2(metrics.reduce((s, m, i) => s + (m.isOverdue && m.remainingBalance > 0.005 && m.daysOverdue > days ? principalOut[i] : 0), 0));
+    const par30 = parAt(30), par1 = parAt(0);
+    const parPct = v => totalPrincipalOut > 0 ? (v / totalPrincipalOut * 100) : 0;
+    const par30Pct = parPct(par30);
     const borrowerCount = new Set(book.map(l => normName(l.borrowerName)).filter(Boolean)).size;
     const kpis = [
       {label:"Total Loans", value: book.length, sub: `${activeCount} active · ${book.length - activeCount} fully paid · ${borrowerCount} borrower${borrowerCount===1?"":"s"}${pendingLoans.length ? ` · ${pendingLoans.length} pending application${pendingLoans.length===1?"":"s"}` : ""}`, accent:"navy"},
@@ -2183,7 +2203,11 @@
       {label:"Total Collected", value: fmtGHS(totalCollected), cls:"pos", accent:"green"},
       {label:"Outstanding (incl. late charges)", value: fmtGHS(totalRemaining), cls: totalRemaining>0?"neg":"", accent:"red"},
       {label:"Late Charges Added", value: fmtGHS(totalLateFees), sub: `${fmtGHS(metrics.reduce((s,m) => s + m.lateFeeOutstanding, 0))} still unpaid`, accent:"amber"},
-      {label:"Collection Rate", value: totalExpectedRepayment>0 ? Math.round(totalCollected/totalExpectedRepayment*100)+"%" : "—", accent:"blue"}
+      {label:"Collection Rate", value: totalExpectedRepayment>0 ? Math.round(totalCollected/totalExpectedRepayment*100)+"%" : "—", accent:"blue"},
+      {label:"Portfolio at Risk (PAR 30)", value: totalPrincipalOut > 0 ? par30Pct.toFixed(1) + "%" : "—",
+        cls: par30Pct > 10 ? "neg" : (par30Pct > 5 ? "" : "pos"),
+        sub: `${fmtGHS(par30)} of ${fmtGHS(totalPrincipalOut)} principal is 30+ days late · any lateness: ${parPct(par1).toFixed(1)}% · healthy is under 5%`,
+        accent: par30Pct > 10 ? "red" : (par30Pct > 5 ? "amber" : "green")}
     ];
     document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
       <div class="kpi-card accent-${k.accent}">
@@ -2207,7 +2231,7 @@
     const expensesTotal = expenseEntries.reduce((s,e) => s + Number(e.amount||0), 0);
     const totalNetDisbursed = metrics.reduce((s,m) => s + m.netDisbursed, 0);
     const availableCash = round2(capitalInjected - totalNetDisbursed + totalCollected - expensesTotal);
-    const netOutstandingPrincipal = round2(totalPrincipal - totalCollected);
+    const netOutstandingPrincipal = totalPrincipalOut;
     const grossRevenue = round2(totalInterest + totalLateFees);
     const netProfit = round2(grossRevenue - expensesTotal);
     const pendingNeed = round2(pendingLoans.reduce((s, l) => s + computeLoanMetrics(l).netDisbursed, 0));
@@ -2215,7 +2239,7 @@
     const totalProcessingFees = metrics.reduce((s,m) => s + m.processingFee, 0);
     const kpis2 = [
       {label:"Capital Injected", value: fmtGHS(capitalInjected), accent:"blue"},
-      {label:"Net Outstanding Principal", value: fmtGHS(netOutstandingPrincipal), accent:"navy"},
+      {label:"Principal Still With Customers", value: fmtGHS(netOutstandingPrincipal), sub: "Loan amounts not yet repaid (interest excluded)", accent:"navy"},
       {label:"Available Cash for New Loans", value: fmtGHS(availableCash), cls: availableCash<0?"neg":"pos",
         sub: pendingLoans.length
           ? `Pending applications need ${fmtGHS(pendingNeed)} — ${fmtGHS(round2(availableCash - pendingNeed))} left after`
@@ -3051,6 +3075,7 @@
       btn.disabled = false; btn.textContent = 'Try Again';
     }
   });
+  const LOW_SMS_CREDIT = 100;
   async function refreshSmsBalance() {
     const box = document.getElementById('smsBalance');
     if (storageMode !== 'firebase' || !fbAuth || !fbAuth.currentUser) { box.style.display = 'none'; return; }
@@ -3064,7 +3089,10 @@
         const v = b.balance ?? b.data?.balance ?? b.credit ?? b.sms_balance ?? b.message ?? (b.data && (b.data.credit || b.data.units));
         txt = v !== undefined && v !== null ? String(v) : JSON.stringify(b).slice(0, 80);
       } else txt = String(b || '').slice(0, 80);
-      box.querySelector('span').textContent = out.ok ? 'G Online balance: ' + txt : 'G Online: ' + (out.error || 'not available');
+      const num = parseFloat(String(txt).replace(/[^0-9.]/g, ''));
+      const low = out.ok && !isNaN(num) && num < LOW_SMS_CREDIT;
+      box.querySelector('span').textContent = out.ok ? 'G Online balance: ' + txt + (low ? ' — running low, top up soon' : '') : 'G Online: ' + (out.error || 'not available');
+      box.classList.toggle('low', !!low);
     } catch (e) { box.querySelector('span').textContent = 'G Online balance: not available'; }
   }
 
@@ -3125,6 +3153,62 @@
         showToast(`${rec.name || email} removed`);
       } catch (err) { showToast("Could not remove — try again"); }
     }, {title: "Remove Staff", yesLabel: "Remove", danger: true});
+  });
+
+  // ---- Recycle Bin ----
+  // Deleting moves the record(s) into "trash"; only the owner can restore or
+  // delete permanently (the database rules enforce this too).
+  let binDocs = [];
+  function canManageBin() { return storageMode !== 'firebase' || isOwnerUser(); }
+  async function moveToBin(entry, staffName) {
+    const tid = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    await db.collection("trash").doc(tid).set({...entry, deletedBy: staffName || "", deletedAt: new Date().toISOString()});
+    for (const it of entry.items) await db.collection(it.col).doc(it.id).delete();
+  }
+  function renderBin() {
+    const list = document.getElementById('binList');
+    if (!list) return;
+    const manage = canManageBin();
+    document.getElementById('binRoleNote').textContent = manage
+      ? 'You can restore an item or delete it permanently.'
+      : 'Only the owner can restore or permanently delete.';
+    const rows = [...binDocs].sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+    list.innerHTML = rows.length ? rows.map(t => `<div class="staff-row">
+        <div class="s-main"><span class="s-tag">${escapeHtml(t.kind || 'Item')}</span> <strong>${escapeHtml(t.title || '')}</strong>
+          <div class="cell-sub">${escapeHtml(t.summary || '')}</div>
+          <div class="cell-sub">Deleted ${escapeHtml(fmtStamp(t.deletedAt))}${t.deletedBy ? ' by ' + escapeHtml(t.deletedBy) : ''}</div></div>
+        ${manage ? `<div class="bin-actions"><button type="button" class="btn ghost small" data-bin-restore="${escapeHtml(t._id)}">Restore</button>
+          <button type="button" class="btn ghost small danger" data-bin-purge="${escapeHtml(t._id)}">Delete Forever</button></div>` : ''}
+      </div>`).join('') : '<div class="cell-sub">The Recycle Bin is empty.</div>';
+  }
+  document.getElementById('binList').addEventListener('click', e => {
+    const r = e.target.closest('[data-bin-restore]'), x = e.target.closest('[data-bin-purge]');
+    if (!r && !x) return;
+    const t = binDocs.find(d => d._id === (r ? r.dataset.binRestore : x.dataset.binPurge));
+    if (!t || !canManageBin()) return;
+    if (r) {
+      const clash = (t.items || []).find(it => (it.col === 'loans' && loans.some(l => l.refNo === it.id)) ||
+        (it.col === 'payments' && payments.some(p => p._id === it.id)) ||
+        (it.col === 'capital' && capitalEntries.some(c => c._id === it.id)) ||
+        (it.col === 'expenses' && expenseEntries.some(c => c._id === it.id)));
+      if (clash) { showToast(clash.col === 'loans' ? `A loan ${clash.id} already exists — cannot restore` : 'This record already exists'); return; }
+      showConfirm(`Restore ${t.kind ? t.kind.toLowerCase() : 'item'} "${t.title}"? It will count in the totals again.`, async who => {
+        try {
+          for (const it of t.items || []) await db.collection(it.col).doc(it.id).set(it.data || {});
+          await db.collection("trash").doc(t._id).delete();
+          logActivity("Restored from Recycle Bin", `${t.kind}: ${t.title}`, who);
+          showToast("Restored");
+        } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can restore" : "Could not restore — try again"); }
+      }, {title: "Restore", yesLabel: "Restore"});
+    } else {
+      showConfirm(`Permanently delete ${t.kind ? t.kind.toLowerCase() : 'item'} "${t.title}"? This cannot be undone.`, async who => {
+        try {
+          await db.collection("trash").doc(t._id).delete();
+          logActivity("Permanently Deleted", `${t.kind}: ${t.title} (${t.summary || ''})`, who);
+          showToast("Deleted permanently");
+        } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can delete permanently" : "Could not delete — try again"); }
+      }, {title: "Delete Forever", yesLabel: "Delete Forever", danger: true});
+    }
   });
 
   // ---- Automatic reminders (runs on Netlify every day at 8:00 AM) ----
@@ -4152,19 +4236,19 @@
       `Delete ${refNo} (${loan.borrowerName})? ` +
       (relatedPayments.length ? `This will also delete ${relatedPayments.length} payment record(s) logged against it. ` : '') +
       (settlementPayments.length ? `The top-up settlement on ${settlementPayments[0].refNo} will be removed too, so that loan's balance comes back. ` : '') +
-      `This cannot be undone.`,
+      `It goes to the Recycle Bin (Finances tab), where the owner can restore it.`,
       async (staffName) => {
         try {
-          for (const p of relatedPayments.concat(settlementPayments)) {
-            await db.collection("payments").doc(p._id).delete();
-          }
-          await db.collection("loans").doc(refNo).delete();
+          const paid = relatedPayments.concat(settlementPayments);
+          await moveToBin({kind: "Loan", title: `${refNo} — ${loan.borrowerName}`,
+            summary: `${fmtGHS(loan.principal)} · ${loanStage(loan)}${paid.length ? ` · with ${paid.length} payment record(s)` : ''}`,
+            items: [{col: "loans", id: refNo, data: stripId(loan)}].concat(paid.map(p => ({col: "payments", id: p._id, data: stripId(p)})))}, staffName);
           logActivity("Loan Deleted",
             `${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)}, ${loanStage(loan)})` +
             (relatedPayments.length ? ` together with ${relatedPayments.length} payment record(s) totalling ${fmtGHS(relatedPayments.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0))}` : "") +
             (settlementPayments.length ? `; top-up settlement on ${settlementPayments[0].refNo} reversed` : ""),
             staffName);
-          showToast("Loan " + refNo + " deleted");
+          showToast("Loan " + refNo + " moved to the Recycle Bin");
           if (expandedLoanRef === refNo) { expandedLoanRef = null; renderLoanDetail(); }
         } catch (err) {
           showToast("Could not delete — try again");
@@ -4228,6 +4312,10 @@
       }
       quick.innerHTML = chips.join('');
     }
+    const canReceipt = !paymentId && storageMode === 'firebase' && (loan.borrowerPhone || '').replace(/\D/g, '').length >= 9;
+    document.getElementById('receiptRow').style.display = canReceipt ? '' : 'none';
+    form.sendReceipt.checked = canReceipt;
+    document.getElementById('receiptHint').textContent = canReceipt ? `— SMS to ${loan.borrowerPhone} through G Online` : '';
     document.getElementById('paymentSub').textContent = loan.borrowerName + " — " + refNo +
       (m.totalPayableWithPenalty > 0 ? " · Balance due " + fmtGHS(m.totalPayableWithPenalty) : " · Fully paid");
     openModal('modalPayment');
@@ -4271,11 +4359,14 @@
           logActivity("Payment Edited", `${refNo} (${payment.borrowerName}) — ${changes || "saved with no changes"}`, editAuthName);
           showToast("Payment updated");
         } else {
+          const wantReceipt = fd.get('sendReceipt') === 'on' && document.getElementById('receiptRow').style.display !== 'none';
+          const receipt = wantReceipt && loan ? receiptFor(loan, payment) : null;
           await db.collection("payments").add(payment);
           logActivity("Payment Recorded",
             `${fmtGHS(payment.amountPaid)} for ${refNo} (${payment.borrowerName}) via ${payment.paymentMethod}, dated ${fmtDate(payment.paymentDate)}`,
             payment.receivedBy);
           showToast("Payment recorded");
+          if (receipt) sendReceipt(loan, receipt);
         }
         closeModal('modalPayment');
       } catch (err) {
@@ -4288,18 +4379,46 @@
     })();
   });
 
+  // Receipt SMS (5A when the account is now settled, otherwise 5B), worked out
+  // with the new payment included.
+  function receiptFor(loan, payment) {
+    const saved = payments;
+    try {
+      payments = payments.concat([{...payment, _id: '__new'}]);
+      const m = computeLoanMetricsRaw(loan);
+      const id = m.totalPayableWithPenalty <= 0.005 ? '5A' : '5B';
+      let text = applySwaps(SMS_TEMPLATES.find(t => t.id === id).text);
+      if (id === '5B' && m.isOverdue) text = text.replace(/Your next payment of GHS \[Amount\] is due on \[Date\]\./, 'Amount still past due: GHS [New Total Amount]. Please pay the rest as soon as possible.');
+      const vals = smsValues(loan, m, id);
+      vals['[Last Payment]'] = money2(payment.amountPaid);
+      return {id, text: text.replace(/\[[^\]]+\]/g, ph => vals[ph] !== undefined ? vals[ph] : ph)};
+    } finally { payments = saved; }
+  }
+  async function sendReceipt(loan, r) {
+    try {
+      const out = await smsApi({to: loan.borrowerPhone, message: r.text, refNo: loan.refNo, template: r.id});
+      if (out.ok) {
+        logActivity('SMS Sent', `${r.id} to ${loan.borrowerName} (${out.to || loan.borrowerPhone}) for ${loan.refNo}`, out.by || '');
+        showToast(`Payment recorded · receipt sent to ${loan.borrowerName}`, 3500);
+        refreshSmsBalance();
+      } else showToast('Payment recorded, but the receipt SMS failed: ' + (out.error || 'try Send on the SMS tab'), 6000);
+    } catch (e) { showToast('Payment recorded, but the receipt SMS could not be sent (no connection)', 6000); }
+  }
+
   function deletePayment(paymentId) {
     const p = payments.find(x => x._id === paymentId);
     if (!p) return;
     showConfirm(
-      `Delete this payment of ${fmtGHS(p.amountPaid)} for ${p.borrowerName} (${p.refNo})? This cannot be undone.`,
+      `Delete this payment of ${fmtGHS(p.amountPaid)} for ${p.borrowerName} (${p.refNo})? It goes to the Recycle Bin, where the owner can restore it.`,
       async (staffName) => {
         try {
-          await db.collection("payments").doc(paymentId).delete();
+          await moveToBin({kind: "Payment", title: `${fmtGHS(p.amountPaid)} — ${p.borrowerName} (${p.refNo})`,
+            summary: `Paid ${fmtDate(p.paymentDate)}${p.paymentMethod ? " via " + p.paymentMethod : ""}`,
+            items: [{col: "payments", id: paymentId, data: stripId(p)}]}, staffName);
           logActivity("Payment Deleted",
             `${fmtGHS(p.amountPaid)} dated ${fmtDate(p.paymentDate)} for ${p.refNo} (${p.borrowerName})${p.paymentMethod ? " via " + p.paymentMethod : ""}`,
             staffName);
-          showToast("Payment deleted");
+          showToast("Payment moved to the Recycle Bin");
         } catch (err) {
           showToast("Could not delete — try again");
         }
@@ -4352,11 +4471,12 @@
     const id = btn.dataset.delCapital;
     const c = capitalEntries.find(x => x._id === id);
     if (!c) return;
-    showConfirm(`Delete the ${fmtGHS(c.amount)} capital entry from ${c.source || "an unnamed source"} (${fmtDate(c.date)})? This cannot be undone.`, async (staffName) => {
+    showConfirm(`Delete the ${fmtGHS(c.amount)} capital entry from ${c.source || "an unnamed source"} (${fmtDate(c.date)})? It goes to the Recycle Bin, where the owner can restore it.`, async (staffName) => {
       try {
-        await db.collection("capital").doc(id).delete();
+        await moveToBin({kind: "Capital", title: `${fmtGHS(c.amount)} — ${c.source || "Capital"}`, summary: `Dated ${fmtDate(c.date)}${c.notes ? " · " + c.notes : ""}`,
+          items: [{col: "capital", id, data: stripId(c)}]}, staffName);
         logActivity("Capital Deleted", `${fmtGHS(c.amount)} from ${c.source || "—"} dated ${fmtDate(c.date)}`, staffName);
-        showToast("Capital entry deleted");
+        showToast("Capital entry moved to the Recycle Bin");
       }
       catch (err) { showToast("Could not delete — try again"); }
     }, {title: "Delete Capital Entry", yesLabel: "Delete", danger: true});
@@ -4377,11 +4497,12 @@
     const id = btn.dataset.delExpense;
     const x = expenseEntries.find(y => y._id === id);
     if (!x) return;
-    showConfirm(`Delete the ${fmtGHS(x.amount)} expense (${x.category || "uncategorised"}, ${fmtDate(x.date)})? This cannot be undone.`, async (staffName) => {
+    showConfirm(`Delete the ${fmtGHS(x.amount)} expense (${x.category || "uncategorised"}, ${fmtDate(x.date)})? It goes to the Recycle Bin, where the owner can restore it.`, async (staffName) => {
       try {
-        await db.collection("expenses").doc(id).delete();
+        await moveToBin({kind: "Expense", title: `${fmtGHS(x.amount)} — ${x.category || "Expense"}`, summary: `${x.description ? x.description + " · " : ""}Dated ${fmtDate(x.date)}`,
+          items: [{col: "expenses", id, data: stripId(x)}]}, staffName);
         logActivity("Expense Deleted", `${fmtGHS(x.amount)} — ${x.category || "—"}${x.description ? ": " + x.description : ""}, dated ${fmtDate(x.date)}`, staffName);
-        showToast("Expense deleted");
+        showToast("Expense moved to the Recycle Bin");
       }
       catch (err) { showToast("Could not delete — try again"); }
     }, {title: "Delete Expense Entry", yesLabel: "Delete", danger: true});
@@ -4538,7 +4659,8 @@
       capital: withId(capitalEntries),
       expenses: withId(expenseEntries),
       activityLog: auditLog.map(({_key, ...rest}) => rest),
-      settings: withId(settingsDocs)
+      settings: withId(settingsDocs),
+      recycleBin: withId(binDocs)
     };
     downloadFile(`BFS_Full_Backup_${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
   }
@@ -4571,6 +4693,7 @@
     renderAutoCard();
     renderPwStatus();
     renderStaff();
+    renderBin();
     renderTabBadges();
   }
 
