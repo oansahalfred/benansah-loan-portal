@@ -693,6 +693,28 @@
   .sms-flag { font-size: 11px; font-weight: 700; color: var(--danger); background: var(--danger-bg); padding: 2px 8px; border-radius: 10px; }
   .swap-card { margin-bottom: 12px; min-width: 0; }
   .swap-card summary { cursor: pointer; }
+  .auto-card { border-top: 3px solid var(--good); }
+  .auto-pill { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px; margin-left: 6px; vertical-align: 1px; background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
+  .auto-pill.on { background: var(--good-bg); color: var(--good); border-color: transparent; }
+  .auto-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 18px; margin: 4px 0 12px; font-size: 12.5px; }
+  .auto-rules div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--border); padding: 4px 0; }
+  .auto-rules b { white-space: nowrap; color: var(--navy-text); }
+  .auto-rules .auto-opt span { color: var(--text-faint); }
+  .auto-settings { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-radius: 7px; padding: 10px 12px; }
+  .auto-check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; cursor: pointer; }
+  .auto-check input[type=checkbox] { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+  .auto-check.tick { flex-wrap: nowrap; align-items: flex-start; }
+  .auto-check.tick span { flex: 1; min-width: 0; }
+  .auto-last { margin-top: 10px; font-size: 12.5px; }
+  .auto-last.warn { color: var(--danger); font-weight: 700; }
+  .auto-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  .auto-table th, .auto-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .auto-table td.msg { color: var(--text-faint); min-width: 220px; }
+  .auto-st { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .auto-st.send { background: var(--info-bg); color: var(--info); }
+  .auto-st.sent { background: var(--good-bg); color: var(--good); }
+  .auto-st.already { background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
+  .auto-st.nophone, .auto-st.failed { background: var(--danger-bg); color: var(--danger); }
   .swap-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
   .swap-row .search-input { min-width: 0; }
   .swap-arrow { color: var(--text-faint); }
@@ -945,6 +967,32 @@
     </div>
     <div class="sms-balance" id="smsBalance" style="display:none;"><span>G Online balance: …</span> <button type="button" class="btn ghost small" id="btnSmsBalance">Refresh</button></div>
     <div id="smsLoanInfo"></div>
+    <details class="subcard swap-card auto-card" id="autoCard" style="display:none;">
+      <summary><strong>Automatic reminders</strong> <span class="auto-pill" id="autoPill">Off</span> <span class="cell-sub" id="autoStatusLine"></span></summary>
+      <p class="cell-sub" style="margin:10px 0;">Every morning at 8:00 AM the system checks every customer and sends the right reminder through G Online, using the same wording and spam-safe swaps as below. Each one is recorded in the activity log. The same message is never sent twice to a facility within 20 days, and anything you already sent by hand is skipped.</p>
+      <div class="auto-rules">
+        <div><span>3 days before a due date</span><b>3A / 3B</b></div>
+        <div><span>On the due date</span><b>4A / 4B</b></div>
+        <div><span>1 day late (first 10% added)</span><b>4C / 4D</b></div>
+        <div><span>3 days late</span><b>4E</b></div>
+        <div><span>15 days late (second 10% added)</span><b>4F</b></div>
+        <div><span>2 days before an extended date</span><b>6E</b></div>
+        <div class="auto-opt"><span>7 days late — borrower and guarantor (optional)</span><b>6A + 6B</b></div>
+        <div class="auto-opt"><span>Extended date missed (optional)</span><b>6D</b></div>
+      </div>
+      <div class="auto-settings">
+        <label class="auto-check tick"><input type="checkbox" id="autoEnabled"> <span><strong>Send reminders automatically every day at 8:00 AM</strong></span></label>
+        <label class="auto-check tick"><input type="checkbox" id="autoGuarantor"> <span>Include guarantor notices (6A + 6B at 7 days late, 6D when an extended date is missed). Only for facilities with a guarantor phone on file.</span></label>
+        <label class="auto-check"><span>Text me a summary after each run at</span> <input class="search-input" id="autoSummaryPhone" placeholder="024XXXXXXX" style="max-width:150px;"> <span class="cell-sub">(leave empty for none · only on days something is sent)</span></label>
+        <div class="export-row"><button type="button" class="btn small" id="btnAutoSave">Save Settings</button><span class="cell-sub" id="autoDirty" style="display:none; align-self:center; color:var(--warn); font-weight:700;">Unsaved changes</span></div>
+      </div>
+      <div id="autoLastRun" class="auto-last"></div>
+      <div class="export-row" style="margin-top:10px;">
+        <button type="button" class="btn ghost small" id="btnAutoPreview">Preview Today's List</button>
+        <button type="button" class="btn small" id="btnAutoRun" disabled>Send These Now</button>
+      </div>
+      <div id="autoPreview"></div>
+    </details>
     <details class="subcard swap-card" id="swapCard">
       <summary><strong>Spam-safe wording</strong> <span class="cell-sub">— words swapped automatically before you copy a message</span></summary>
       <p class="cell-sub" style="margin:10px 0;">If your SMS provider (e.g. G Online) blocks a message, add the blocked word here with a safer replacement. Swaps apply to every template for all staff. Each message also shows its length and any words that gateways often flag.</p>
@@ -1898,6 +1946,7 @@
       const sms = docs.find(d => d._id === "sms");
       if (sms && Array.isArray(sms.swaps)) smsSwaps = sms.swaps.map(x => ({from: x.from || "", to: x.to || ""}));
       if (!swapDraft) renderSwapEditor();
+      autoSettings = docs.find(d => d._id === "autoSms") || {};
     });
   }
 
@@ -2915,17 +2964,21 @@
   function lastSmsFor(refNo, id) {
     return auditLog.find(e => e.action === 'SMS Sent' && (e.description || '').includes(refNo) && (!id || (e.description || '').startsWith(id + ' ')));
   }
-  async function smsApi(payload) {
+  async function fnApi(name, payload) {
     const user = fbAuth && fbAuth.currentUser;
     if (!user) throw new Error('Not signed in');
     const token = await user.getIdToken();
-    const res = await fetch('/.netlify/functions/sms', {
+    const res = await fetch('/.netlify/functions/' + name, {
       method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + token}, body: JSON.stringify(payload)
     });
     let data = {};
-    try { data = await res.json(); } catch (e) { data = {ok: false, error: res.status === 404 ? 'The SMS helper is not installed on Netlify yet.' : 'Unexpected reply from the server.'}; }
+    try { data = await res.json(); } catch (e) {
+      data = {ok: false, error: res.status === 404 ? `The ${name === 'sms' ? 'SMS' : 'reminders'} helper is not installed on Netlify yet.`
+        : (res.status === 502 || res.status === 504) ? 'The server took too long — try again.' : 'Unexpected reply from the server.'};
+    }
     return data;
   }
+  const smsApi = payload => fnApi('sms', payload);
   document.getElementById('btnSendSmsConfirm').addEventListener('click', async () => {
     if (!pendingSms) return;
     const btn = document.getElementById('btnSendSmsConfirm');
@@ -2964,6 +3017,100 @@
       box.querySelector('span').textContent = out.ok ? 'G Online balance: ' + txt : 'G Online: ' + (out.error || 'not available');
     } catch (e) { box.querySelector('span').textContent = 'G Online balance: not available'; }
   }
+
+  // ---- Automatic reminders (runs on Netlify every day at 8:00 AM) ----
+  let autoSettings = {};
+  let autoDirty = false;
+  let autoPreviewItems = null;
+  const AUTO_STATUS = {send: 'Will send', sent: 'Sent', already: 'Already sent', nophone: 'No valid phone', failed: 'Not delivered'};
+  function renderAutoCard() {
+    const card = document.getElementById('autoCard');
+    if (storageMode !== 'firebase') { card.style.display = 'none'; return; }
+    card.style.display = '';
+    const on = !!autoSettings.enabled;
+    const pill = document.getElementById('autoPill');
+    pill.textContent = on ? 'On' : 'Off';
+    pill.className = 'auto-pill' + (on ? ' on' : '');
+    document.getElementById('autoStatusLine').textContent = on ? '— every day at 8:00 AM' : '— switch on below';
+    if (!autoDirty) {
+      document.getElementById('autoEnabled').checked = on;
+      document.getElementById('autoGuarantor').checked = !!autoSettings.guarantor;
+      document.getElementById('autoSummaryPhone').value = autoSettings.summaryPhone || '';
+    }
+    document.getElementById('autoDirty').style.display = autoDirty ? '' : 'none';
+    const last = auditLog.find(e => e.action === 'Auto Reminders');
+    const box = document.getElementById('autoLastRun');
+    const now = new Date();
+    const ranToday = last && new Date(last.timestamp).toDateString() === now.toDateString() && /^Daily run/.test(last.description || '');
+    const missed = on && !ranToday && (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 20)) &&
+      autoSettings.updatedAt && new Date(autoSettings.updatedAt) < new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8);
+    box.className = 'auto-last' + (missed ? ' warn' : '');
+    box.innerHTML = (last ? `Last run: <strong>${escapeHtml(fmtStamp(last.timestamp))}</strong> — ${escapeHtml(last.description)}` : 'No automatic run recorded yet.')
+      + (missed ? '<br>No run was recorded this morning. Check the Netlify settings (REMINDER_EMAIL / REMINDER_PASSWORD) or ask for help.' : '');
+  }
+  ['autoEnabled', 'autoGuarantor', 'autoSummaryPhone'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+    autoDirty = true; document.getElementById('autoDirty').style.display = '';
+  }));
+  document.getElementById('btnAutoSave').addEventListener('click', () => {
+    if (!db) { showToast("Not connected — cannot save right now"); return; }
+    const enabled = document.getElementById('autoEnabled').checked;
+    const guarantor = document.getElementById('autoGuarantor').checked;
+    const phone = document.getElementById('autoSummaryPhone').value.trim();
+    if (phone && !/^(0\d{9}|\+?233\d{9})$/.test(phone.replace(/[\s-]/g, ''))) { showToast("Enter the summary phone like 0241234567, or leave it empty"); return; }
+    showConfirm(`${enabled ? 'Switch ON' : 'Switch OFF'} automatic reminders${enabled && guarantor ? ' (including guarantor notices)' : ''}?`, async name => {
+      try {
+        await db.collection("settings").doc("autoSms").set({enabled, guarantor, summaryPhone: phone, updatedBy: name, updatedAt: new Date().toISOString()});
+        logActivity("Auto Reminders Settings", `${enabled ? 'On' : 'Off'} · guarantor notices ${guarantor ? 'on' : 'off'} · summary to ${phone || 'nobody'}`, name);
+        autoDirty = false;
+        autoSettings = {enabled, guarantor, summaryPhone: phone, updatedBy: name, updatedAt: new Date().toISOString()};
+        renderAutoCard();
+        showToast(enabled ? "Automatic reminders are ON — next run 8:00 AM" : "Automatic reminders are OFF");
+      } catch (err) { showToast("Could not save — try again"); }
+    }, {title: "Automatic Reminders", yesLabel: "Save"});
+  });
+  function renderAutoPreview(items, note) {
+    const area = document.getElementById('autoPreview');
+    if (!items) { area.innerHTML = note ? `<div class="cell-sub" style="margin-top:8px;">${escapeHtml(note)}</div>` : ''; return; }
+    if (!items.length) { area.innerHTML = `<div class="cell-sub" style="margin-top:8px;">${escapeHtml(note || 'No reminders are due today.')}</div>`; return; }
+    area.innerHTML = (note ? `<div class="cell-sub" style="margin-top:8px;">${escapeHtml(note)}</div>` : '') + `<div style="overflow-x:auto;"><table class="auto-table">
+      <thead><tr><th>Customer</th><th>Message</th><th>To</th><th>Status</th></tr></thead><tbody>
+      ${items.map(it => `<tr>
+        <td><strong>${escapeHtml(it.borrower)}</strong><div class="cell-sub">${escapeHtml(it.refNo)}</div></td>
+        <td class="msg"><strong style="color:var(--text);">${escapeHtml(it.id)} · ${escapeHtml(it.title)}</strong><div>${escapeHtml(it.text)}</div></td>
+        <td>${escapeHtml(it.name)}<div class="cell-sub">${escapeHtml(it.phone || '—')}</div></td>
+        <td><span class="auto-st ${it.status}">${AUTO_STATUS[it.status] || it.status}</span>${it.error ? `<div class="cell-sub">${escapeHtml(it.error)}</div>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  document.getElementById('btnAutoPreview').addEventListener('click', async () => {
+    const btn = document.getElementById('btnAutoPreview'), run = document.getElementById('btnAutoRun');
+    btn.disabled = true; btn.textContent = 'Checking…'; run.disabled = true;
+    try {
+      const out = await fnApi('reminders', {action: 'preview'});
+      if (!out.ok) { renderAutoPreview(null, out.error || 'Could not check right now.'); return; }
+      autoPreviewItems = out.items || [];
+      const n = autoPreviewItems.filter(i => i.status === 'send').length;
+      renderAutoPreview(autoPreviewItems, n ? `${n} message${n > 1 ? 's' : ''} ready to send today.` : 'Nothing new to send today.');
+      run.disabled = !n;
+    } catch (e) { renderAutoPreview(null, 'No internet connection — try again.'); }
+    finally { btn.disabled = false; btn.textContent = "Preview Today's List"; }
+  });
+  document.getElementById('btnAutoRun').addEventListener('click', () => {
+    const n = (autoPreviewItems || []).filter(i => i.status === 'send').length;
+    if (!n) return;
+    showConfirm(`Send ${n} reminder SMS now through G Online?`, async () => {
+      const run = document.getElementById('btnAutoRun');
+      run.disabled = true; run.textContent = 'Sending…';
+      try {
+        const out = await fnApi('reminders', {action: 'run'});
+        if (!out.ok) { renderAutoPreview(autoPreviewItems, out.error || 'Could not send.'); run.disabled = false; return; }
+        autoPreviewItems = null;
+        renderAutoPreview(out.items || [], out.summary || 'Done.');
+        showToast(`${out.sent || 0} reminder${out.sent === 1 ? '' : 's'} sent${out.failed ? `, ${out.failed} not delivered` : ''}`, 4000);
+        refreshSmsBalance();
+      } catch (e) { renderAutoPreview(autoPreviewItems, 'No internet connection — check the activity log before trying again.'); run.disabled = false; }
+      finally { run.textContent = 'Send These Now'; }
+    }, {title: "Send Reminders", yesLabel: "Send"});
+  });
 
   function renderSms() {
     const refNo = document.getElementById('smsLoanPicker').value;
@@ -4246,6 +4393,7 @@
     renderRateCard();
     renderSmsPicker();
     renderSms();
+    renderAutoCard();
     renderTabBadges();
   }
 
