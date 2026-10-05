@@ -694,6 +694,12 @@
   .swap-card { margin-bottom: 12px; min-width: 0; }
   .swap-card summary { cursor: pointer; }
   .auto-card { border-top: 3px solid var(--good); }
+  .staff-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .staff-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 12.5px; }
+  .staff-row .s-main { min-width: 0; overflow-wrap: anywhere; }
+  .staff-row .s-tag { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--neutral-bg); color: var(--navy-text); white-space: nowrap; }
+  .staff-add { display: flex; gap: 8px; flex-wrap: wrap; }
+  .staff-add .search-input { flex: 1 1 180px; min-width: 0; }
   .auto-pill { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px; margin-left: 6px; vertical-align: 1px; background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
   .auto-pill.on { background: var(--good-bg); color: var(--good); border-color: transparent; }
   .auto-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 18px; margin: 4px 0 12px; font-size: 12.5px; }
@@ -938,6 +944,26 @@
     </div>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost small" id="btnActivityMore" style="display:none;">Show more</button></div>
 
+    <div id="staffSection" style="display:none;">
+      <div class="section-head"><h2>Staff Access</h2><span class="hint">Who can sign in to this loan manager</span></div>
+      <div class="subcard">
+        <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Add a staff member's Gmail address and they can sign in straight away with <strong>Sign in with Google</strong>. Removing someone stops their access immediately, even if they are signed in.</p>
+        <div id="staffList" class="staff-list"></div>
+        <form id="formAddStaff" class="staff-add" autocomplete="off">
+          <input class="search-input" name="name" placeholder="Full name" required>
+          <input class="search-input" name="email" type="email" placeholder="name@gmail.com" required>
+          <button type="submit" class="btn small" data-icon="plus">Add Staff</button>
+        </form>
+        <div id="staffNote" class="cell-sub" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>Staff Password</h2><span class="hint">Asked before every edit, approval, deletion and settings change</span></div>
+    <div class="subcard">
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Choose a password that only you and staff you trust know. It is stored scrambled in your private database, never in the website code. <span id="pwStatus"></span></p>
+      <button class="btn small" id="btnChangePw" data-icon="edit">Change Staff Password</button>
+    </div>
+
     <div class="section-head"><h2 style="color:var(--danger);">Danger Zone</h2></div>
     <div class="subcard" style="border-color:var(--danger);">
       <h4 style="color:var(--danger);">Start Fresh</h4>
@@ -1155,6 +1181,25 @@
       <button type="button" class="btn ghost" id="confirmNoBtn">Cancel</button>
       <button type="button" class="btn" id="confirmYesBtn">Confirm</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalChangePw" style="z-index:150;">
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Change Staff Password</h3>
+    <div class="modal-sub">Everyone who edits records will need the new password. At least 8 characters — mix letters and numbers.</div>
+    <form id="formChangePw" autocomplete="off">
+      <div class="field"><label>Your Name</label><input name="name" required placeholder="Recorded in the activity log"></div>
+      <div class="field" style="margin-top:10px;"><label>Current Staff Password</label><input type="password" name="current" required autocomplete="off"></div>
+      <div class="field" style="margin-top:10px;"><label>New Password</label><input type="password" name="next" required minlength="8" autocomplete="new-password"></div>
+      <div class="field" style="margin-top:10px;"><label>Type the New Password Again</label><input type="password" name="again" required minlength="8" autocomplete="new-password"></div>
+      <div id="changePwError" style="display:none; color:var(--danger); font-size:12px; font-weight:600; margin-top:8px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn" id="btnChangePwSave">Save New Password</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1816,7 +1861,7 @@
     const na = sessionStorage.getItem("bfsNotAllowed");
     if (na) {
       sessionStorage.removeItem("bfsNotAllowed");
-      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access yet. Ask the owner to add this email to the Firestore rules."; }, 800);
+      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access. Ask the owner to add this email under Finances → Staff Access, then sign in with Google."; }, 800);
     }
   } catch (e) {}
 
@@ -1941,12 +1986,17 @@
     subscribeCollection("capital", docs => { capitalEntries = docs; });
     subscribeCollection("expenses", docs => { expenseEntries = docs; });
     subscribeCollection("auditLog", docs => { auditDocs = docs; auditLog = flattenAudit(docs); });
+    if (storageMode === "firebase") subscribeCollection("staff", docs => { staffDocs = docs; });
     subscribeCollection("settings", docs => {
       settingsDocs = docs;
       const sms = docs.find(d => d._id === "sms");
       if (sms && Array.isArray(sms.swaps)) smsSwaps = sms.swaps.map(x => ({from: x.from || "", to: x.to || ""}));
       if (!swapDraft) renderSwapEditor();
       autoSettings = docs.find(d => d._id === "autoSms") || {};
+      const sec = docs.find(d => d._id === "security");
+      staffPw = sec && sec.hash && sec.salt ? {hash: sec.hash, salt: sec.salt, updatedAt: sec.updatedAt, updatedBy: sec.updatedBy} : null;
+      settingsLoaded = true;
+      renderPwStatus();
     });
   }
 
@@ -3018,6 +3068,65 @@
     } catch (e) { box.querySelector('span').textContent = 'G Online balance: not available'; }
   }
 
+  // ---- Staff access (online version) ----
+  // The owner is always allowed; staff are records in the "staff" collection,
+  // which the database rules check on every request.
+  const OWNER_EMAIL = "oansah717@gmail.com";
+  const SYSTEM_EMAILS = ["reminders@benansah-fs.web.app"];
+  let staffDocs = [];
+  function currentEmail() { return (fbAuth && fbAuth.currentUser && fbAuth.currentUser.email || "").toLowerCase(); }
+  function isOwnerUser() { return currentEmail() === OWNER_EMAIL; }
+  function renderStaff() {
+    const sec = document.getElementById('staffSection');
+    if (storageMode !== 'firebase') { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const owner = isOwnerUser();
+    const rows = [...staffDocs].sort((a, b) => (a.name || a._id).localeCompare(b.name || b._id));
+    document.getElementById('staffList').innerHTML =
+      `<div class="staff-row"><div class="s-main"><strong>Owner</strong> · ${escapeHtml(OWNER_EMAIL)}</div><span class="s-tag">Always has access</span></div>` +
+      (rows.length ? rows.map(r => `<div class="staff-row">
+          <div class="s-main"><strong>${escapeHtml(r.name || 'Staff')}</strong> · ${escapeHtml(r._id)}
+            <div class="cell-sub">Added ${escapeHtml(fmtStamp(r.addedAt))}${r.addedBy ? ' by ' + escapeHtml(r.addedBy) : ''}</div></div>
+          ${owner ? `<button type="button" class="btn ghost small danger" data-staff-remove="${escapeHtml(r._id)}">Remove</button>` : '<span class="s-tag">Staff</span>'}
+        </div>`).join('') : '<div class="cell-sub">No staff added yet.</div>');
+    document.getElementById('formAddStaff').style.display = owner ? '' : 'none';
+    document.getElementById('staffNote').textContent = owner
+      ? 'Staff must use a Gmail (Google) account and the Sign in with Google button. They use the same staff password for edits.'
+      : 'Only the owner can add or remove staff.';
+  }
+  document.getElementById('formAddStaff').addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target;
+    const name = f.name.value.trim().replace(/\s+/g, ' ');
+    const email = f.email.value.trim().toLowerCase();
+    if (!isOwnerUser()) { showToast("Only the owner can add staff"); return; }
+    if (!name) { showToast("Enter the staff member's name"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast("Enter a valid email address"); return; }
+    if (email === OWNER_EMAIL || SYSTEM_EMAILS.includes(email)) { showToast("That account already has access"); return; }
+    if (staffDocs.some(d => d._id === email)) { showToast(email + " is already on the staff list"); return; }
+    showConfirm(`Give ${name} (${email}) access to the loan manager?`, async who => {
+      try {
+        await db.collection("staff").doc(email).set({name, email, addedBy: who, addedAt: new Date().toISOString()});
+        logActivity("Staff Added", `${name} (${email}) can now sign in`, who);
+        f.reset();
+        showToast(`${name} added — they can sign in with Google now`, 4000);
+      } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can add staff" : "Could not add — try again"); }
+    }, {title: "Add Staff", yesLabel: "Add"});
+  });
+  document.getElementById('staffList').addEventListener('click', e => {
+    const btn = e.target.closest('[data-staff-remove]');
+    if (!btn) return;
+    const email = btn.dataset.staffRemove;
+    const rec = staffDocs.find(d => d._id === email) || {};
+    showConfirm(`Remove ${rec.name || email} (${email})? They lose access immediately.`, async who => {
+      try {
+        await db.collection("staff").doc(email).delete();
+        logActivity("Staff Removed", `${rec.name || ''} (${email}) no longer has access`.trim(), who);
+        showToast(`${rec.name || email} removed`);
+      } catch (err) { showToast("Could not remove — try again"); }
+    }, {title: "Remove Staff", yesLabel: "Remove", danger: true});
+  });
+
   // ---- Automatic reminders (runs on Netlify every day at 8:00 AM) ----
   let autoSettings = {};
   let autoDirty = false;
@@ -3451,11 +3560,28 @@
   function openModal(id) { document.getElementById(id).classList.add('open'); }
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-  // Shared staff password gating all edit/delete actions. This is a light
-  // deterrent against accidental or casual changes, not real security --
-  // anyone who views the page source can find it. Ask Claude anytime to
-  // change this value to something else.
-  const STAFF_PASSWORD = "benansah2026";
+  // Shared staff password gating all edit/delete actions. It is set on the
+  // Finances tab (Change Staff Password) and stored only as a salted SHA-256
+  // hash in settings/security. The original password below works only until
+  // a new one has been set.
+  const LEGACY_STAFF_PASSWORD = "benansah2026";
+  let staffPw = null;          // {hash, salt} once a password has been set in the app
+  let settingsLoaded = false;
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function checkStaffPassword(pw) {
+    if (staffPw && staffPw.hash && staffPw.salt) return (await sha256Hex(staffPw.salt + '|' + pw)) === staffPw.hash;
+    return pw === LEGACY_STAFF_PASSWORD;
+  }
+  function renderPwStatus() {
+    const el = document.getElementById('pwStatus');
+    if (!el) return;
+    el.innerHTML = staffPw && staffPw.updatedAt
+      ? `Last changed ${escapeHtml(fmtStamp(staffPw.updatedAt))}${staffPw.updatedBy ? ' by ' + escapeHtml(staffPw.updatedBy) : ''}.`
+      : '<strong style="color:var(--warn);">Still using the original password — change it now.</strong>';
+  }
 
   // Custom in-app confirmation dialog. Replaces native confirm(), which some
   // sandboxed embedding contexts silently block or ignore. Requires the
@@ -3491,7 +3617,16 @@
       confirmName.focus();
       return;
     }
-    if (confirmPw.value !== STAFF_PASSWORD) {
+    if (storageMode === 'firebase' && !settingsLoaded) {
+      confirmErr.textContent = 'Still loading — try again in a moment.';
+      confirmErr.style.display = 'block';
+      return;
+    }
+    confirmYes.disabled = true;
+    const pwOk = await checkStaffPassword(confirmPw.value);
+    confirmYes.disabled = false;
+    if (!pendingConfirm) return;
+    if (!pwOk) {
       confirmErr.textContent = 'Incorrect password — try again.';
       confirmErr.style.display = 'block';
       confirmPw.select();
@@ -3511,6 +3646,46 @@
     closeModal('modalConfirm');
   }
   confirmYes.addEventListener('click', submitConfirm);
+
+  document.getElementById('btnChangePw').addEventListener('click', () => {
+    const f = document.getElementById('formChangePw');
+    f.reset();
+    f.name.value = lastStaffName;
+    document.getElementById('changePwError').style.display = 'none';
+    openModal('modalChangePw');
+    setTimeout(() => (lastStaffName ? f.current : f.name).focus(), 50);
+  });
+  document.getElementById('formChangePw').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target, err = document.getElementById('changePwError'), btn = document.getElementById('btnChangePwSave');
+    const fail = msg => { err.textContent = msg; err.style.display = 'block'; };
+    err.style.display = 'none';
+    if (!db) return fail('Not connected — try again in a moment.');
+    if (storageMode === 'firebase' && !settingsLoaded) return fail('Still loading — try again in a moment.');
+    const name = f.name.value.trim().replace(/\s+/g, ' ');
+    if (!name) return fail('Please enter your name.');
+    if (!(await checkStaffPassword(f.current.value))) { f.current.select(); return fail('The current password is not correct.'); }
+    const next = f.next.value;
+    if (next.length < 8) return fail('The new password must be at least 8 characters.');
+    if (!/[A-Za-z]/.test(next) || !/[0-9]/.test(next)) return fail('Use both letters and numbers in the new password.');
+    if (next === LEGACY_STAFF_PASSWORD || next === f.current.value) return fail('Choose a password different from the current one.');
+    if (next !== f.again.value) return fail('The two new passwords do not match.');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const salt = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+      const hash = await sha256Hex(salt + '|' + next);
+      const updatedAt = new Date().toISOString();
+      await db.collection("settings").doc("security").set({hash, salt, updatedBy: name, updatedAt});
+      staffPw = {hash, salt, updatedBy: name, updatedAt};
+      lastStaffName = name;
+      logActivity("Staff Password Changed", "A new staff password was set", name);
+      f.reset();
+      closeModal('modalChangePw');
+      renderPwStatus();
+      showToast("New staff password saved — use it from now on", 4000);
+    } catch (ex) { fail('Could not save — check your connection and try again.'); }
+    finally { btn.disabled = false; btn.textContent = 'Save New Password'; }
+  });
   [confirmName, confirmPw].forEach(inp => inp.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); submitConfirm(); }
   }));
@@ -4394,6 +4569,8 @@
     renderSmsPicker();
     renderSms();
     renderAutoCard();
+    renderPwStatus();
+    renderStaff();
     renderTabBadges();
   }
 
