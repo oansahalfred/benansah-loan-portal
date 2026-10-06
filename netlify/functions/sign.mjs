@@ -78,7 +78,7 @@ export default async (req) => {
   try { body = await req.json(); } catch { return json({ok: false, error: "Bad request."}, 400); }
   const who = await caller(req);
   if (who.error) return json({ok: false, error: who.error}, who.status);
-  const refNo = String(body.refNo || ""), role = body.who === "guarantor" ? "guarantor" : "borrower";
+  const refNo = String(body.refNo || ""), role = ["guarantor", "witness"].includes(body.who) ? body.who : "borrower";
   if (!/^[A-Za-z0-9-]{3,40}$/.test(refNo)) return json({ok: false, error: "Unknown loan."}, 400);
   try {
     const robot = await robotToken();
@@ -86,9 +86,13 @@ export default async (req) => {
     if (!loan) return json({ok: false, error: "Loan not found."}, 404);
     if (loan.stage !== "pending") return json({ok: false, error: "Only applications that have not been paid out can be signed."}, 400);
     if (loan.hold) return json({ok: false, error: "This application is on hold — remove the hold first."}, 400);
-    const name = role === "guarantor" ? loan.guarantorName : loan.borrowerName;
-    const to = normalizePhone(role === "guarantor" ? loan.guarantorPhone : loan.borrowerPhone);
+    const kyc = loan.kyc || {};
+    const name = role === "guarantor" ? loan.guarantorName : role === "witness" ? kyc.witnessName : loan.borrowerName;
+    const to = normalizePhone(role === "guarantor" ? loan.guarantorPhone : role === "witness" ? kyc.witnessPhone : loan.borrowerPhone);
     if (!to) return json({ok: false, error: `No valid ${role} phone number on this loan — add it with Edit first.`}, 400);
+    if (role === "witness" && [loan.borrowerPhone, loan.guarantorPhone].some(p => normalizePhone(p) === to)) {
+      return json({ok: false, error: "The witness must be a different person from the borrower and guarantor."}, 400);
+    }
     const terms = signTerms(loan);
     const otpPath = `otp/${encodeURIComponent(refNo + "_" + role)}`;
     const now = Date.now();
@@ -102,7 +106,9 @@ export default async (req) => {
       const salt = crypto.randomBytes(12).toString("hex");
       const term = Number(loan.loanTermMonths) || 1;
       const total = (Number(loan.principal) || 0) * (1 + (Number(loan.interestRatePct) || 0));
-      const msg = role === "guarantor"
+      const msg = role === "witness"
+        ? `Benansah Financial Solutions: ${code} is your code to confirm you WITNESSED ${loan.borrowerName} agree to loan Ref ${refNo} (GHS ${money(loan.principal)}). Give this code to our staff only if you saw them agree freely. Valid ${CODE_MINUTES} min.`
+        : role === "guarantor"
         ? `Benansah Financial Solutions: ${code} is your code to GUARANTEE the loan of ${loan.borrowerName} (Ref ${refNo}, total to repay GHS ${money(total)}). Give this code to our staff only if you agree to be guarantor. Valid ${CODE_MINUTES} min.`
         : `Benansah Financial Solutions: ${code} is your code to SIGN loan agreement Ref ${refNo}: GHS ${money(loan.principal)} over ${term} month${term === 1 ? "" : "s"}, total to repay GHS ${money(total)}. Give this code to our staff only if you agree. Valid ${CODE_MINUTES} min.`;
       await patchDoc(otpPath, {hash: sha(salt + "|" + code), salt, expires: new Date(now + CODE_MINUTES * 60000).toISOString(),
