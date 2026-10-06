@@ -2303,22 +2303,51 @@
     const parPct = v => totalPrincipalOut > 0 ? (v / totalPrincipalOut * 100) : 0;
     const par30Pct = parPct(par30);
     const borrowerCount = new Set(book.map(l => normName(l.borrowerName)).filter(Boolean)).size;
+    const today = todayISO(), month = today.slice(0, 7);
+    // Collection rate (industry standard): of what has fallen due so far
+    // (installments due before today + late charges; today's are not late yet), how much has been paid.
+    let dueSoFar = 0, paidTowardDue = 0, dueThisMonth = 0, dueThisMonthCount = 0;
+    metrics.forEach(m => {
+      const due = round2(m.scheduleRows.filter(r => (r.effDueDate || r.dueDate) < today).reduce((s, r) => s + r.amount, 0) + m.lateFee);
+      dueSoFar += due; paidTowardDue += Math.min(m.amountPaid, due);
+      m.scheduleRows.filter(r => (r.effDueDate || r.dueDate).slice(0, 7) === month).forEach(r => { dueThisMonth += r.amount; dueThisMonthCount++; });
+    });
+    const collRate = dueSoFar > 0.005 ? paidTowardDue / dueSoFar * 100 : null;
+    const overdueRows = metrics.filter(m => m.isOverdue);
+    const overdueNow = round2(overdueRows.reduce((s, m) => s + m.amountOverdueNow, 0));
+    const lateUnpaid = round2(metrics.reduce((s, m) => s + m.lateFeeOutstanding, 0));
+    const paidOutMonth = book.filter(l => (l.disbursementDate || "").slice(0, 7) === month);
+    const collectedMonth = payments.filter(p => (p.paymentDate || "").slice(0, 7) === month && p.paymentMethod !== "Top-up settlement");
+    const appsMonth = loans.filter(l => (l.createdAt || l.disbursementDate || "").slice(0, 7) === month);
+    const monthName = new Date(today + "T00:00:00Z").toLocaleString('en-GB', {month: 'long', timeZone: 'UTC'});
+    const sig = (good, warn) => good ? "green" : (warn ? "amber" : "red");
     const kpis = [
-      {label:"Total Loans", value: book.length, sub: `${activeCount} active · ${book.length - activeCount} fully paid · ${borrowerCount} borrower${borrowerCount===1?"":"s"}${pendingLoans.length ? ` · ${pendingLoans.length} pending application${pendingLoans.length===1?"":"s"}` : ""}`, accent:"navy"},
-      {label:"Total Principal Disbursed", value: fmtGHS(totalPrincipal), accent:"navy"},
-      {label:"Expected Interest Revenue", value: fmtGHS(totalInterest), accent:"teal"},
-      {label:"Total Expected Repayment", value: fmtGHS(totalExpectedRepayment), accent:"navy"},
-      {label:"Total Collected", value: fmtGHS(totalCollected), cls:"pos", accent:"green"},
-      {label:"Outstanding (incl. late charges)", value: fmtGHS(totalRemaining), cls: totalRemaining>0?"neg":"", accent:"red"},
-      {label:"Late Charges Added", value: fmtGHS(totalLateFees), sub: `${fmtGHS(metrics.reduce((s,m) => s + m.lateFeeOutstanding, 0))} still unpaid`, accent:"amber"},
-      {label:"Collection Rate", value: totalExpectedRepayment>0 ? Math.round(totalCollected/totalExpectedRepayment*100)+"%" : "—", accent:"blue"},
+      // Row 1 — the loan book
+      {label:"Active Loans", value: activeCount, sub: `${borrowerCount} borrower${borrowerCount===1?"":"s"} · ${book.length - activeCount} fully paid${pendingLoans.length ? ` · ${pendingLoans.length} pending application${pendingLoans.length===1?"":"s"}` : ""}`},
+      {label:"Total Paid Out (Principal)", value: fmtGHS(totalPrincipal), sub: `${book.length} loan${book.length===1?"":"s"} since the start`},
+      {label:"Expected Interest", value: fmtGHS(totalInterest), sub: `Total to be repaid: ${fmtGHS(totalExpectedRepayment)}`},
+      {label:"Outstanding Balance", value: fmtGHS(totalRemaining), sub: `${fmtGHS(totalPrincipalOut)} of it is principal${lateUnpaid > 0.005 ? ` · ${fmtGHS(lateUnpaid)} late charges` : ""}`},
+      // Row 2 — portfolio quality (colour only where it signals good or bad)
+      {label:"Collection Rate", value: collRate === null ? "—" : Math.floor(collRate) + "%",
+        cls: collRate === null ? "" : (collRate >= 95 ? "pos" : (collRate >= 85 ? "" : "neg")),
+        sub: collRate === null ? "Nothing has fallen due yet" : `${fmtGHS(round2(paidTowardDue))} paid of ${fmtGHS(round2(dueSoFar))} due so far · aim for 95%+`,
+        accent: collRate === null ? "" : sig(collRate >= 95, collRate >= 85)},
       {label:"Portfolio at Risk (PAR 30)", value: totalPrincipalOut > 0 ? par30Pct.toFixed(1) + "%" : "—",
         cls: par30Pct > 10 ? "neg" : (par30Pct > 5 ? "" : "pos"),
-        sub: `${fmtGHS(par30)} of ${fmtGHS(totalPrincipalOut)} principal is 30+ days late · any lateness: ${parPct(par1).toFixed(1)}% · healthy is under 5%`,
-        accent: par30Pct > 10 ? "red" : (par30Pct > 5 ? "amber" : "green")}
+        sub: `${fmtGHS(par30)} principal 30+ days late · any lateness ${parPct(par1).toFixed(1)}% · healthy under 5%`,
+        accent: sig(par30Pct <= 5, par30Pct <= 10)},
+      {label:"Overdue Now", value: fmtGHS(overdueNow), cls: overdueNow > 0.005 ? "neg" : "pos",
+        sub: overdueRows.length ? `${overdueRows.length} loan${overdueRows.length===1?"":"s"} past due, incl. late charges` : "Nothing overdue",
+        accent: overdueNow > 0.005 ? "red" : "green"},
+      {label:"Total Collected", value: fmtGHS(totalCollected), sub: totalLateFees > 0.005 ? `Late charges added so far: ${fmtGHS(totalLateFees)}` : "All repayments received"},
+      // Row 3 — this month
+      {label:`Paid Out in ${monthName}`, value: fmtGHS(paidOutMonth.reduce((s, l) => s + (Number(l.principal) || 0), 0)), sub: `${paidOutMonth.length} loan${paidOutMonth.length===1?"":"s"}`},
+      {label:`Collected in ${monthName}`, value: fmtGHS(collectedMonth.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0)), sub: `${collectedMonth.length} payment${collectedMonth.length===1?"":"s"}`},
+      {label:`Due in ${monthName}`, value: fmtGHS(round2(dueThisMonth)), sub: `${dueThisMonthCount} installment${dueThisMonthCount===1?"":"s"} scheduled this month`},
+      {label:`New Applications in ${monthName}`, value: appsMonth.length, sub: `${fmtGHS(appsMonth.reduce((s, l) => s + (Number(l.principal) || 0), 0))} requested`}
     ];
     document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
-      <div class="kpi-card accent-${k.accent}">
+      <div class="kpi-card accent-${k.accent || 'navy'}">
         <div class="label">${k.label}</div>
         <div class="value ${k.cls||''}">${k.value}</div>
         ${k.sub ? `<div class="sub">${k.sub}</div>` : ''}
@@ -2346,17 +2375,17 @@
 
     const totalProcessingFees = metrics.reduce((s,m) => s + m.processingFee, 0);
     const kpis2 = [
-      {label:"Capital Injected", value: fmtGHS(capitalInjected), accent:"blue"},
+      {label:"Capital Injected", value: fmtGHS(capitalInjected), accent:"navy"},
       {label:"Principal Still With Customers", value: fmtGHS(netOutstandingPrincipal), sub: "Loan amounts not yet repaid (interest excluded)", accent:"navy"},
       {label:"Available Cash for New Loans", value: fmtGHS(availableCash), cls: availableCash<0?"neg":"pos",
         sub: pendingLoans.length
           ? `Pending applications need ${fmtGHS(pendingNeed)} — ${fmtGHS(round2(availableCash - pendingNeed))} left after`
           : "Capital + Collected − Net Disbursed − Expenses",
         accent: availableCash<0?"red":"green"},
-      {label:"Operating Expenses", value: fmtGHS(expensesTotal), accent:"amber"},
-      {label:"Gross Revenue (Interest + Late Charges)", value: fmtGHS(grossRevenue), accent:"teal"},
+      {label:"Operating Expenses", value: fmtGHS(expensesTotal), accent:"navy"},
+      {label:"Gross Revenue (Interest + Late Charges)", value: fmtGHS(grossRevenue), accent:"navy"},
       {label:"Net Operating Profit", value: fmtGHS(netProfit), cls: netProfit>=0?"pos":"neg", accent: netProfit>=0?"green":"red"},
-      {label:"Processing Fees Retained", value: fmtGHS(totalProcessingFees), sub:"Deducted upfront from each loan", accent:"teal"},
+      {label:"Processing Fees Retained", value: fmtGHS(totalProcessingFees), sub:"Deducted upfront from each loan", accent:"navy"},
       {label:"Total Net Disbursed", value: fmtGHS(totalNetDisbursed), sub:"Principal less processing fees", accent:"navy"}
     ];
     document.getElementById('kpiGrid2').innerHTML = kpis2.map(k => `
