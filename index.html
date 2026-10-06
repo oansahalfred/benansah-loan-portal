@@ -970,12 +970,15 @@
     <div class="subcard">
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Anything deleted comes here first and no longer counts in the totals. <span id="binRoleNote"></span></p>
       <div id="binList" class="staff-list"></div>
+      <div id="oldBinArea"></div>
+      <div id="backupRecoverArea"></div>
+      <input type="file" id="recoverFile" accept=".json,application/json" style="display:none;">
     </div>
 
     <div class="section-head"><h2 style="color:var(--danger);">Danger Zone</h2></div>
     <div class="subcard" style="border-color:var(--danger);">
       <h4 style="color:var(--danger);">Start Fresh</h4>
-      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Permanently deletes every loan, payment, capital entry, and expense, then records the two opening capital injections again. The activity log is kept. Use this only when closing out an old portfolio entirely.</p>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Owner only. Downloads a safety backup, then permanently deletes every loan, payment, capital entry and expense. The activity log, staff list and settings are kept. Use this only when closing out an old portfolio entirely.</p>
       <button class="btn red" id="btnResetAll" data-icon="alert">Clear All Data &amp; Start Fresh</button>
     </div>
   </div>
@@ -1766,7 +1769,7 @@
     }
     storageMode = "firebase";
     document.getElementById('restoreRow').style.display = '';
-    document.getElementById('restoreNote').textContent = "Records are saved online and shared by all staff. To bring in records from the Claude version or another device, restore a Full Backup file (this replaces everything online).";
+    document.getElementById('restoreNote').textContent = "Owner only. Records are saved online and shared by all staff. Restoring a Full Backup replaces all loans, payments, capital and expenses online (a safety backup of the current records downloads first).";
     A.onAuthStateChanged(fbAuth, user => {
       if (user) {
         document.getElementById('loginScreen').style.display = 'none';
@@ -1962,9 +1965,11 @@
     let data;
     try { data = JSON.parse(await file.text()); } catch (err) { showToast("That file is not a valid backup", 4000); return; }
     if (!data || !Array.isArray(data.loans) || !Array.isArray(data.payments)) { showToast("That file is not a Benansah backup", 4000); return; }
-    showConfirm(`Replace everything on this device with the backup from ${data.exportedAt ? fmtStamp(data.exportedAt) : "this file"}? (${data.loans.length} loans, ${data.payments.length} payments)`, async name => {
+    if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can restore a backup"); return; }
+    showConfirm(`Replace all loans, payments, capital and expenses with the backup from ${data.exportedAt ? fmtStamp(data.exportedAt) : "this file"}? (${data.loans.length} loans, ${data.payments.length} payments). A safety backup of the current records is downloaded first. The activity log, staff list, Recycle Bin and staff password are kept.`, async name => {
       try {
-        const cols = ["loans", "payments", "capital", "expenses", "settings", "auditLog"];
+        exportFullBackup('BFS_Safety_Backup_before_Restore');
+        const cols = ["loans", "payments", "capital", "expenses"];
         for (const c of cols) {
           const s = await db.collection(c).get();
           for (const d of s.docs) await db.collection(c).doc(d.id).delete();
@@ -1974,8 +1979,8 @@
         await put("payments", data.payments);
         await put("capital", data.capital);
         await put("expenses", data.expenses);
-        await put("settings", data.settings);
-        for (const e2 of (data.activityLog || [])) await logActivityRaw(e2);
+        await put("settings", (data.settings || []).filter(r => r.id !== "security"));
+        if (storageMode !== 'firebase') for (const e2 of (data.activityLog || [])) await logActivityRaw(e2);
         logActivity("Backup Restored", `${data.loans.length} loans, ${data.payments.length} payments from backup dated ${data.exportedAt ? fmtStamp(data.exportedAt) : "unknown"}`, name);
         showToast("Backup restored", 4000);
       } catch (err) { showToast("Could not restore — try again", 4000); }
@@ -1997,16 +2002,22 @@
     subscribeCollection("auditLog", docs => { auditDocs = docs; auditLog = flattenAudit(docs); });
     if (storageMode === "firebase") subscribeCollection("staff", docs => { staffDocs = docs; });
     subscribeCollection("trash", docs => { binDocs = docs; });
+    if (storageMode === "firebase") subscribeCollection("secure", docs => {
+      secureDoc = docs.find(d => d._id === "staffPassword") || null;
+      const dm = docs.find(d => d._id === "binDismissed");
+      binDismissed = dm && dm.keys ? dm.keys : {};
+      secureLoaded = true; pickStaffPw();
+    });
+    else secureLoaded = true;
     subscribeCollection("settings", docs => {
       settingsDocs = docs;
       const sms = docs.find(d => d._id === "sms");
       if (sms && Array.isArray(sms.swaps)) smsSwaps = sms.swaps.map(x => ({from: x.from || "", to: x.to || ""}));
       if (!swapDraft) renderSwapEditor();
       autoSettings = docs.find(d => d._id === "autoSms") || {};
-      const sec = docs.find(d => d._id === "security");
-      staffPw = sec && sec.hash && sec.salt ? {hash: sec.hash, salt: sec.salt, updatedAt: sec.updatedAt, updatedBy: sec.updatedBy} : null;
+      legacySec = docs.find(d => d._id === "security") || null;
       settingsLoaded = true;
-      renderPwStatus();
+      pickStaffPw();
     });
   }
 
@@ -2101,9 +2112,10 @@
   function resetToFreshStart() {
     if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can clear all data"); return; }
     showConfirm(
-      "This will permanently delete every loan, payment, capital entry, and expense currently recorded, and replace them with two fresh capital injections (GHS 8,813 Bank Loan + GHS 6,500 Invested by Mother, dated 10 Dec 2026). The activity log is kept. This cannot be undone.",
+      "This will permanently delete every loan, payment, capital entry and expense. A Full Backup file is downloaded first so nothing is lost by accident. The activity log, staff list and settings are kept. Afterwards, add your opening capital with Add Capital Entry.",
       async (staffName) => {
         try {
+          exportFullBackup('BFS_Safety_Backup_before_Start_Fresh');
           const [loanSnap, paySnap, capSnap, expSnap] = await Promise.all([
             db.collection("loans").get(),
             db.collection("payments").get(),
@@ -2115,15 +2127,12 @@
           for (const d of capSnap.docs) await db.collection("capital").doc(d.id).delete();
           for (const d of expSnap.docs) await db.collection("expenses").doc(d.id).delete();
 
-          await db.collection("capital").add({date:"2026-12-10", amount:8813, source:"Bank Loan", notes:""});
-          await db.collection("capital").add({date:"2026-12-10", amount:6500, source:"Invested by Mother", notes:""});
-
           logActivity("Data Reset",
-            `Cleared ${loanSnap.size} loan(s), ${paySnap.size} payment(s), ${capSnap.size} capital and ${expSnap.size} expense record(s); opening capital re-recorded (GHS 8,813 + GHS 6,500)`,
+            `Cleared ${loanSnap.size} loan(s), ${paySnap.size} payment(s), ${capSnap.size} capital and ${expSnap.size} expense record(s) after downloading a safety backup`,
             staffName);
           expandedLoanRef = null;
           expandedBorrower = null;
-          showToast("Fresh start recorded — all clear");
+          showToast("All clear — now add your opening capital", 4000);
         } catch (err) {
           showToast("Could not complete reset — try again");
         }
@@ -3118,6 +3127,7 @@
           ${owner ? `<button type="button" class="btn ghost small danger" data-staff-remove="${escapeHtml(r._id)}">Remove</button>` : '<span class="s-tag">Staff</span>'}
         </div>`).join('') : '<div class="cell-sub">No staff added yet.</div>');
     document.getElementById('formAddStaff').style.display = owner ? '' : 'none';
+    document.getElementById('restoreRow').style.display = owner ? '' : 'none';
     document.getElementById('staffNote').textContent = owner
       ? 'Staff must use a Gmail (Google) account and the Sign in with Google button. They use the same staff password for edits.'
       : 'Only the owner can add or remove staff.';
@@ -3164,6 +3174,150 @@
     const tid = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     await db.collection("trash").doc(tid).set({...entry, deletedBy: staffName || "", deletedAt: new Date().toISOString()});
     for (const it of entry.items) await db.collection(it.col).doc(it.id).delete();
+  }
+  const BIN_MARK = " · moved to Recycle Bin";
+  // Deletions made before the Recycle Bin existed: rebuilt from the Activity Log.
+  const MONTHS = {Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12};
+  function isoFromLabel(t) {
+    const m = /^(\d{1,2}) (\w{3}) (\d{4})$/.exec((t || '').trim());
+    return m && MONTHS[m[2]] ? `${m[3]}-${pad2(MONTHS[m[2]])}-${pad2(+m[1])}` : null;
+  }
+  const numOf = t => parseFloat(String(t).replace(/[^0-9.]/g, ''));
+  function oldDeletion(e) {
+    const d = e.description || '';
+    if (d.includes(BIN_MARK.trim()) || d.includes('moved to Recycle Bin')) return null;
+    let m;
+    if (e.action === 'Capital Deleted' && (m = /^GHS ([\d,]+\.\d{2}) from (.*) dated (.+)$/.exec(d)) && isoFromLabel(m[3]))
+      return {kind: 'Capital', col: 'capital', data: {date: isoFromLabel(m[3]), amount: numOf(m[1]), source: m[2] === '—' ? '' : m[2], notes: 'Restored from the activity log'}};
+    if (e.action === 'Expense Deleted' && (m = /^GHS ([\d,]+\.\d{2}) — (.*?)(?:: (.*))?, dated (.+)$/.exec(d)) && isoFromLabel(m[4]))
+      return {kind: 'Expense', col: 'expenses', data: {date: isoFromLabel(m[4]), amount: numOf(m[1]), category: m[2] === '—' ? 'Other' : m[2], description: m[3] || '', paidVia: '', authorizedBy: ''}};
+    if (e.action === 'Payment Deleted' && (m = /^GHS ([\d,]+\.\d{2}) dated (.+?) for (\S+) \((.*)\)(?: via (.*))?$/.exec(d)) && isoFromLabel(m[2]))
+      return {kind: 'Payment', col: 'payments', data: {txnId: 'restored-' + Date.now(), refNo: m[3], borrowerName: m[4], paymentDate: isoFromLabel(m[2]), amountPaid: numOf(m[1]), paymentMethod: m[5] || '', senderName: '', receivedBy: ''}};
+    if (e.action === 'Loan Deleted') return {kind: 'Loan', col: null, data: null};
+    return null;
+  }
+  let binDismissed = {};
+  const oldKey = e => (e.timestamp || '') + '|' + (e.action || '');
+  function oldDeletions() {
+    return auditLog.map(e => ({e, o: oldDeletion(e)})).filter(x => x.o && !binDismissed[oldKey(x.e)]);
+  }
+  async function dismissOld(key) {
+    binDismissed = {...binDismissed, [key]: true};
+    await db.collection("secure").doc("binDismissed").set({keys: binDismissed});
+  }
+  function renderOldBin() {
+    const area = document.getElementById('oldBinArea');
+    if (!area) return;
+    if (storageMode !== 'firebase') { area.innerHTML = ''; return; }
+    const rows = oldDeletions();
+    const manage = canManageBin();
+    area.innerHTML = rows.length ? `<h4 style="margin:14px 0 6px; font-size:13px;">Deleted before the Recycle Bin existed <span class="cell-sub">(rebuilt from the Activity Log)</span></h4>
+      <div class="staff-list">${rows.map(({e, o}) => `<div class="staff-row">
+        <div class="s-main"><span class="s-tag">${escapeHtml(o.kind)}</span> <strong>${escapeHtml(e.description)}</strong>
+          <div class="cell-sub">Deleted ${escapeHtml(fmtStamp(e.timestamp))}${e.performedBy ? ' by ' + escapeHtml(e.performedBy) : ''}${o.col ? '' : ' · a loan needs a backup file to restore (below)'}</div></div>
+        ${manage ? `<div class="bin-actions">${o.col ? `<button type="button" class="btn ghost small" data-old-restore="${escapeHtml(oldKey(e))}">Restore</button>` : ''}
+          <button type="button" class="btn ghost small danger" data-old-purge="${escapeHtml(oldKey(e))}">Delete Forever</button></div>` : ''}
+      </div>`).join('')}</div>` : '';
+    document.getElementById('backupRecoverArea').innerHTML = manage
+      ? `<div class="export-row" style="margin-top:12px;"><button type="button" class="btn ghost small" id="btnRecoverBackup">Recover from a backup file…</button>
+         <span class="cell-sub" style="align-self:center;">Pick a Full Backup — anything in it that is missing now can be restored, including loans.</span></div><div id="recoverList"></div>`
+      : '';
+  }
+  document.getElementById('oldBinArea').addEventListener('click', e => {
+    const r = e.target.closest('[data-old-restore]'), x = e.target.closest('[data-old-purge]');
+    if (!r && !x) return;
+    const key = (r || x).dataset[r ? 'oldRestore' : 'oldPurge'];
+    const row = oldDeletions().find(z => oldKey(z.e) === key);
+    if (!row || !canManageBin()) return;
+    if (r) {
+      const d0 = row.o.data, nearV = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
+      const dup = row.o.col === 'capital' ? capitalEntries.some(x => nearV(x.amount, d0.amount) && x.date === d0.date && (x.source || '') === d0.source)
+        : row.o.col === 'expenses' ? expenseEntries.some(x => nearV(x.amount, d0.amount) && x.date === d0.date && (x.description || '') === d0.description)
+        : payments.some(x => nearV(x.amountPaid, d0.amountPaid) && x.paymentDate === d0.paymentDate && x.refNo === d0.refNo);
+      if (dup) { showToast("That record is already back in the app"); dismissOld(key); return; }
+      if (row.o.col === 'payments' && !loans.some(l => l.refNo === row.o.data.refNo)) { showToast(`Loan ${row.o.data.refNo} no longer exists — restore the loan first`); return; }
+      showConfirm(`Restore this ${row.o.kind.toLowerCase()}: ${row.e.description}?`, async who => {
+        try {
+          await db.collection(row.o.col).add(row.o.data);
+          await dismissOld(key);
+          logActivity("Restored from Recycle Bin", `${row.o.kind}: ${row.e.description} (rebuilt from the activity log)`, who);
+          showToast("Restored");
+        } catch (err) { showToast("Could not restore — try again"); }
+      }, {title: "Restore", yesLabel: "Restore"});
+    } else {
+      showConfirm(`Remove "${row.e.description}" from the Recycle Bin for good? The Activity Log keeps its record.`, async who => {
+        try {
+          await dismissOld(key);
+          logActivity("Permanently Deleted", `${row.o.kind}: ${row.e.description}`, who);
+          showToast("Deleted permanently");
+        } catch (err) { showToast("Could not update — try again"); }
+      }, {title: "Delete Forever", yesLabel: "Delete Forever", danger: true});
+    }
+  });
+  // Recover from a backup file: list whatever in the file is missing now.
+  let recoverData = null;
+  document.getElementById('backupRecoverArea').addEventListener('click', e => {
+    if (e.target.closest('#btnRecoverBackup')) { document.getElementById('recoverFile').click(); return; }
+    const b = e.target.closest('[data-recover]');
+    if (!b || !recoverData || !canManageBin()) return;
+    const it = recoverData.missing[+b.dataset.recover];
+    if (!it) return;
+    showConfirm(`Restore ${it.label} from the backup?${it.payments.length ? ` Its ${it.payments.length} payment record(s) come back too.` : ''}`, async who => {
+      try {
+        await db.collection(it.col).doc(it.id).set(it.data);
+        for (const p of it.payments) await db.collection("payments").doc(p.id).set(p.data);
+        logActivity("Restored from Backup", `${it.label} (backup dated ${recoverData.when})`, who);
+        recoverData.missing.splice(+b.dataset.recover, 1);
+        renderRecoverList();
+        showToast("Restored");
+      } catch (err) { showToast("Could not restore — try again"); }
+    }, {title: "Restore from Backup", yesLabel: "Restore"});
+  });
+  document.getElementById('recoverFile').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (err) { showToast("That file is not a valid backup", 4000); return; }
+    if (!data || !Array.isArray(data.loans)) { showToast("That file is not a Benansah backup", 4000); return; }
+    const strip = r => { const {id, ...rest} = r; return rest; };
+    const inBin = (col, id) => binDocs.some(t => (t.items || []).some(i => i.col === col && i.id === id));
+    // Same record already present under a different id (e.g. rebuilt from the activity log)?
+    const near = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
+    const norm = t => (t || '').trim().toLowerCase();
+    const sameCap = c => capitalEntries.some(x => near(x.amount, c.amount) && x.date === c.date && norm(x.source) === norm(c.source));
+    const sameExp = c => expenseEntries.some(x => near(x.amount, c.amount) && x.date === c.date && norm(x.description) === norm(c.description));
+    const samePay = c => payments.some(x => near(x.amountPaid, c.amountPaid) && x.paymentDate === c.paymentDate && x.refNo === c.refNo);
+    const missing = [];
+    data.loans.forEach(l => {
+      const ref = l.refNo || l.id;
+      if (!ref || loans.some(x => x.refNo === ref) || inBin('loans', ref)) return;
+      const pays = (data.payments || []).filter(p => p.refNo === ref && p.id && !payments.some(x => x._id === p.id) && !samePay(p)).map(p => ({id: p.id, data: strip(p)}));
+      missing.push({col: 'loans', id: ref, data: strip(l), payments: pays, label: `loan ${ref} — ${l.borrowerName || ''} (${fmtGHS(l.principal)})`});
+    });
+    (data.payments || []).forEach(p => {
+      if (!p.id || payments.some(x => x._id === p.id) || samePay(p) || inBin('payments', p.id) || !loans.some(l => l.refNo === p.refNo)) return;
+      missing.push({col: 'payments', id: p.id, data: strip(p), payments: [], label: `payment ${fmtGHS(p.amountPaid)} for ${p.refNo} (${p.borrowerName || ''}) dated ${fmtDate(p.paymentDate)}`});
+    });
+    (data.capital || []).forEach(c => {
+      if (!c.id || capitalEntries.some(x => x._id === c.id) || sameCap(c) || inBin('capital', c.id)) return;
+      missing.push({col: 'capital', id: c.id, data: strip(c), payments: [], label: `capital ${fmtGHS(c.amount)} from ${c.source || '—'} dated ${fmtDate(c.date)}`});
+    });
+    (data.expenses || []).forEach(x => {
+      if (!x.id || expenseEntries.some(y => y._id === x.id) || sameExp(x) || inBin('expenses', x.id)) return;
+      missing.push({col: 'expenses', id: x.id, data: strip(x), payments: [], label: `expense ${fmtGHS(x.amount)} — ${x.category || ''}${x.description ? ': ' + x.description : ''} dated ${fmtDate(x.date)}`});
+    });
+    recoverData = {missing, when: data.exportedAt ? fmtStamp(data.exportedAt) : 'unknown'};
+    renderRecoverList();
+  });
+  function renderRecoverList() {
+    const box = document.getElementById('recoverList');
+    if (!box || !recoverData) return;
+    box.innerHTML = recoverData.missing.length
+      ? `<h4 style="margin:12px 0 6px; font-size:13px;">In the backup (${escapeHtml(recoverData.when)}) but missing now</h4><div class="staff-list">${recoverData.missing.map((it, i) => `<div class="staff-row">
+          <div class="s-main">${escapeHtml(it.label.charAt(0).toUpperCase() + it.label.slice(1))}${it.payments.length ? `<div class="cell-sub">with ${it.payments.length} payment record(s)</div>` : ''}</div>
+          <button type="button" class="btn ghost small" data-recover="${i}">Restore</button></div>`).join('')}</div>`
+      : `<div class="cell-sub" style="margin-top:10px;">Nothing is missing — everything in that backup (${escapeHtml(recoverData.when)}) is already in the app.</div>`;
   }
   function renderBin() {
     const list = document.getElementById('binList');
@@ -3231,6 +3385,8 @@
       document.getElementById('autoSummaryPhone').value = autoSettings.summaryPhone || '';
     }
     document.getElementById('autoDirty').style.display = autoDirty ? '' : 'none';
+    const ownerOnly = !isOwnerUser();
+    ['autoEnabled', 'autoGuarantor', 'autoSummaryPhone', 'btnAutoSave'].forEach(id => { document.getElementById(id).disabled = ownerOnly; });
     const last = auditLog.find(e => e.action === 'Auto Reminders');
     const box = document.getElementById('autoLastRun');
     const now = new Date();
@@ -3246,6 +3402,7 @@
   }));
   document.getElementById('btnAutoSave').addEventListener('click', () => {
     if (!db) { showToast("Not connected — cannot save right now"); return; }
+    if (!isOwnerUser()) { showToast("Only the owner can change the automatic reminder settings"); return; }
     const enabled = document.getElementById('autoEnabled').checked;
     const guarantor = document.getElementById('autoGuarantor').checked;
     const phone = document.getElementById('autoSummaryPhone').value.trim();
@@ -3659,12 +3816,24 @@
     if (staffPw && staffPw.hash && staffPw.salt) return (await sha256Hex(staffPw.salt + '|' + pw)) === staffPw.hash;
     return pw === LEGACY_STAFF_PASSWORD;
   }
+  // The password lives in secure/staffPassword, which only the owner can change
+  // (database rules). settings/security is read only as a fallback for a
+  // password set before this update.
+  let secureDoc = null, legacySec = null, secureLoaded = false;
+  function pickStaffPw() {
+    const src = secureDoc && secureDoc.hash ? secureDoc : (legacySec && legacySec.hash ? legacySec : null);
+    staffPw = src && src.salt ? {hash: src.hash, salt: src.salt, updatedAt: src.updatedAt, updatedBy: src.updatedBy} : null;
+    renderPwStatus();
+  }
   function renderPwStatus() {
     const el = document.getElementById('pwStatus');
     if (!el) return;
     el.innerHTML = staffPw && staffPw.updatedAt
       ? `Last changed ${escapeHtml(fmtStamp(staffPw.updatedAt))}${staffPw.updatedBy ? ' by ' + escapeHtml(staffPw.updatedBy) : ''}.`
       : '<strong style="color:var(--warn);">Still using the original password — change it now.</strong>';
+    const btn = document.getElementById('btnChangePw');
+    if (btn) btn.style.display = (storageMode !== 'firebase' || isOwnerUser()) ? '' : 'none';
+    if (storageMode === 'firebase' && !isOwnerUser()) el.innerHTML += ' Only the owner can change it.';
   }
 
   // Custom in-app confirmation dialog. Replaces native confirm(), which some
@@ -3701,7 +3870,7 @@
       confirmName.focus();
       return;
     }
-    if (storageMode === 'firebase' && !settingsLoaded) {
+    if (storageMode === 'firebase' && (!settingsLoaded || !secureLoaded)) {
       confirmErr.textContent = 'Still loading — try again in a moment.';
       confirmErr.style.display = 'block';
       return;
@@ -3745,7 +3914,8 @@
     const fail = msg => { err.textContent = msg; err.style.display = 'block'; };
     err.style.display = 'none';
     if (!db) return fail('Not connected — try again in a moment.');
-    if (storageMode === 'firebase' && !settingsLoaded) return fail('Still loading — try again in a moment.');
+    if (storageMode === 'firebase' && (!settingsLoaded || !secureLoaded)) return fail('Still loading — try again in a moment.');
+    if (storageMode === 'firebase' && !isOwnerUser()) return fail('Only the owner can change the staff password.');
     const name = f.name.value.trim().replace(/\s+/g, ' ');
     if (!name) return fail('Please enter your name.');
     if (!(await checkStaffPassword(f.current.value))) { f.current.select(); return fail('The current password is not correct.'); }
@@ -3759,7 +3929,8 @@
       const salt = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
       const hash = await sha256Hex(salt + '|' + next);
       const updatedAt = new Date().toISOString();
-      await db.collection("settings").doc("security").set({hash, salt, updatedBy: name, updatedAt});
+      await db.collection(storageMode === 'firebase' ? "secure" : "settings").doc(storageMode === 'firebase' ? "staffPassword" : "security").set({hash, salt, updatedBy: name, updatedAt});
+      if (storageMode === 'firebase' && legacySec) { try { await db.collection("settings").doc("security").delete(); } catch (e2) {} }
       staffPw = {hash, salt, updatedBy: name, updatedAt};
       lastStaffName = name;
       logActivity("Staff Password Changed", "A new staff password was set", name);
@@ -4246,7 +4417,7 @@
           logActivity("Loan Deleted",
             `${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)}, ${loanStage(loan)})` +
             (relatedPayments.length ? ` together with ${relatedPayments.length} payment record(s) totalling ${fmtGHS(relatedPayments.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0))}` : "") +
-            (settlementPayments.length ? `; top-up settlement on ${settlementPayments[0].refNo} reversed` : ""),
+            (settlementPayments.length ? `; top-up settlement on ${settlementPayments[0].refNo} reversed` : "") + BIN_MARK,
             staffName);
           showToast("Loan " + refNo + " moved to the Recycle Bin");
           if (expandedLoanRef === refNo) { expandedLoanRef = null; renderLoanDetail(); }
@@ -4416,7 +4587,7 @@
             summary: `Paid ${fmtDate(p.paymentDate)}${p.paymentMethod ? " via " + p.paymentMethod : ""}`,
             items: [{col: "payments", id: paymentId, data: stripId(p)}]}, staffName);
           logActivity("Payment Deleted",
-            `${fmtGHS(p.amountPaid)} dated ${fmtDate(p.paymentDate)} for ${p.refNo} (${p.borrowerName})${p.paymentMethod ? " via " + p.paymentMethod : ""}`,
+            `${fmtGHS(p.amountPaid)} dated ${fmtDate(p.paymentDate)} for ${p.refNo} (${p.borrowerName})${p.paymentMethod ? " via " + p.paymentMethod : ""}` + BIN_MARK,
             staffName);
           showToast("Payment moved to the Recycle Bin");
         } catch (err) {
@@ -4475,7 +4646,7 @@
       try {
         await moveToBin({kind: "Capital", title: `${fmtGHS(c.amount)} — ${c.source || "Capital"}`, summary: `Dated ${fmtDate(c.date)}${c.notes ? " · " + c.notes : ""}`,
           items: [{col: "capital", id, data: stripId(c)}]}, staffName);
-        logActivity("Capital Deleted", `${fmtGHS(c.amount)} from ${c.source || "—"} dated ${fmtDate(c.date)}`, staffName);
+        logActivity("Capital Deleted", `${fmtGHS(c.amount)} from ${c.source || "—"} dated ${fmtDate(c.date)}` + BIN_MARK, staffName);
         showToast("Capital entry moved to the Recycle Bin");
       }
       catch (err) { showToast("Could not delete — try again"); }
@@ -4501,7 +4672,7 @@
       try {
         await moveToBin({kind: "Expense", title: `${fmtGHS(x.amount)} — ${x.category || "Expense"}`, summary: `${x.description ? x.description + " · " : ""}Dated ${fmtDate(x.date)}`,
           items: [{col: "expenses", id, data: stripId(x)}]}, staffName);
-        logActivity("Expense Deleted", `${fmtGHS(x.amount)} — ${x.category || "—"}${x.description ? ": " + x.description : ""}, dated ${fmtDate(x.date)}`, staffName);
+        logActivity("Expense Deleted", `${fmtGHS(x.amount)} — ${x.category || "—"}${x.description ? ": " + x.description : ""}, dated ${fmtDate(x.date)}` + BIN_MARK, staffName);
         showToast("Expense moved to the Recycle Bin");
       }
       catch (err) { showToast("Could not delete — try again"); }
@@ -4644,7 +4815,8 @@
     downloadFile(`BFS_Activity_Log_${todayISO()}.csv`, toCSV(headers, rows), 'text/csv');
   }
 
-  function exportFullBackup() {
+  function exportFullBackup(prefix) {
+    prefix = typeof prefix === 'string' ? prefix : 'BFS_Full_Backup';
     const withId = arr => arr.map(({_id, ...rest}) => ({id: _id, ...rest}));
     const backup = {
       app: "Benansah Loan Manager",
@@ -4662,13 +4834,13 @@
       settings: withId(settingsDocs),
       recycleBin: withId(binDocs)
     };
-    downloadFile(`BFS_Full_Backup_${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
+    downloadFile(`${prefix}_${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
   }
 
   document.getElementById('btnExportLoans').addEventListener('click', exportLoansCSV);
   document.getElementById('btnExportPayments').addEventListener('click', exportPaymentsCSV);
   document.getElementById('btnExportActivity').addEventListener('click', exportActivityCSV);
-  document.getElementById('btnExportBackup').addEventListener('click', exportFullBackup);
+  document.getElementById('btnExportBackup').addEventListener('click', () => exportFullBackup());
 
   // ---------------- Master render ----------------
   function renderTabBadges() {
@@ -4694,6 +4866,8 @@
     renderPwStatus();
     renderStaff();
     renderBin();
+    renderOldBin();
+    renderRecoverList();
     renderTabBadges();
   }
 
