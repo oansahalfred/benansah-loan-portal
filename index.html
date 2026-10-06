@@ -807,6 +807,8 @@
     <button class="tab-btn" data-tab="finances" data-icon="wallet">Finances</button>
     <button class="tab-btn" data-tab="ratecard" data-icon="percent">Rate Card</button>
     <button class="tab-btn" data-tab="sms" data-icon="message">SMS Templates</button>
+    <button class="tab-btn" data-tab="activity" data-icon="clock">Activity</button>
+    <button class="tab-btn" data-tab="settings" data-icon="settings">Settings</button>
   </div>
 </div>
 
@@ -846,6 +848,7 @@
         <option value="Fully Paid">Fully Paid</option>
         <option value="Declined">Declined</option>
       </select>
+      <label class="auto-check" style="white-space:nowrap;"><input type="checkbox" id="showFinished"> <span>Show finished loans</span></label>
       <span class="search-count" id="loansCount"></span>
     </div>
     <div id="loanDetailArea"></div>
@@ -919,24 +922,19 @@
       <div class="empty-state" id="paymentsEmpty" style="display:none;">No payments recorded yet.</div>
     </div>
 
-    <div class="section-head"><h2>Export &amp; Backup</h2><span class="hint">Download your records and keep a copy somewhere safe</span></div>
-    <div class="subcard">
-      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">CSV files open in Excel or Google Sheets. The Full Backup contains every loan, payment, capital entry, expense and activity record in one file. Download one at least once a week.</p>
-      <div class="export-row">
-        <button class="btn ghost small" id="btnExportLoans" data-icon="download">Loans (CSV)</button>
-        <button class="btn ghost small" id="btnExportPayments" data-icon="download">Payments (CSV)</button>
-        <button class="btn ghost small" id="btnExportActivity" data-icon="download">Activity Log (CSV)</button>
-        <button class="btn small" id="btnExportBackup" data-icon="download">Full Backup (JSON)</button>
-      </div>
-      <div id="restoreRow" style="display:none; margin-top:12px;">
-        <p id="restoreNote" style="font-size:12.5px; color:var(--text-mute); margin:0 0 8px 0;">Records on this site are saved in this browser on this device only. Download a Full Backup often. To move records here (for example from the Claude version), restore a Full Backup file.</p>
-        <button class="btn ghost small danger" id="btnRestore" data-icon="alert">Restore from Backup…</button>
-        <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
-      </div>
-      <div id="usageArea" style="margin-top:16px;"></div>
-    </div>
+  </div>
 
-    <div class="section-head"><h2>Activity Log</h2><span class="hint">Who changed what, and when — newest first</span></div>
+  <!-- ================= ACTIVITY ================= -->
+  <div class="view" id="view-activity">
+    <div class="section-head" style="margin-top:0;"><h2>Activity Log</h2><span class="hint">Who changed what, and when — newest first</span></div>
+    <div class="search-bar">
+      <select class="search-input" id="activityRange" style="max-width:190px;">
+        <option value="all">All dates</option><option value="today">Today</option><option value="7">Last 7 days</option>
+        <option value="month">This month</option><option value="30">Last 30 days</option><option value="90">Last 3 months</option>
+      </select>
+      <input class="search-input" id="activitySearch" placeholder="Search action, details or name...">
+      <span class="search-count" id="activityCount"></span>
+    </div>
     <div class="table-wrap">
       <table class="mid">
         <thead><tr><th>When</th><th>Action</th><th>Details</th><th>By</th></tr></thead>
@@ -945,9 +943,23 @@
       <div class="empty-state" id="activityEmpty" style="display:none;">No activity yet. New loans, payments, edits and deletions will be recorded here.</div>
     </div>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost small" id="btnActivityMore" style="display:none;">Show more</button></div>
+    <div class="subcard" id="activityArchiveCard" style="display:none; margin-top:12px;">
+      <h4>Archive &amp; clear old entries <span class="cell-sub" style="font-weight:500;">— owner only</span></h4>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Removes old entries from the app to keep it tidy. An archive file (Excel/CSV) of everything removed downloads first — keep it safe, it is your proof if a dispute ever comes up. The last 3 months are always kept.</p>
+      <div class="export-row">
+        <select class="search-input" id="activityKeep" style="max-width:220px;">
+          <option value="3">Keep the last 3 months</option><option value="6" selected>Keep the last 6 months</option><option value="12">Keep the last 12 months</option>
+        </select>
+        <button type="button" class="btn ghost small danger" id="btnActivityArchive">Archive &amp; Clear Older</button>
+      </div>
+    </div>
 
+  </div>
+
+  <!-- ================= SETTINGS ================= -->
+  <div class="view" id="view-settings">
     <div id="staffSection" style="display:none;">
-      <div class="section-head"><h2>Staff Access</h2><span class="hint">Who can sign in to this loan manager</span></div>
+      <div class="section-head" style="margin-top:0;"><h2>Staff Access</h2><span class="hint">Who can sign in to this loan manager</span></div>
       <div class="subcard">
         <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Add a staff member's Gmail address and they can sign in straight away with <strong>Sign in with Google</strong>. Removing someone stops their access immediately, even if they are signed in.</p>
         <div id="staffList" class="staff-list"></div>
@@ -964,6 +976,23 @@
     <div class="subcard">
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Choose a password that only you and staff you trust know. It is stored scrambled in your private database, never in the website code. <span id="pwStatus"></span></p>
       <button class="btn small" id="btnChangePw" data-icon="edit">Change Staff Password</button>
+    </div>
+
+    <div class="section-head"><h2>Backup &amp; Export</h2><span class="hint">Download your records and keep a copy somewhere safe</span></div>
+    <div class="subcard">
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">CSV files open in Excel or Google Sheets. The Full Backup contains every loan, payment, capital entry, expense and activity record in one file. Download one at least once a week.</p>
+      <div class="export-row">
+        <button class="btn ghost small" id="btnExportLoans" data-icon="download">Loans (CSV)</button>
+        <button class="btn ghost small" id="btnExportPayments" data-icon="download">Payments (CSV)</button>
+        <button class="btn ghost small" id="btnExportActivity" data-icon="download">Activity Log (CSV)</button>
+        <button class="btn small" id="btnExportBackup" data-icon="download">Full Backup (JSON)</button>
+      </div>
+      <div id="restoreRow" style="display:none; margin-top:12px;">
+        <p id="restoreNote" style="font-size:12.5px; color:var(--text-mute); margin:0 0 8px 0;">Records on this site are saved in this browser on this device only. Download a Full Backup often. To move records here (for example from the Claude version), restore a Full Backup file.</p>
+        <button class="btn ghost small danger" id="btnRestore" data-icon="alert">Restore from Backup…</button>
+        <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
+      </div>
+      <div id="usageArea" style="margin-top:16px;"></div>
     </div>
 
     <div class="section-head"><h2>Recycle Bin</h2><span class="hint">Deleted loans, payments, capital and expenses</span></div>
@@ -1362,6 +1391,7 @@
     cash: svgIcon('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'),
     download: svgIcon('<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>'),
     close: svgIcon('<path d="M18 6 6 18M6 6l12 12"/>'),
+    settings: svgIcon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
     clock: svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
     alert: svgIcon('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>'),
     copy: svgIcon('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
@@ -1873,7 +1903,7 @@
     const na = sessionStorage.getItem("bfsNotAllowed");
     if (na) {
       sessionStorage.removeItem("bfsNotAllowed");
-      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access. Ask the owner to add this email under Finances → Staff Access, then sign in with Google."; }, 800);
+      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access. Ask the owner to add this email under Settings → Staff Access, then sign in with Google."; }, 800);
     }
   } catch (e) {}
 
@@ -2463,6 +2493,11 @@
                                   (l.guarantorPhone || "").replace(/\D/g, "").includes(digits)));
       });
     }
+    // Finished loans (fully paid, declined) are tucked away unless asked for.
+    const isFinished = r => r.m.status === "Fully Paid" || r.m.status === "Declined";
+    const showFinished = document.getElementById('showFinished').checked || statusFilter === "Fully Paid" || statusFilter === "Declined" || !!search;
+    const hiddenFinished = showFinished ? 0 : rows.filter(isFinished).length;
+    if (!showFinished) rows = rows.filter(r => !isFinished(r));
     if (statusFilter === "__dueSoon") rows = rows.filter(r => r.m.dueSoon);
     else if (statusFilter) rows = rows.filter(r => r.m.status === statusFilter);
     rows.sort(compareLoanRows);
@@ -2470,11 +2505,12 @@
 
     const filtered = !!(search || statusFilter);
     document.getElementById('loansCount').textContent = loans.length
-      ? (filtered ? `${rows.length} of ${loans.length} loans` : `${loans.length} loan${loans.length === 1 ? "" : "s"}`)
+      ? (filtered ? `${rows.length} of ${loans.length} loans` : `${rows.length} ${showFinished ? "" : "active "}loan${rows.length === 1 ? "" : "s"}`) +
+        (hiddenFinished ? ` · ${hiddenFinished} finished hidden` : "")
       : "";
     const empty = document.getElementById('loansEmpty');
     empty.style.display = rows.length ? 'none' : 'block';
-    empty.textContent = loans.length ? "No loans match your search or filter." : 'No loans yet — click "New Loan" to add your first one.';
+    empty.textContent = loans.length ? (hiddenFinished && !filtered ? "No active loans — tick Show finished loans to see paid ones." : "No loans match your search or filter.") : 'No loans yet — click "New Loan" to add your first one.';
     document.getElementById('loansTableBody').innerHTML = rows.map(({loan:l, m}) => {
       const live = m.stage === 'disbursed';
       return `
@@ -2624,6 +2660,7 @@
 
   document.getElementById('loanSearch').addEventListener('input', renderLoans);
   document.getElementById('loanStatusFilter').addEventListener('change', renderLoans);
+  document.getElementById('showFinished').addEventListener('change', renderLoans);
 
   document.getElementById('loansTableBody').addEventListener('click', e => {
     const payBtn = e.target.closest('[data-pay-row]');
@@ -2859,8 +2896,21 @@
     if (a.includes("reset")) return "act-system";
     return "act-create";
   }
+  function activityFiltered() {
+    const range = document.getElementById('activityRange').value;
+    const q = (document.getElementById('activitySearch').value || '').trim().toLowerCase();
+    const now = new Date();
+    const start = range === 'today' ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      : range === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1)
+      : /^\d+$/.test(range) ? new Date(now.getTime() - (+range) * 86400000) : null;
+    return auditLog.filter(e => (!start || new Date(e.timestamp) >= start) &&
+      (!q || `${e.action} ${e.description} ${e.performedBy}`.toLowerCase().includes(q)));
+  }
   function renderActivity() {
-    const shown = auditLog.slice(0, activityLimit);
+    const list = activityFiltered();
+    const shown = list.slice(0, activityLimit);
+    document.getElementById('activityCount').textContent = list.length === auditLog.length ? `${auditLog.length} entries` : `${list.length} of ${auditLog.length} entries`;
+    document.getElementById('activityArchiveCard').style.display = (storageMode !== 'firebase' || isOwnerUser()) && auditLog.length ? '' : 'none';
     document.getElementById('activityEmpty').style.display = shown.length ? 'none' : 'block';
     document.getElementById('activityTableBody').innerHTML = shown.map(e => `
       <tr>
@@ -2870,9 +2920,29 @@
         <td>${escapeHtml(e.performedBy || '—')}</td>
       </tr>`).join('');
     const more = document.getElementById('btnActivityMore');
-    more.style.display = auditLog.length > activityLimit ? 'inline-flex' : 'none';
-    more.textContent = `Show more (${auditLog.length - activityLimit} older)`;
+    more.style.display = list.length > activityLimit ? 'inline-flex' : 'none';
+    more.textContent = `Show more (${list.length - activityLimit} older)`;
   }
+  ['activityRange', 'activitySearch'].forEach(id => document.getElementById(id).addEventListener(id === 'activitySearch' ? 'input' : 'change', () => { activityLimit = 100; renderActivity(); }));
+  document.getElementById('btnActivityArchive').addEventListener('click', () => {
+    if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can clear the activity log"); return; }
+    const keep = Math.max(3, +document.getElementById('activityKeep').value || 6);
+    const now = new Date();
+    const cut = new Date(now.getFullYear(), now.getMonth() - (keep - 1), 1);   // first month kept
+    const cutMonth = cut.getFullYear() + '-' + pad2(cut.getMonth() + 1);
+    const oldDocs = auditDocs.filter(d => (d._id || '').slice(0, 7) < cutMonth);
+    const oldEntries = auditLog.filter(e => oldDocs.some(d => d.entries && Object.prototype.hasOwnProperty.call(d.entries, e._key)));
+    if (!oldDocs.length || !oldEntries.length) { showToast(`Nothing older than ${fmtDate(cutMonth + '-01')} to clear`); return; }
+    showConfirm(`Archive and clear ${oldEntries.length} activity entr${oldEntries.length === 1 ? 'y' : 'ies'} from before ${fmtDate(cutMonth + '-01')}? An archive file downloads first.`, async who => {
+      try {
+        const rows = oldEntries.map(e => [fmtStamp(e.timestamp), e.action, e.description, e.performedBy]);
+        await downloadFile(`BFS_Activity_Archive_before_${cutMonth}.csv`, toCSV(["Date & Time", "Action", "Details", "By"], rows), 'text/csv');
+        for (const d of oldDocs) await db.collection("auditLog").doc(d._id).delete();
+        logActivity("Activity Log Archived", `${oldEntries.length} entries from before ${fmtDate(cutMonth + '-01')} removed after downloading an archive file`, who);
+        showToast(`${oldEntries.length} old entries archived and cleared`, 4000);
+      } catch (err) { showToast("Could not clear — try again"); }
+    }, {title: "Archive & Clear Activity", yesLabel: "Archive & Clear", danger: true});
+  });
   document.getElementById('btnActivityMore').addEventListener('click', () => { activityLimit += 100; renderActivity(); });
 
   function recordsUsed() {
@@ -4407,7 +4477,7 @@
       `Delete ${refNo} (${loan.borrowerName})? ` +
       (relatedPayments.length ? `This will also delete ${relatedPayments.length} payment record(s) logged against it. ` : '') +
       (settlementPayments.length ? `The top-up settlement on ${settlementPayments[0].refNo} will be removed too, so that loan's balance comes back. ` : '') +
-      `It goes to the Recycle Bin (Finances tab), where the owner can restore it.`,
+      `It goes to the Recycle Bin (Settings tab), where the owner can restore it.`,
       async (staffName) => {
         try {
           const paid = relatedPayments.concat(settlementPayments);
