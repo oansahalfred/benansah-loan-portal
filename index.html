@@ -1433,9 +1433,10 @@
   const SMS_TEMPLATES = [
     {id:"0A", title:"Application Received", text:"Dear [Customer Name], we have received your application for GHS [Amount] (Ref [Ref No.]). We will confirm by SMS once it has been reviewed. Benansah Financial Solutions. Tel 0543717151."},
     {id:"0B", title:"Application Confirmed", text:"Dear [Customer Name], your application for GHS [Amount] (Ref [Ref No.]) has been confirmed. The funds will be sent to you shortly. Benansah Financial Solutions. Tel 0543717151."},
-    {id:"1A", title:"Funds Sent (Mobile Wallet)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to your mobile wallet [MoMo Number] for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). Your first payment of GHS [Installment] is due on [First Due Date]. Benansah Financial Solutions."},
-    {id:"1B", title:"Funds Paid (Cash)", text:"Dear [Customer Name], GHS [Net Amount] has been paid to you in person for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). Your first payment of GHS [Installment] is due on [First Due Date]. Benansah Financial Solutions."},
-    {id:"1C", title:"Top-Up Completed", text:"Dear [Customer Name], your top-up Ref [Ref No.] is complete. GHS [Settled Amount] cleared your previous balance on Ref [Old Ref No.] and GHS [Net Amount] has been paid to you. First payment of GHS [Installment] is due on [First Due Date]. Benansah Financial Solutions."},
+    {id:"0C", title:"Application Not Approved", text:"Dear [Customer Name], thank you for your application (Ref [Ref No.]). We are unable to approve it at this time. You are welcome to apply again in future. Benansah Financial Solutions. Tel 0543717151."},
+    {id:"1A", title:"Funds Sent (Mobile Wallet)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to your mobile wallet [MoMo Number] for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
+    {id:"1B", title:"Funds Paid (Cash)", text:"Dear [Customer Name], GHS [Net Amount] has been paid to you in person for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
+    {id:"1C", title:"Top-Up Completed", text:"Dear [Customer Name], your top-up Ref [Ref No.] is complete. GHS [Settled Amount] cleared your balance on Ref [Old Ref No.] and GHS [Net Amount] has been paid to you. First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
     {id:"2A", title:"Repayment Plan (1 Month)", text:"Dear [Customer Name], your repayment for Ref [Ref No.] is GHS [Total Repayment], due on [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred) quoting Ref [Ref No.]. Benansah Financial Solutions. Tel 0543717151."},
     {id:"2B", title:"Repayment Plan (Multi-Month)", text:"Dear [Customer Name], your repayment plan for Ref [Ref No.] is [Term] monthly payments of GHS [Installment], due on the [Day] of each month from [First Due Date] to [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
     {id:"3A", title:"3-Day Reminder (1 Month)", text:"Dear [Customer Name], a friendly reminder that your payment of GHS [Amount] for Ref [Ref No.] is due on [Date]. Please pay to 0243642425 (Owusu-Ansah Alfred). Thank you. Benansah Financial Solutions."},
@@ -1444,11 +1445,11 @@
     {id:"3D", title:"Payday Reminder (Multi-Month)", text:"Dear [Customer Name], as payday approaches, please plan installment [Installment No.] of GHS [Amount] for Ref [Ref No.], due on [Date]. Paying on time keeps your record strong. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
     {id:"4A", title:"Due Today (1 Month)", text:"Dear [Customer Name], your payment of GHS [Amount] for Ref [Ref No.] is due today, [Date]. Please pay to 0243642425 (Owusu-Ansah Alfred) today to avoid a 10% late charge. Benansah Financial Solutions."},
     {id:"4B", title:"Due Today (Multi-Month)", text:"Dear [Customer Name], installment [Installment No.] of GHS [Amount] for Ref [Ref No.] is due today, [Date]. Please pay to 0243642425 (Owusu-Ansah Alfred) today to avoid a 10% late charge. Benansah Financial Solutions."},
-    {id:"4C", title:"Payment Missed (1 Month)", text:"Dear [Customer Name], your payment for Ref [Ref No.] was due on [Date] and has not been received. A 10% late charge of GHS [Penalty Amount] has been added. Amount now due: GHS [New Total Amount]. Pay within 14 days to avoid a further 10%. Pay to 0243642425 (Owusu-Ansah Alfred)."},
-    {id:"4D", title:"Payment Missed (Multi-Month)", text:"Dear [Customer Name], installment [Installment No.] for Ref [Ref No.] was due on [Date] and has not been received. A 10% late charge of GHS [Penalty Amount] has been added. Amount now due: GHS [New Total Amount]. Pay within 14 days to avoid a further 10%. Pay to 0243642425 (Owusu-Ansah Alfred)."},
-    {id:"4E", title:"Second Notice (48 Hours)", text:"Dear [Customer Name], we have not yet received GHS [New Total Amount] for Ref [Ref No.] following our notice 2 days ago. Please pay today to 0243642425 (Owusu-Ansah Alfred) to avoid further charges. Tel 0543717151. Benansah Financial Solutions."},
-    {id:"4F", title:"Second Late Charge (Day 15)", text:"Dear [Customer Name], Ref [Ref No.] is now 15 days past due and a second 10% late charge has been added. Amount now due: GHS [New Total Amount]. Please pay today to 0243642425 (Owusu-Ansah Alfred). Tel 0543717151."},
-    {id:"6A", title:"Guarantor Notice (to Borrower)", text:"Dear [Customer Name], Ref [Ref No.] is now 7 days past due with GHS [New Total Amount] outstanding. As stated in your agreement, your guarantor, [Guarantor Name], is being contacted today. Please pay to 0243642425 (Owusu-Ansah Alfred). Tel 0543717151."},
+    {id:"4C", title:"Payment Missed (1 Month)", text:"Dear [Customer Name], your payment for Ref [Ref No.] due on [Date] has not been paid in full. A 10% late charge of GHS [Penalty Amount] applies. Now due: GHS [New Total Amount]. Pay within 14 days to avoid a further 10%. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
+    {id:"4D", title:"Payment Missed (Multi-Month)", text:"Dear [Customer Name], installment [Installment No.] for Ref [Ref No.] due on [Date] has not been paid in full. A 10% late charge of GHS [Penalty Amount] applies. Now due: GHS [New Total Amount]. Pay within 14 days to avoid a further 10%. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
+    {id:"4E", title:"Second Notice (Day 3)", text:"Dear [Customer Name], we have not yet received GHS [New Total Amount] for Ref [Ref No.] following our notice 2 days ago. Please pay today to 0243642425 (Owusu-Ansah Alfred) to avoid further charges. Tel 0543717151. Benansah Financial Solutions."},
+    {id:"4F", title:"Second Late Charge (Day 15)", text:"Dear [Customer Name], Ref [Ref No.] is now 15 days past due and a second 10% late charge has been added. Amount now due: GHS [New Total Amount]. Please pay today to 0243642425 (Owusu-Ansah Alfred). Tel 0543717151. Benansah Financial Solutions."},
+    {id:"6A", title:"Guarantor Notice (to Borrower)", text:"Dear [Customer Name], Ref [Ref No.] is 7 days past due with GHS [New Total Amount] outstanding. As stated in your agreement, your guarantor, [Guarantor Name], is being contacted today. Please pay to 0243642425 (Owusu-Ansah Alfred). Tel 0543717151. Benansah Financial Solutions."},
     {id:"6B", title:"Guarantor Notice (to Guarantor)", text:"Dear [Guarantor Name], you are the guarantor for [Customer Name] (Ref [Ref No.]), whose payment of GHS [New Total Amount] is 7 days past due. Kindly help ensure payment to 0243642425 (Owusu-Ansah Alfred). Tel 0543717151. Benansah Financial Solutions."},
     {id:"6C", title:"Extension Granted", text:"Dear [Customer Name], your request for more time on Ref [Ref No.] has been granted. Please pay GHS [New Total Amount] by [Extended Date]. No further late charges will be added until then. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
     {id:"6E", title:"Extension Date Reminder", text:"Dear [Customer Name], a reminder that your extended payment date for Ref [Ref No.] is [Extended Date]. Amount due: GHS [New Total Amount]. Please pay to 0243642425 (Owusu-Ansah Alfred) on or before this date. Benansah Financial Solutions."},
@@ -2329,7 +2330,8 @@
   // second notice; day 7 → guarantor notice. Extensions: granted → 6C,
   // 3 days before the new date → 6E reminder, date missed → 6D.
   function suggestedTemplate(loan, m) {
-    if (!m || m.stage === 'declined') return null;
+    if (!m) return null;
+    if (m.stage === 'declined') return "0C";
     if (m.stage === 'pending') return "0A";
     if (m.totalPayableWithPenalty <= 0.005) return null;
     const multi = m.term > 1;
@@ -3079,11 +3081,11 @@
   function renderSmsPicker() {
     const picker = document.getElementById('smsLoanPicker');
     const current = picker.value;
-    const sorted = [...loans].filter(l => loanStage(l) !== 'declined')
+    const sorted = [...loans]
       .sort((a, b) => normName(a.borrowerName).localeCompare(normName(b.borrowerName)) ||
                       (a.refNo || "").localeCompare(b.refNo || "", undefined, {numeric: true}));
     picker.innerHTML = '<option value="">— Fill placeholders from a loan —</option>' +
-      sorted.map(l => `<option value="${escapeHtml(l.refNo)}">${escapeHtml(l.borrowerName)} — ${escapeHtml(l.refNo)}${loanStage(l) === 'pending' ? ' (pending)' : ''}</option>`).join('');
+      sorted.map(l => `<option value="${escapeHtml(l.refNo)}">${escapeHtml(l.borrowerName)} — ${escapeHtml(l.refNo)}${loanStage(l) === 'pending' ? ' (pending)' : loanStage(l) === 'declined' ? ' (declined)' : ''}</option>`).join('');
     picker.value = sorted.some(l => l.refNo === current) ? current : "";
   }
   function smsCategory(id) {
