@@ -621,6 +621,22 @@
   .profile-note.good { background: var(--good-bg); color: var(--good); }
   .profile-note.risk { background: var(--danger-bg); color: var(--danger); }
   .profile-note.warn { background: var(--warn-bg); color: var(--warn); }
+  .kyc-box { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+  .kyc-box > summary { cursor: pointer; font-size: 13px; }
+  .kyc-head { grid-column: 1 / -1; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy-text); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-top: 4px; }
+  .kyc-photo { width: 96px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); margin-top: 6px; }
+  .sign-panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 10px 0 14px; background: var(--surface); }
+  .sign-panel h4 { margin: 0 0 8px 0; font-size: 13.5px; }
+  .sign-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px dashed var(--border); }
+  .sign-row:first-of-type { border-top: 0; }
+  .sign-state { font-size: 12.5px; }
+  .sign-state.ok { color: var(--good); font-weight: 700; }
+  .sign-state.no { color: var(--warn); font-weight: 700; }
+  .agreement-body { max-height: 52vh; overflow-y: auto; font-size: 13px; line-height: 1.55; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--bg); }
+  .agreement-body h5 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--navy-text); }
+  .agreement-body table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .agreement-body td { padding: 3px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .agreement-body td:first-child { color: var(--text-mute); width: 45%; }
 
   /* ---------- Payment quick-fill ---------- */
   .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin: -8px 0 14px 0; }
@@ -1124,6 +1140,37 @@
         <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X" inputmode="numeric" autocomplete="off"><span class="calc-note" id="cardNote">Type the 10 digits — GHA- and the dash are added for you.</span></div>
         <div class="field"><label>Guarantor Name</label><input name="guarantorName"></div>
         <div class="field"><label>Guarantor Phone</label><input name="guarantorPhone"></div>
+        <details class="field span2 kyc-box" id="kycBox" open>
+          <summary><strong>Full application details</strong> <span class="cell-sub">— replaces the paper form (Sections 1–3)</span></summary>
+          <div class="form-grid" style="margin-top:10px;">
+            <div class="kyc-head span2">Borrower</div>
+            <div class="field"><label>Service No. &amp; Rank</label><input name="k_serviceRank"></div>
+            <div class="field"><label>Station / Unit / Division</label><input name="k_station"></div>
+            <div class="field"><label>Alternate Contact</label><input name="k_altContact" inputmode="tel"></div>
+            <div class="field"><label>Preferred Language</label><input name="k_language" placeholder="e.g. Twi, English"></div>
+            <div class="field span2"><label>Residential Address / GhanaPost GPS</label><input name="k_address" placeholder="e.g. GA-123-4567, near …"></div>
+            <div class="field"><label>Employer / Occupation</label><input name="k_employer"></div>
+            <div class="field"><label>Monthly Income (GHS)</label><input name="k_income" type="number" min="0" step="0.01"></div>
+            <div class="field"><label>Next of Kin (Name)</label><input name="k_nokName"></div>
+            <div class="field"><label>Next of Kin (Phone)</label><input name="k_nokPhone" inputmode="tel"></div>
+            <div class="field"><label>Relationship to Next of Kin</label><input name="k_nokRelationship"></div>
+            <div class="field"><label>Personal Reference (Name &amp; Phone)</label><input name="k_reference"></div>
+            <div class="field span2"><label>Other Active Loans (lender &amp; balance)</label><input name="k_otherLoans" placeholder="None, or e.g. ABC Finance GHS 500"></div>
+            <div class="kyc-head span2">Guarantor</div>
+            <div class="field"><label>Guarantor Ghana Card No.</label><input name="k_gCard" placeholder="GHA-XXXXXXXXX-X" autocomplete="off"></div>
+            <div class="field"><label>Relationship to Borrower</label><input name="k_gRelationship"></div>
+            <div class="field"><label>Guarantor Service No. &amp; Rank</label><input name="k_gServiceRank"></div>
+            <div class="field"><label>Guarantor Station / Unit</label><input name="k_gStation"></div>
+            <div class="field span2"><label>Guarantor Address / GhanaPost GPS</label><input name="k_gAddress"></div>
+            <div class="kyc-head span2">Checked in person by staff</div>
+            <label class="field span2 auto-check tick"><input type="checkbox" name="k_cardChecked"> <span>Borrower's original Ghana Card checked (photo, number and expiry match). <span class="cell-sub">No copy of the card is kept.</span></span></label>
+            <label class="field span2 auto-check tick"><input type="checkbox" name="k_gCardChecked"> <span>Guarantor's original Ghana Card checked</span></label>
+            <label class="field span2 auto-check tick"><input type="checkbox" name="k_incomeChecked"> <span>Proof of income / employment ID seen</span></label>
+            <div class="kyc-head span2">Passport photos <span class="cell-sub" style="font-weight:400;">— take with the phone or tablet camera</span></div>
+            <div class="field"><label>Borrower photo</label><input type="file" accept="image/*" capture="user" id="photoBorrower"><img id="photoBorrowerPrev" class="kyc-photo" alt="" style="display:none;"></div>
+            <div class="field"><label>Guarantor photo</label><input type="file" accept="image/*" capture="user" id="photoGuarantor"><img id="photoGuarantorPrev" class="kyc-photo" alt="" style="display:none;"></div>
+          </div>
+        </details>
         <div class="field span2" id="stageField"><label>What happens now?</label>
           <div class="seg">
             <label><input type="radio" name="stage" value="pending" checked><span><strong>Save as pending</strong><small>Save the application; pay out later</small></span></label>
@@ -1299,6 +1346,19 @@
         <button type="submit" class="btn red">Confirm Pay-Out</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalAgreement">
+  <div class="modal" style="max-width:720px;">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Loan Agreement</h3>
+    <div class="modal-sub">Read this with the customer (and guarantor) before sending the signing code.</div>
+    <div class="agreement-body" id="agreementBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" data-close>Close</button>
+      <button type="button" class="btn red" id="btnAgreementPdf" data-icon="download">Download PDF</button>
+    </div>
   </div>
 </div>
 
@@ -2841,6 +2901,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap;">${buttons}</div>
         </div>
         ${notes.join('')}
+        ${m.stage !== 'declined' ? signPanelHtml(loan) : ''}
         <div class="loan-detail-grid">
           ${cell('Borrower Phone', escapeHtml(loan.borrowerPhone||'—'), small)}
           ${cell('Ghana Card No.', escapeHtml(loan.ghanaCardNo||'—'), small)}
@@ -2923,6 +2984,10 @@
     if ((b = t('[data-disburse]'))) { startDisburse(b.dataset.disburse); return; }
     if ((b = t('[data-decline]'))) { declineApplication(b.dataset.decline); return; }
     if ((b = t('[data-hold]'))) { startHold(b.dataset.hold); return; }
+    if ((b = t('[data-sign-send]'))) { signSend(b.dataset.ref, b.dataset.signSend, b); return; }
+    if ((b = t('[data-sign-verify]'))) { signVerify(b.dataset.ref, b.dataset.signVerify, b, b.parentElement.querySelector('[data-sign-code]')); return; }
+    if ((b = t('[data-agreement]'))) { openAgreement(b.dataset.agreement); return; }
+    if ((b = t('[data-agreement-pdf]'))) { agreementPdf(b.dataset.agreementPdf); return; }
     if ((b = t('[data-unhold]'))) { removeHold(b.dataset.unhold); return; }
     if ((b = t('[data-reopen]'))) { reopenApplication(b.dataset.reopen); return; }
     if ((b = t('[data-statement]'))) { openStatement(b.dataset.statement); return; }
@@ -4505,6 +4570,7 @@
       form.processingFeePct.value = (feePctOf(loan) * 100).toFixed(2);
       form.purpose.value = loan.purpose || "";
       form.processedBy.value = loan.processedBy || "";
+      fillKyc(form, loan.kyc);
     } else {
       editingLoanRefNo = null;
       modalTitle.textContent = opts.topUpOf ? "Top-Up — " + opts.topUpOf : (prefill ? "New Loan — Repeat Customer" : "New Loan");
@@ -4520,7 +4586,11 @@
         form.guarantorName.value = prefill.guarantorName || "";
         form.guarantorPhone.value = prefill.guarantorPhone || "";
       }
+      fillKyc(form, prefill && prefill.kyc ? prefill.kyc : null);
     }
+    pendingPhotos = {};
+    document.getElementById('photoBorrower').value = ''; document.getElementById('photoGuarantor').value = '';
+    showPhotosInForm(loan ? loan.refNo : null);
     updateStageUI();
     updateCalcPreview();
     updateEligibilityBox();
@@ -4537,6 +4607,88 @@
     return 'GHA-' + d.slice(0, 9) + (d.length > 9 ? '-' + d.slice(9) : '');
   }
   const ghanaCardValid = v => /^GHA-\d{9}-\d$/.test(String(v || '').trim());
+
+  // ---- Full application details (paperless form) ----
+  const KYC_TEXT = ['serviceRank', 'station', 'altContact', 'language', 'address', 'employer', 'income', 'nokName', 'nokPhone',
+    'nokRelationship', 'reference', 'otherLoans', 'gCard', 'gRelationship', 'gServiceRank', 'gStation', 'gAddress'];
+  const KYC_CHECKS = ['cardChecked', 'gCardChecked', 'incomeChecked'];
+  function fillKyc(form, k) {
+    k = k || {};
+    KYC_TEXT.forEach(n => { form['k_' + n].value = k[n] == null ? '' : k[n]; });
+    KYC_CHECKS.forEach(n => { form['k_' + n].checked = !!k[n]; });
+  }
+  function readKyc(form, before) {
+    const k = {};
+    KYC_TEXT.forEach(n => { const v = form['k_' + n].value.trim(); if (v) k[n] = n === 'income' ? Number(v) : v; });
+    KYC_CHECKS.forEach(n => { if (form['k_' + n].checked) k[n] = true; });
+    if (k.gCard) k.gCard = formatGhanaCard(k.gCard);
+    // Who ticked the in-person checks, and when (kept if already recorded).
+    const b = before || {};
+    if (KYC_CHECKS.some(n => k[n])) {
+      const same = KYC_CHECKS.every(n => !!k[n] === !!b[n]);
+      k.checkedBy = same && b.checkedBy ? b.checkedBy : (myName() || lastStaffName || '');
+      k.checkedOn = same && b.checkedOn ? b.checkedOn : todayISO();
+    }
+    return k;
+  }
+  // Passport photos: resized in the browser to a small JPEG (about 30–60 KB).
+  let pendingPhotos = {};
+  function resizePhoto(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const W = 360, H = 450, c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const g = c.getContext('2d');
+        const sc = Math.max(W / img.width, H / img.height), w = img.width * sc, h = img.height * sc;
+        g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+        g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg', 0.72));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not an image')); };
+      img.src = url;
+    });
+  }
+  [['photoBorrower', 'borrower'], ['photoGuarantor', 'guarantor']].forEach(([id, who]) => {
+    document.getElementById(id).addEventListener('change', async e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      try {
+        pendingPhotos[who] = await resizePhoto(f);
+        const prev = document.getElementById(id + 'Prev');
+        prev.src = pendingPhotos[who]; prev.style.display = '';
+      } catch (err) { showToast("That file is not a photo"); e.target.value = ''; }
+    });
+  });
+  async function savePhotos(refNo) {
+    const p = pendingPhotos; pendingPhotos = {};
+    if (!p.borrower && !p.guarantor) return;
+    try {
+      const ref = db.collection("photos").doc(refNo);
+      const old = await ref.get();
+      const cur = old.exists ? old.data() : {};
+      await ref.set(Object.assign({}, cur, p.borrower ? {borrower: p.borrower} : {}, p.guarantor ? {guarantor: p.guarantor} : {},
+        {refNo, updatedBy: myName() || lastStaffName || '', updatedAt: new Date().toISOString()}));
+      photoCache[refNo] = null;
+    } catch (err) { showToast("Loan saved, but the photos could not be saved — try again from Edit", 6000); }
+  }
+  const photoCache = {};
+  async function loadPhotos(refNo) {
+    if (photoCache[refNo]) return photoCache[refNo];
+    try {
+      const d = await db.collection("photos").doc(refNo).get();
+      photoCache[refNo] = d.exists ? d.data() : {};
+    } catch (e) { photoCache[refNo] = {}; }
+    return photoCache[refNo];
+  }
+  async function showPhotosInForm(refNo) {
+    ['photoBorrowerPrev', 'photoGuarantorPrev'].forEach(id => { const el = document.getElementById(id); el.style.display = 'none'; el.removeAttribute('src'); });
+    if (!refNo) return;
+    const ph = await loadPhotos(refNo);
+    if (ph.borrower) { const el = document.getElementById('photoBorrowerPrev'); el.src = ph.borrower; el.style.display = ''; }
+    if (ph.guarantor) { const el = document.getElementById('photoGuarantorPrev'); el.src = ph.guarantor; el.style.display = ''; }
+  }
   function updateStageUI() {
     const editing = !!editingLoanRefNo;
     const loan = editing ? loans.find(l => l.refNo === editingLoanRefNo) : null;
@@ -4618,6 +4770,9 @@
   formNewLoan.querySelectorAll('input[name=stage]').forEach(r => r.addEventListener('change', updateStageUI));
   // Ghana Card: GHA- is filled in, only digits are kept, and the dash before
   // the last digit is added automatically (GHA-123456789-0).
+  formNewLoan.k_gCard.addEventListener('focus', () => { if (!formNewLoan.k_gCard.value) formNewLoan.k_gCard.value = 'GHA-'; });
+  formNewLoan.k_gCard.addEventListener('blur', () => { if (formNewLoan.k_gCard.value === 'GHA-') formNewLoan.k_gCard.value = ''; });
+  formNewLoan.k_gCard.addEventListener('input', () => { formNewLoan.k_gCard.value = formatGhanaCard(formNewLoan.k_gCard.value); });
   formNewLoan.ghanaCardNo.addEventListener('focus', () => { if (!formNewLoan.ghanaCardNo.value) formNewLoan.ghanaCardNo.value = 'GHA-'; });
   formNewLoan.ghanaCardNo.addEventListener('blur', () => { if (formNewLoan.ghanaCardNo.value === 'GHA-') formNewLoan.ghanaCardNo.value = ''; updateCardNote(); });
   formNewLoan.ghanaCardNo.addEventListener('input', () => {
@@ -4655,6 +4810,7 @@
       stage: 'disbursed', disbursementDate: dateISO, disbursedVia: via, disbursedBy: staffName,
       disbursedAt: new Date().toISOString(), topUpSettlement: settlement, hold: null
     });
+    if (paperOk[base.refNo]) { doc.paperSigned = paperOk[base.refNo]; delete paperOk[base.refNo]; }
     try {
       await db.collection("loans").doc(base.refNo).set(doc);
       if (settlement > 0.005 && old) {
@@ -4695,6 +4851,9 @@
       purpose: fd.get('purpose').trim(),
       processedBy: fd.get('processedBy').trim()
     };
+    const kycBefore = editing ? (loans.find(l => l.refNo === editing) || {}).kyc : null;
+    const kyc = readKyc(formNewLoan, kycBefore);
+    if (Object.keys(kyc).length || kycBefore) fields.kyc = kyc;
     if (fields.ghanaCardNo === 'GHA-') fields.ghanaCardNo = '';
     if (fields.ghanaCardNo && !ghanaCardValid(fields.ghanaCardNo)) {
       const before = editing ? loans.find(l => l.refNo === editing) : null;
@@ -4715,7 +4874,9 @@
         btn.disabled = true;
         try {
           await db.collection("loans").doc(refNo).set(merged);
-          const changes = describeChanges(Object.assign({processingFeePct: feePctOf(before)}, before), merged, LOAN_FIELDS);
+          await savePhotos(refNo);
+          let changes = describeChanges(Object.assign({processingFeePct: feePctOf(before)}, before), merged, LOAN_FIELDS);
+          if (JSON.stringify(before.kyc || {}) !== JSON.stringify(merged.kyc || {})) changes = (changes ? changes + "; " : "") + "application details updated";
           logActivity("Loan Edited", `${refNo} (${merged.borrowerName}) — ${changes || "saved with no changes"}`, editAuthName);
           showToast("Loan " + refNo + " updated");
           closeModal('modalNewLoan');
@@ -4737,21 +4898,28 @@
     const refNo = base.refNo;
     if (overrideBy) base.ruleOverrideBy = overrideBy;
     if (stageChoice === 'disburse') {
-      showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}?`,
-        async name => {
+      const online = storageMode === 'firebase';
+      showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}?` +
+        (online ? ' The customer cannot sign with a code before pay-out this way — choose "Save as pending" to sign first. Only continue now if they signed a PAPER agreement.' : ''),
+        async (name, paper) => {
+          if (online && !paper) { showToast('Not paid out — save as pending and sign the agreement with a code first', 5500); return; }
+          if (online) paperOk[refNo] = {by: name, on: todayISO()};
           const doc = await disburseLoanObject(base, base.disbursementDate, via, name);
+          if (doc) await savePhotos(refNo);
           if (doc) {
             showToast("Loan " + refNo + " paid out"); closeModal('modalNewLoan');
             if (wantText) sendAutoText(doc, fundsTemplateFor(doc), "Loan " + refNo + " paid out");
           }
         },
-        {title: "Approve & Pay Out", yesLabel: "Approve & Pay Out"});
+        {title: "Approve & Pay Out", yesLabel: "Approve & Pay Out",
+         check: online ? {label: '<strong>The customer signed a paper agreement</strong>', checked: false} : null});
       return;
     }
     (async () => {
       btn.disabled = true;
       try {
         await db.collection("loans").doc(refNo).set(base);
+        await savePhotos(refNo);
         logActivity("Application Created",
           `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (pending, not paid out)`,
           base.processedBy);
@@ -4772,7 +4940,7 @@
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan || loanStage(loan) !== 'pending') return;
     if (loan.hold) { showToast(`${refNo} is on hold (${loan.hold.reason || 'waiting for information'}). Remove the hold first.`, 5000); return; }
-    withRuleCheck(loan, loan.refNo, () => startDisburseChecked(loan));
+    signatureGate(loan, already => withRuleCheck(loan, loan.refNo, () => already ? (editAuthName = lastStaffName, openDisburseModal(loan)) : startDisburseChecked(loan)));
   }
   function startDisburseChecked(loan) {
     const refNo = loan.refNo;
@@ -4960,9 +5128,12 @@
       async (staffName) => {
         try {
           const paid = relatedPayments.concat(settlementPayments);
+          const ph = await loadPhotos(refNo);
+          const photoItem = ph && (ph.borrower || ph.guarantor) ? [{col: "photos", id: refNo, data: ph}] : [];
           await moveToBin({kind: "Loan", title: `${refNo} — ${loan.borrowerName}`,
             summary: `${fmtGHS(loan.principal)} · ${loanStage(loan)}${paid.length ? ` · with ${paid.length} payment record(s)` : ''}`,
-            items: [{col: "loans", id: refNo, data: stripId(loan)}].concat(paid.map(p => ({col: "payments", id: p._id, data: stripId(p)})))}, staffName);
+            items: [{col: "loans", id: refNo, data: stripId(loan)}].concat(paid.map(p => ({col: "payments", id: p._id, data: stripId(p)}))).concat(photoItem)}, staffName);
+          photoCache[refNo] = null;
           logActivity("Loan Deleted",
             `${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)}, ${loanStage(loan)})` +
             (relatedPayments.length ? ` together with ${relatedPayments.length} payment record(s) totalling ${fmtGHS(relatedPayments.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0))}` : "") +
@@ -5173,6 +5344,215 @@
         refreshSmsBalance();
       } else showToast(`${doneMsg}, but SMS ${id} failed: ${out.error || 'try Send on the SMS tab'}`, 6000);
     } catch (e) { showToast(`${doneMsg}, but SMS ${id} could not be sent (no connection)`, 6000); }
+  }
+
+  // ---------------- Paperless agreement & e-signatures ----------------
+  // The customer (and guarantor) sign by reading back a 6-digit code texted
+  // to their own phone. The code is made and checked on the server, so staff
+  // never see it; the server records the signature with the exact loan terms.
+  const AGREEMENT_VERSION = "BFS-LA v2 (October 2026)";
+  const AGREEMENT_CLAUSES = [
+    ["Repayment Obligation", "The Borrower agrees to repay the full Principal Amount plus interest strictly according to the agreed schedule, on or before each due date and the Final Due Date stated above."],
+    ["Processing Fee", "A one-time processing fee of 2% of the Principal Amount is deducted when the loan is paid out. The Borrower receives the Net Amount stated above but repays the full Principal plus interest. The fee is not refundable once funds are paid out."],
+    ["Late Payment Charges", "If an installment is not paid in full by its due date, a late charge of 10% of the unpaid part of that installment is added on the day after the due date, and a further 10% of what is still unpaid 15 days after the due date. Each missed installment is charged separately, up to a maximum of 20% of that installment. Amounts not yet due are never charged, and late charges are never calculated on earlier late charges."],
+    ["Payment Extension", "Benansah Financial Solutions may, at its discretion and in writing (including by SMS), grant a new payment date. No further late charges are added until that date. If the new date is missed, late charges apply again from that date under Clause 3."],
+    ["Guarantor Liability", "The Guarantor agrees to assume full legal and financial liability for the total outstanding balance, including late charges, should the Borrower default after having been given written notice and a 7-day cure period."],
+    ["Early Settlement", "The Borrower may settle the loan in full before the Final Due Date. The amount payable is the Total Payable stated above (principal plus the full agreed interest), less any amounts already paid. No interest discount is given for early settlement, and no early-settlement penalty applies."],
+    ["Top-Up", "Once at least 50% of the Total Payable has been repaid and no payment is overdue, the Borrower may apply for a top-up. The new loan first clears the remaining balance of this loan and the Borrower receives the rest, less the processing fee. A top-up is a new agreement."],
+    ["Cooling-Off Period", "The Borrower may cancel this Agreement within 24 hours of signing, provided funds have not yet been paid out, with no fee or charge."],
+    ["Consent to Contact", "The Borrower and Guarantor consent to being contacted by Benansah Financial Solutions by phone call, SMS or WhatsApp about this loan and its repayment."],
+    ["Recovery Costs & Jurisdiction", "In the event of legal action or recovery due to default, the Borrower and Guarantor shall reimburse all reasonable and documented costs incurred. This Agreement is governed by the laws of the Republic of Ghana, and the courts in Accra shall have jurisdiction."],
+    ["Data Protection", "Personal information collected (including Ghana Card details) will be used only for loan verification, administration and recovery, and will not be shared with unauthorised third parties, in line with the Data Protection Act, 2012 (Act 843)."],
+    ["Electronic Signature", "The Borrower and Guarantor agree that entering the one-time code sent by SMS to their own phone number is their signature on this Agreement, with the same effect as a handwritten signature, and that the electronic record kept by Benansah Financial Solutions is the original Agreement."]
+  ];
+  const BORROWER_DECLARATION = "I confirm that all details given are true and accurate, and that I am not currently blacklisted or in default with any other lender. I have read, understood and agree to be bound by all terms of this Agreement, including the interest rate, the 2% processing fee, the repayment schedule and the late charge terms.";
+  const GUARANTOR_DECLARATION = "I confirm that I have read and understood this Agreement and voluntarily guarantee this loan. I accept responsibility for the outstanding balance, including late charges, if the Borrower defaults, as described in Clause 5.";
+  // The loan terms a signature covers. Changing any of them after signing
+  // means the agreement must be signed again.
+  function signTerms(loan) {
+    const num = v => String(Math.round((Number(v) || 0) * 10000) / 10000);
+    return {borrowerName: (loan.borrowerName || '').trim(), borrowerPhone: (loan.borrowerPhone || '').replace(/\D/g, ''),
+      guarantorName: (loan.guarantorName || '').trim(), guarantorPhone: (loan.guarantorPhone || '').replace(/\D/g, ''),
+      principal: num(loan.principal), interestRatePct: num(loan.interestRatePct), loanTermMonths: num(loan.loanTermMonths),
+      processingFeePct: num(feePctOf(loan))};
+  }
+  const sameTerms = (a, b) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+  const guarantorNeeded = loan => (loan.guarantorPhone || '').replace(/\D/g, '').length >= 9;
+  function signStatus(loan) {
+    const t = signTerms(loan), sg = loan.sign || {};
+    const st = who => {
+      const r = sg[who];
+      if (!r || !r.at) return {state: 'none'};
+      return sameTerms(r.terms, t) ? {state: 'ok', rec: r} : {state: 'changed', rec: r};
+    };
+    const b = st('borrower'), g = guarantorNeeded(loan) ? st('guarantor') : {state: 'na'};
+    return {b, g, complete: b.state === 'ok' && (g.state === 'ok' || g.state === 'na'),
+      paper: loan.paperSigned || null, any: b.state !== 'none' || (g.state !== 'none' && g.state !== 'na')};
+  }
+  const maskPhone = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(0, 3) + '****' + d.slice(-3) : (p || ''); };
+  function signPanelHtml(loan) {
+    const s = signStatus(loan), ref = escapeHtml(loan.refNo), online = storageMode === 'firebase';
+    const pending = loanStage(loan) === 'pending';
+    const row = (who, label, name, phone, st) => {
+      if (st.state === 'na') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state">No guarantor phone — not needed</div></div></div>`;
+      const ok = st.state === 'ok';
+      const stateTxt = ok ? `✓ Signed ${escapeHtml(fmtStamp(st.rec.at))} · code sent to ${escapeHtml(maskPhone(st.rec.phone))}`
+        : st.state === 'changed' ? 'Loan terms changed after signing — must sign again' : 'Not signed yet';
+      const can = online && pending && !ok && can_('applications');
+      return `<div class="sign-row">
+        <div><strong>${label}</strong> · ${escapeHtml(name || '—')} · ${escapeHtml(phone || 'no phone')}
+          <div class="sign-state ${ok ? 'ok' : 'no'}">${stateTxt}</div></div>
+        ${can ? `<div class="export-row" style="margin:0;">
+          <button type="button" class="btn ghost small" data-sign-send="${who}" data-ref="${ref}">${ICON.message}${st.state === 'none' ? 'Send code' : 'Send new code'}</button>
+          <input class="search-input" style="width:110px; padding:6px 8px;" inputmode="numeric" maxlength="6" placeholder="6-digit code" data-sign-code="${who}">
+          <button type="button" class="btn small" data-sign-verify="${who}" data-ref="${ref}">${ICON.check}Confirm</button>
+        </div>` : ''}
+      </div>`;
+    };
+    const head = s.complete ? `<span class="badge badge-paid">Signed</span>` : s.paper ? `<span class="badge badge-partial">Paper agreement</span>` : `<span class="badge badge-pending">Not fully signed</span>`;
+    return `<div class="sign-panel">
+      <h4>${ICON.loans} Loan Agreement ${head}</h4>
+      <div class="cell-sub" style="margin-bottom:6px;">${pending
+        ? (online ? 'Show the customer the agreement, send the code to their phone, and type in the code they read back. Pay-out unlocks when the borrower (and guarantor) have signed.' : 'Code signing works on the online version only.')
+        : (s.complete ? 'Signed electronically before pay-out.' : s.paper ? `Paid out on a paper agreement (${escapeHtml(s.paper.by || '')}, ${escapeHtml(fmtDate(s.paper.on || ''))}).` : 'Paid out before electronic signing was used.')}</div>
+      ${row('borrower', 'Borrower', loan.borrowerName, loan.borrowerPhone, s.b)}
+      ${row('guarantor', 'Guarantor', loan.guarantorName, loan.guarantorPhone, s.g)}
+      <div class="export-row" style="margin-top:8px;">
+        <button type="button" class="btn ghost small" data-agreement="${ref}">${ICON.loans}View Agreement</button>
+        <button type="button" class="btn ghost small" data-agreement-pdf="${ref}">${ICON.download || ""}Download Agreement PDF</button>
+      </div>
+    </div>`;
+  }
+  const can_ = p => can(p);
+  async function signSend(refNo, who, btn) {
+    if (!needs('applications')) return;
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    btn.disabled = true; const t0 = btn.innerHTML; btn.textContent = 'Sending…';
+    try {
+      const out = await fnApi('sign', {action: 'send', refNo, who});
+      if (out.ok) showToast(`Code sent to the ${who} (${out.to || maskPhone(who === 'borrower' ? loan.borrowerPhone : loan.guarantorPhone)}). Ask them to read it back — valid 10 minutes.`, 6000);
+      else showToast(out.error || 'Could not send the code', 6000);
+    } catch (e) { showToast('No internet connection — try again', 4000); }
+    btn.disabled = false; btn.innerHTML = t0;
+  }
+  async function signVerify(refNo, who, btn, input) {
+    if (!needs('applications')) return;
+    const code = (input.value || '').replace(/\D/g, '');
+    if (code.length !== 6) { showToast('Type the 6-digit code the customer received'); input.focus(); return; }
+    btn.disabled = true;
+    try {
+      const out = await fnApi('sign', {action: 'verify', refNo, who, code});
+      if (out.ok) { showToast(`${who === 'borrower' ? 'Borrower' : 'Guarantor'} signed ✓`, 4000); input.value = ''; }
+      else { showToast(out.error || 'Code not accepted', 6000); input.select(); }
+    } catch (e) { showToast('No internet connection — try again', 4000); }
+    btn.disabled = false;
+  }
+
+  // The agreement as shown on screen (read to the customer before signing).
+  function agreementFacts(loan) {
+    const m = computeLoanMetrics(loan), k = loan.kyc || {};
+    const fee = m.processingFee, net = loan.topUpOf ? m.netDisbursed : m.netDisbursed;
+    return {m, k, rows: [
+      ['Loan Ref', loan.refNo], ['Borrower', loan.borrowerName], ['Phone', loan.borrowerPhone || '—'], ['Ghana Card No.', loan.ghanaCardNo || '—'],
+      ['Address / GPS', k.address || '—'], ['Employer / Occupation', k.employer || '—'],
+      ['Guarantor', loan.guarantorName ? `${loan.guarantorName}${loan.guarantorPhone ? ' · ' + loan.guarantorPhone : ''}` : '—'],
+      ['Principal Amount', fmtGHS(m.principal)], ['Interest', `${(m.term === 1 ? Number(loan.interestRatePct) * 100 : Number(loan.interestRatePct) / m.term * 100).toFixed(1)}%${m.term === 1 ? ' total' : ' per month'} · ${fmtGHS(m.interestAmount)}`],
+      ['Processing Fee (deducted)', fmtGHS(fee)], ['Net Amount Received', fmtGHS(net) + (loan.topUpOf ? ` (old balance on ${loan.topUpOf} is cleared from this first)` : '')],
+      ['Total Payable', fmtGHS(m.totalRepayment)], ['Repayment', m.term === 1 ? `One payment on ${fmtDate(m.firstDueDate)}` : `${m.term} monthly payments of ${fmtGHS(m.monthlyInstallment)}, ${fmtDate(m.firstDueDate)} to ${fmtDate(m.finalDueDate)}`],
+      ['Pay To', `MTN MoMo ${COMPANY.payTo}, quoting the Loan Ref`]
+    ]};
+  }
+  function agreementHtml(loan) {
+    const f = agreementFacts(loan), s = signStatus(loan);
+    const sig = (label, st, decl) => `<h5>${label}</h5><p style="margin:0 0 4px;">${escapeHtml(decl)}</p>
+      <div class="cell-sub">${st.state === 'ok' ? `Signed electronically ${escapeHtml(fmtStamp(st.rec.at))} with the code sent to ${escapeHtml(maskPhone(st.rec.phone))}.` : st.state === 'na' ? 'Not required.' : 'Not signed yet.'}</div>`;
+    return `<div style="font-weight:800; color:var(--navy-text);">BENANSAH FINANCIAL SOLUTIONS — LOAN AGREEMENT</div>
+      <div class="cell-sub">${AGREEMENT_VERSION} · ${escapeHtml(loan.refNo)}${loan.pending ? '' : ''}</div>
+      <h5>Loan details</h5><table>${f.rows.map(r => `<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(String(r[1]))}</td></tr>`).join('')}</table>
+      <h5>Terms and conditions</h5><ol style="padding-left:18px; margin:0;">${AGREEMENT_CLAUSES.map(c => `<li style="margin-bottom:4px;"><strong>${escapeHtml(c[0])}:</strong> ${escapeHtml(c[1])}</li>`).join('')}</ol>
+      ${sig('Borrower declaration', s.b, BORROWER_DECLARATION)}
+      ${guarantorNeeded(loan) ? sig('Guarantor undertaking', s.g, GUARANTOR_DECLARATION) : ''}`;
+  }
+  function openAgreement(refNo) {
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    document.getElementById('agreementBody').innerHTML = agreementHtml(loan);
+    document.getElementById('btnAgreementPdf').dataset.ref = refNo;
+    openModal('modalAgreement');
+  }
+  async function agreementPdf(refNo) {
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    let JsPDF;
+    try { JsPDF = await loadJsPDF(); } catch (e) { showToast("Could not load the PDF maker — check your internet", 4000); return; }
+    const ph = storageMode ? await loadPhotos(refNo) : {};
+    const f = agreementFacts(loan), s = signStatus(loan);
+    const doc = new JsPDF({unit: 'pt', format: 'a4'});
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40;
+    let y = 46;
+    const need = h => { if (y + h > H - 40) { doc.addPage(); y = 46; } };
+    const para = (t, size, style, color) => {
+      doc.setFont('helvetica', style || 'normal'); doc.setFontSize(size || 9); doc.setTextColor(...(color || [20, 30, 40]));
+      const lines = doc.splitTextToSize(pdfSafe(t), W - 2 * M);
+      lines.forEach(l => { need(size * 1.35); doc.text(l, M, y); y += (size || 9) * 1.35; });
+    };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(11, 61, 107);
+    doc.text('BENANSAH FINANCIAL SOLUTIONS', M, y); y += 16;
+    doc.setFontSize(10.5); doc.setTextColor(20, 30, 40); doc.text('LOAN AGREEMENT & CREDIT APPLICATION', M, y); y += 13;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90, 105, 120);
+    doc.text(pdfSafe(`${AGREEMENT_VERSION} - Electronic record - Ref ${loan.refNo} - Tel ${COMPANY.phone}`), M, y); y += 8;
+    // Photos (top right)
+    const px = W - M - 66;
+    ['borrower', 'guarantor'].forEach((w, i) => { if (ph && ph[w]) { try { doc.addImage(ph[w], 'JPEG', px - i * 74, 30, 60, 75); doc.setFontSize(7); doc.text(w === 'borrower' ? 'Borrower' : 'Guarantor', px - i * 74, 113); } catch (e) {} } });
+    y = Math.max(y, 122);
+    const k = f.k;
+    const section = t => { y += 6; need(20); doc.setFillColor(11, 61, 107); doc.rect(M, y - 10, W - 2 * M, 15, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(t, M + 5, y); y += 12; };
+    const kv = rows => rows.forEach(r => { need(13); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); doc.setTextColor(90, 105, 120); doc.text(pdfSafe(r[0]), M, y);
+      doc.setTextColor(20, 30, 40); const ls = doc.splitTextToSize(pdfSafe(String(r[1] == null || r[1] === '' ? '-' : r[1])), W - 2 * M - 170); doc.text(ls, M + 170, y); y += 12 * ls.length; });
+    section('1. BORROWER');
+    kv([['Full Name', loan.borrowerName], ['Phone', loan.borrowerPhone], ['Ghana Card No.', loan.ghanaCardNo], ['Service No. & Rank', k.serviceRank], ['Station / Unit', k.station],
+      ['Address / GPS', k.address], ['Employer / Occupation', k.employer], ['Monthly Income', k.income ? fmtGHS(k.income) : ''], ['Alternate Contact', k.altContact],
+      ['Next of Kin', [k.nokName, k.nokPhone, k.nokRelationship].filter(Boolean).join(' - ')], ['Personal Reference', k.reference], ['Other Active Loans', k.otherLoans]]);
+    section('2. GUARANTOR');
+    kv([['Name', loan.guarantorName], ['Phone', loan.guarantorPhone], ['Ghana Card No.', k.gCard], ['Relationship', k.gRelationship], ['Service No. & Rank', k.gServiceRank], ['Station / Unit', k.gStation], ['Address / GPS', k.gAddress]]);
+    section('3. CHECKED IN PERSON BY STAFF');
+    kv([['Borrower Ghana Card', k.cardChecked ? 'Original checked' : 'Not recorded'], ['Guarantor Ghana Card', k.gCardChecked ? 'Original checked' : 'Not recorded'],
+      ['Income / employment', k.incomeChecked ? 'Proof seen' : 'Not recorded'], ['Checked by', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : '']]);
+    section('4. LOAN DETAILS');
+    kv(f.rows.filter(r => !['Loan Ref', 'Borrower', 'Phone', 'Ghana Card No.', 'Address / GPS', 'Employer / Occupation', 'Guarantor'].includes(r[0])));
+    section('5. TERMS AND CONDITIONS');
+    AGREEMENT_CLAUSES.forEach((c, i) => para(`${i + 1}. ${c[0]}: ${c[1]}`, 8.6));
+    section('6. SIGNATURES (ELECTRONIC)');
+    const sig = (label, st, decl, name) => {
+      para(label, 9, 'bold'); para(decl, 8.4);
+      para(st.state === 'ok' ? `SIGNED by ${name} on ${fmtStamp(st.rec.at)} by entering the one-time code sent by SMS to ${st.rec.phone}. Recorded by ${st.rec.by || 'staff'}. Signature ID ${st.rec.id || '-'}.`
+        : st.state === 'changed' ? 'Signature no longer valid: the loan terms changed after signing.' : st.state === 'na' ? 'Not required.' : 'NOT SIGNED.', 8.8, 'bold', st.state === 'ok' ? [21, 128, 61] : [168, 39, 26]);
+      y += 4;
+    };
+    sig('Borrower declaration', s.b, BORROWER_DECLARATION, loan.borrowerName);
+    if (guarantorNeeded(loan)) sig('Guarantor undertaking', s.g, GUARANTOR_DECLARATION, loan.guarantorName);
+    if (s.paper) para(`A paper agreement was signed instead (recorded by ${s.paper.by || ''} on ${fmtDate(s.paper.on || '')}).`, 8.8, 'bold');
+    if (isDisbursed(loan)) { section('7. PAY-OUT'); kv([['Paid out', `${fmtDate(loan.disbursementDate)} via ${loan.disbursedVia || '-'}`], ['Authorised by', loan.disbursedBy || '-']]); }
+    y += 6; para(`Generated ${fmtStamp(new Date().toISOString())}. Pay only to MTN MoMo ${COMPANY.payTo}, quoting Ref ${loan.refNo}. Questions: ${COMPANY.phone}.`, 7.8, 'italic', [90, 105, 120]);
+    doc.save(`BFS_Agreement_${loan.refNo}.pdf`);
+  }
+
+  document.getElementById('btnAgreementPdf').addEventListener('click', e => agreementPdf(e.currentTarget.dataset.ref));
+  // Pay-out needs a signed agreement (or a paper agreement, recorded).
+  const paperOk = {};
+  function signatureGate(loan, proceed) {
+    if (storageMode !== 'firebase') return proceed();
+    const s = signStatus(loan);
+    if (s.complete || loan.paperSigned) return proceed();
+    const missing = [s.b.state !== 'ok' ? 'the borrower' : '', (s.g.state !== 'ok' && s.g.state !== 'na') ? 'the guarantor' : ''].filter(Boolean).join(' and ');
+    showConfirm(`${loan.refNo} has not been signed by ${missing}. Use the Loan Agreement panel to sign with a code first. Only continue if the customer signed a PAPER agreement — this is recorded.`,
+      (name, paper) => {
+        if (!paper) { showToast('Not paid out — sign the agreement with a code first', 5000); return; }
+        paperOk[loan.refNo] = {by: name, on: todayISO()};
+        proceed(true);
+      }, {title: "Agreement Not Signed", yesLabel: "Continue", danger: true,
+          check: {label: '<strong>The customer signed a paper agreement</strong>', checked: false}});
   }
 
   // ---------------- Hold an application ----------------
