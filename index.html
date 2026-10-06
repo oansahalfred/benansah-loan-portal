@@ -620,6 +620,7 @@
   .profile-note { font-size: 12.5px; font-weight: 600; padding: 8px 12px; border-radius: 7px; margin: 4px 0 12px 0; }
   .profile-note.good { background: var(--good-bg); color: var(--good); }
   .profile-note.risk { background: var(--danger-bg); color: var(--danger); }
+  .profile-note.warn { background: var(--warn-bg); color: var(--warn); }
 
   /* ---------- Payment quick-fill ---------- */
   .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin: -8px 0 14px 0; }
@@ -652,7 +653,9 @@
   tbody tr.row-extended { border-left: 4px solid var(--wine); }
   tbody tr.row-app { border-left: 4px solid var(--navy-text); }
   tbody tr.row-declined { border-left: 4px solid var(--border); opacity: 0.75; }
-  tbody tr.row-extended td:first-child, tbody tr.row-app td:first-child, tbody tr.row-declined td:first-child { padding-left: 10px; }
+  .badge-hold { background: var(--warn-bg); color: var(--warn); }
+  tbody tr.row-hold { border-left: 4px solid var(--warn); }
+  tbody tr.row-extended td:first-child, tbody tr.row-app td:first-child, tbody tr.row-hold td:first-child, tbody tr.row-declined td:first-child { padding-left: 10px; }
   .due-note.ext { color: var(--wine); }
   .attention-card.pending { border-top-color: var(--navy-text); }
   .attention-card.pending h4 { color: var(--navy-text); }
@@ -701,7 +704,7 @@
   .staff-row .s-tag { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--neutral-bg); color: var(--navy-text); white-space: nowrap; }
   .staff-add { display: flex; gap: 8px; flex-wrap: wrap; }
   body.no-payments [data-pay], body.no-payments #paymentQuickFill { display: none !important; }
-  body.no-applications #btnNewLoan, body.no-applications [data-topup], body.no-applications [data-reopen] { display: none !important; }
+  body.no-applications #btnNewLoan, body.no-applications [data-topup], body.no-applications [data-reopen], body.no-applications [data-hold], body.no-applications [data-unhold] { display: none !important; }
   body.no-payout [data-disburse], body.no-payout [data-decline], body.no-payout #stageField { display: none !important; }
   body.no-extensions [data-extend] { display: none !important; }
   body.no-edit [data-edit-loan], body.no-edit [data-edit-payment] { display: none !important; }
@@ -724,7 +727,7 @@
   .auto-settings { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-radius: 7px; padding: 10px 12px; }
   .auto-check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; cursor: pointer; }
   .auto-check input[type=checkbox] { width: 16px; height: 16px; flex: none; margin-top: 1px; }
-  .auto-check.tick { flex-wrap: nowrap; align-items: flex-start; }
+  .auto-check.tick { flex-direction: row; flex-wrap: nowrap; align-items: flex-start; }
   .auto-check.tick span { flex: 1; min-width: 0; }
   .auto-last { margin-top: 10px; font-size: 12.5px; }
   .auto-last.warn { color: var(--danger); font-weight: 700; }
@@ -858,6 +861,7 @@
         <option value="__dueSoon">Due within 3 days</option>
         <option value="Extended">Extended</option>
         <option value="Application Pending">Application Pending</option>
+        <option value="On Hold">On Hold</option>
         <option value="Pending Payment">Pending Payment</option>
         <option value="Partially Paid">Partially Paid</option>
         <option value="Fully Paid">Fully Paid</option>
@@ -1109,12 +1113,12 @@
         <div class="field span2" id="topUpBanner" style="display:none; background:var(--info-bg); color:var(--info); border-radius:7px; padding:10px 12px; font-size:12.5px;"></div>
         <div class="field span2"><label>Borrower Full Name *</label><input required name="borrowerName"></div>
         <div class="field"><label>Borrower Phone</label><input name="borrowerPhone" placeholder="024XXXXXXX"></div>
-        <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X"></div>
+        <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X" inputmode="numeric" autocomplete="off"><span class="calc-note" id="cardNote">Type the 10 digits — GHA- and the dash are added for you.</span></div>
         <div class="field"><label>Guarantor Name</label><input name="guarantorName"></div>
         <div class="field"><label>Guarantor Phone</label><input name="guarantorPhone"></div>
         <div class="field span2" id="stageField"><label>What happens now?</label>
           <div class="seg">
-            <label><input type="radio" name="stage" value="pending" checked><span><strong>Hold as pending</strong><small>Save the application; pay out later</small></span></label>
+            <label><input type="radio" name="stage" value="pending" checked><span><strong>Save as pending</strong><small>Save the application; pay out later</small></span></label>
             <label><input type="radio" name="stage" value="disburse"><span><strong>Approve &amp; pay out now</strong><small>Needs staff name and password</small></span></label>
           </div>
         </div>
@@ -1142,7 +1146,8 @@
         <div class="field"><label>Purpose of Loan</label><input name="purpose"></div>
         <div class="field"><label>Processed By</label><input name="processedBy" placeholder="Staff name"></div>
         <div class="field span2" id="eligibilityBox" style="display:none; background:var(--danger-bg); color:var(--danger); border-radius:7px; padding:10px 12px; font-size:12.5px; font-weight:600;"></div>
-        <div class="field span2" id="calcPreview" style="background:var(--bg);border-radius:7px;padding:10px 12px;font-size:12.5px;color:var(--text-mute);"></div>
+        <label class="field span2 auto-check tick" id="appTextRow" style="display:none;"><input type="checkbox" name="sendText" checked> <span><strong>Text the customer</strong> <span class="cell-sub" id="appTextHint"></span></span></label>
+        <div class="field span2" id="calcPreview"style="background:var(--bg);border-radius:7px;padding:10px 12px;font-size:12.5px;color:var(--text-mute);"></div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" data-close>Cancel</button>
@@ -1239,6 +1244,7 @@
       <input type="password" id="confirmPasswordInput" autocomplete="off" placeholder="Enter password to continue">
       <div id="confirmPasswordError" style="display:none; color:var(--danger); font-size:12px; font-weight:600;"></div>
     </div>
+    <label class="auto-check tick" id="confirmCheckRow" style="display:none; margin-top:10px;"><input type="checkbox" id="confirmCheck"> <span id="confirmCheckLabel"></span></label>
     <div class="modal-actions">
       <button type="button" class="btn ghost" id="confirmNoBtn">Cancel</button>
       <button type="button" class="btn" id="confirmYesBtn">Confirm</button>
@@ -1277,10 +1283,39 @@
           <select name="via"><option>MTN MoMo</option><option>Cash</option><option>Bank Transfer</option><option>Other</option></select>
         </div>
         <div class="field span2 calc-box" id="disburseSummary"></div>
+        <label class="field span2 auto-check tick" id="disbTextRow" style="display:none;"><input type="checkbox" name="sendText" checked> <span><strong>Text the customer</strong> <span class="cell-sub" id="disbTextHint"></span></span></label>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" data-close>Cancel</button>
         <button type="submit" class="btn red">Confirm Pay-Out</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalHold">
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close>&times;</button>
+    <h3>Put Application on Hold</h3>
+    <div class="modal-sub" id="holdSub"></div>
+    <form id="formHold">
+      <div class="form-grid">
+        <div class="field span2"><label>Reason *</label>
+          <select name="reason" required>
+            <option>Incomplete application form</option>
+            <option>Missing documents (Ghana Card, payslip)</option>
+            <option>Guarantor not confirmed</option>
+            <option>Verification needed</option>
+            <option value="Other">Other (type below)</option>
+          </select>
+        </div>
+        <div class="field span2"><label>Details (staff only, not sent to the customer)</label><input name="note" placeholder="e.g. payslip for September still missing"></div>
+        <label class="field span2 auto-check tick" id="holdTextRow" style="display:none;"><input type="checkbox" name="sendText" checked> <span><strong>Text the customer</strong> <span class="cell-sub">— "Application On Hold" (0D). The text does not say the reason; it asks them to call 0543717151.</span></span></label>
+        <div class="calc-box" style="grid-column:1 / -1;">Pay-out is blocked while on hold. After 7 days the customer gets one reminder text (0E) with the 8 AM run. After 30 days it is marked <strong>Expired</strong> on the Dashboard so you can decline it or follow up.</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn red">Put on Hold</button>
       </div>
     </form>
   </div>
@@ -1434,9 +1469,12 @@
     {id:"0A", title:"Application Received", text:"Dear [Customer Name], we have received your application for GHS [Amount] (Ref [Ref No.]). We will confirm by SMS once it has been reviewed. Benansah Financial Solutions. Tel 0543717151."},
     {id:"0B", title:"Application Confirmed", text:"Dear [Customer Name], your application for GHS [Amount] (Ref [Ref No.]) has been confirmed. The funds will be sent to you shortly. Benansah Financial Solutions. Tel 0543717151."},
     {id:"0C", title:"Application Not Approved", text:"Dear [Customer Name], thank you for your application (Ref [Ref No.]). We are unable to approve it at this time. You are welcome to apply again in future. Benansah Financial Solutions. Tel 0543717151."},
+    {id:"0D", title:"Application On Hold", text:"Dear [Customer Name], your application for GHS [Amount] (Ref [Ref No.]) is on hold as we need some more information from you. Please call 0543717151 or visit our office. Benansah Financial Solutions."},
+    {id:"0E", title:"Still Waiting for Information (Day 7)", text:"Dear [Customer Name], we are still waiting for some information to complete your application for GHS [Amount] (Ref [Ref No.]). Please call 0543717151 or visit our office. Benansah Financial Solutions."},
     {id:"1A", title:"Funds Sent (Mobile Wallet)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to your mobile wallet [MoMo Number] for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
     {id:"1B", title:"Funds Paid (Cash)", text:"Dear [Customer Name], GHS [Net Amount] has been paid to you in person for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
     {id:"1C", title:"Top-Up Completed", text:"Dear [Customer Name], your top-up Ref [Ref No.] is complete. GHS [Settled Amount] cleared your balance on Ref [Old Ref No.] and GHS [Net Amount] has been paid to you. First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
+    {id:"1D", title:"Funds Sent (Bank / Other)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to you for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
     {id:"2A", title:"Repayment Plan (1 Month)", text:"Dear [Customer Name], your repayment for Ref [Ref No.] is GHS [Total Repayment], due on [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred) quoting Ref [Ref No.]. Benansah Financial Solutions. Tel 0543717151."},
     {id:"2B", title:"Repayment Plan (Multi-Month)", text:"Dear [Customer Name], your repayment plan for Ref [Ref No.] is [Term] monthly payments of GHS [Installment], due on the [Day] of each month from [First Due Date] to [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
     {id:"3A", title:"3-Day Reminder (1 Month)", text:"Dear [Customer Name], a friendly reminder that your payment of GHS [Amount] for Ref [Ref No.] is due on [Date]. Please pay to 0243642425 (Owusu-Ansah Alfred). Thank you. Benansah Financial Solutions."},
@@ -1550,6 +1588,8 @@
   const SECOND_CHARGE_DAY = 15;  // days after the due date
   const MAX_LATE_CHARGES = 2;
   const DEFAULT_FEE_PCT = 0.02;
+  const HOLD_FOLLOWUP_DAYS = 7;   // one follow-up text (0E) after this many days on hold
+  const HOLD_EXPIRY_DAYS = 30;    // flagged as expired after this many days on hold
 
   function dayNum(iso) {
     const mt = ISO_RE.exec(String(iso || ""));
@@ -1590,6 +1630,9 @@
     const netDisbursed = round2(principal - processingFee);
     const topUpSettlement = round2(Number(loan.topUpSettlement) || 0);
     const cashToCustomer = round2(netDisbursed - topUpSettlement);
+    // An application put on hold while waiting for information from the customer.
+    const hold = stage === 'pending' && loan.hold && ISO_RE.test(loan.hold.on || "") ? loan.hold : null;
+    const holdDays = hold ? Math.max(0, daysBetween(hold.on, todayISO())) : 0;
 
     // Repayment schedule: one installment per month from the disbursement date.
     const startISO = ISO_RE.test(loan.disbursementDate || "") ? loan.disbursementDate : todayISO();
@@ -1612,7 +1655,8 @@
 
     const base = {
       stage, principal, term, interestAmount, totalRepayment, monthlyInstallment, feePct, processingFee,
-      netDisbursed, topUpSettlement, cashToCustomer, schedule, firstDueDate, finalDueDate, amountPaid, loanPayments
+      netDisbursed, topUpSettlement, cashToCustomer, schedule, firstDueDate, finalDueDate, amountPaid, loanPayments,
+      hold, onHold: !!hold, holdDays, holdExpired: !!hold && holdDays >= HOLD_EXPIRY_DAYS
     };
 
     if (stage !== 'disbursed') {
@@ -1624,7 +1668,7 @@
         daysUntilDue: null, dueSoon: false, dueThisWeek: false, installmentsPaid: 0,
         scheduleRows: schedule.map(s => ({...s, effDueDate: s.dueDate, paidAmt: 0, status: 'Planned'})),
         extension: null, extActive: false, extBreached: false,
-        status: stage === 'pending' ? 'Application Pending' : 'Declined', performanceRating: 'N/A'
+        status: stage === 'pending' ? (hold ? 'On Hold' : 'Application Pending') : 'Declined', performanceRating: 'N/A'
       });
     }
 
@@ -2332,7 +2376,7 @@
   function suggestedTemplate(loan, m) {
     if (!m) return null;
     if (m.stage === 'declined') return "0C";
-    if (m.stage === 'pending') return "0A";
+    if (m.stage === 'pending') return m.onHold ? (m.holdDays >= HOLD_FOLLOWUP_DAYS ? "0E" : "0D") : "0A";
     if (m.totalPayableWithPenalty <= 0.005) return null;
     const multi = m.term > 1;
     if (m.extBreached) return "6D";
@@ -2349,9 +2393,16 @@
     if (m.daysUntilDue === 0) return multi ? "4B" : "4A";
     if (m.daysUntilDue !== null && m.daysUntilDue <= 3) return multi ? "3B" : "3A";
     if (m.amountPaid === 0 && loan.disbursementDate && daysBetween(loan.disbursementDate, todayISO()) <= 1) {
-      return loan.topUpOf ? "1C" : (loan.disbursedVia === "Cash" ? "1B" : "1A");
+      return fundsTemplateFor(loan);
     }
     return null;
+  }
+  // The "funds sent" message that matches how the money was paid out.
+  function fundsTemplateFor(loan) {
+    if (loan.topUpOf) return "1C";
+    if (loan.disbursedVia === "Cash") return "1B";
+    if (loan.disbursedVia === "Bank Transfer" || loan.disbursedVia === "Other") return "1D";
+    return "1A";
   }
 
   function renderAttention(rows, pendingLoans) {
@@ -2382,22 +2433,32 @@
         </div>`;
     };
 
+    // Expired holds first, then other holds (longest waiting first), then fresh applications.
+    const pendingSorted = pendingLoans.map(l => ({l, m: computeLoanMetrics(l)}))
+      .sort((a, b) => (b.m.holdExpired - a.m.holdExpired) || (b.m.onHold - a.m.onHold) || (b.m.holdDays - a.m.holdDays));
+    const heldCount = pendingSorted.filter(x => x.m.onHold).length;
+    const expiredCount = pendingSorted.filter(x => x.m.holdExpired).length;
     const pendingHtml = pendingLoans.length ? `
       <div class="attention-card pending" style="grid-column:1 / -1;">
-        <h4>${ICON.loans}Pending applications (${pendingLoans.length})</h4>
-        <div class="att-total">On hold until approved and paid out — total requested <strong>${fmtGHS(pendingLoans.reduce((s, l) => s + (Number(l.principal) || 0), 0))}</strong></div>
-        <div class="att-list">${pendingLoans.map(l => {
-          const m = computeLoanMetrics(l);
+        <h4>${ICON.loans}Pending applications (${pendingLoans.length})${heldCount ? ` · ${heldCount} on hold` : ""}${expiredCount ? ` · <span style="color:var(--danger);">${expiredCount} expired</span>` : ""}</h4>
+        <div class="att-total">Not paid out yet — total requested <strong>${fmtGHS(pendingLoans.reduce((s, l) => s + (Number(l.principal) || 0), 0))}</strong></div>
+        <div class="att-list">${pendingSorted.map(({l, m}) => {
+          const tpl = suggestedTemplate(l, m);
+          const holdLine = m.onHold
+            ? `<div class="att-meta ${m.holdExpired ? "late" : "soon"}">${m.holdExpired ? `Expired — on hold ${m.holdDays} days. Decline or follow up` : `On hold ${m.holdDays === 0 ? "since today" : m.holdDays + " day" + (m.holdDays === 1 ? "" : "s")}`} · ${escapeHtml(m.hold.reason || "")}</div>`
+            : "";
           return `
           <div class="att-row">
             <div class="att-main">
               <button type="button" class="att-name" data-open-loan="${escapeHtml(l.refNo)}">${escapeHtml(l.borrowerName)}</button>
-              <div class="att-meta">${escapeHtml(l.refNo)} · ${l.loanTermMonths} mo${l.topUpOf ? " · top-up of " + escapeHtml(l.topUpOf) : ""}${l.disbursementDate ? " · planned " + fmtDate(l.disbursementDate) : ""}</div>
+              <div class="att-meta">${escapeHtml(l.refNo)} · ${l.loanTermMonths} mo${l.topUpOf ? " · top-up of " + escapeHtml(l.topUpOf) : ""}${l.disbursementDate && !m.onHold ? " · planned " + fmtDate(l.disbursementDate) : ""}</div>
+              ${holdLine}
             </div>
             <div class="att-side">
               <div class="att-amt">${fmtGHS(l.principal)}</div>
-              <button type="button" class="btn ghost small" data-remind="${escapeHtml(l.refNo)}" data-tpl="0A">${ICON.message}SMS 0A</button>
-              <button type="button" class="btn red small" data-disburse="${escapeHtml(l.refNo)}" title="Net to pay out ${fmtGHS(m.netDisbursed)}">${ICON.cash}Pay Out</button>
+              <button type="button" class="btn ghost small" data-remind="${escapeHtml(l.refNo)}" data-tpl="${tpl}">${ICON.message}SMS ${tpl}</button>
+              ${m.onHold ? `<button type="button" class="btn ghost small" data-open-loan="${escapeHtml(l.refNo)}">Open</button>`
+                : `<button type="button" class="btn red small" data-disburse="${escapeHtml(l.refNo)}" title="Net to pay out ${fmtGHS(m.netDisbursed)}">${ICON.cash}Pay Out</button>`}
             </div>
           </div>`; }).join("")}</div>
       </div>` : "";
@@ -2431,6 +2492,7 @@
     "Fully Paid": ["badge-paid", "row-paid"], "Partially Paid": ["badge-partial", "row-partial"],
     "Pending Payment": ["badge-pending", "row-pending"], "Overdue": ["badge-overdue", "row-overdue"],
     "Extended": ["badge-extended", "row-extended"], "Application Pending": ["badge-app", "row-app"],
+    "On Hold": ["badge-hold", "row-hold"],
     "Declined": ["badge-declined", "row-declined"]
   };
   function statusBadge(status) {
@@ -2439,7 +2501,7 @@
   function statusRowClass(status) { return (STATUS_CLASSES[status] || ['', ''])[1]; }
 
   // Sorting: click a column header once for ascending, again for descending.
-  const STATUS_RANK = {"Overdue": 0, "Extended": 1, "Pending Payment": 2, "Partially Paid": 3, "Application Pending": 4, "Fully Paid": 5, "Declined": 6};
+  const STATUS_RANK = {"Overdue": 0, "Extended": 1, "Pending Payment": 2, "Partially Paid": 3, "On Hold": 4, "Application Pending": 4, "Fully Paid": 5, "Declined": 6};
   function loanSortValue(r, col) {
     const l = r.loan, m = r.m;
     switch (col) {
@@ -2494,7 +2556,9 @@
     return '';
   }
   function nextPaymentCell(m) {
-    if (m.stage === 'pending') return `<span class="cell-sub">Not paid out yet</span>`;
+    if (m.stage === 'pending') return m.onHold
+      ? `<span class="cell-sub" style="color:${m.holdExpired ? 'var(--danger)' : 'var(--warn)'}; font-weight:600;">${m.holdExpired ? 'Expired · ' : 'On hold · '}${m.holdDays} day${m.holdDays === 1 ? '' : 's'}</span>`
+      : `<span class="cell-sub">Not paid out yet</span>`;
     if (m.stage === 'declined' || !m.nextDueDate) {
       return m.totalPayableWithPenalty > 0.005 ? `<div>Now</div><div class="cell-sub">${fmtGHS(m.amountDueNext)}</div>` : '—';
     }
@@ -2554,7 +2618,7 @@
         <td>${statusBadge(m.status)}${dueNoteHtml(m)}</td>
         <td>
           ${live && m.totalPayableWithPenalty > 0.005 ? `<button class="btn ghost small" data-pay-row="${escapeHtml(l.refNo)}">${ICON.cash}Pay</button>` : ''}
-          ${m.stage === 'pending' ? `<button class="btn red small" data-disburse="${escapeHtml(l.refNo)}">${ICON.cash}Pay Out</button>` : ''}
+          ${m.stage === 'pending' && !m.onHold ? `<button class="btn red small" data-disburse="${escapeHtml(l.refNo)}">${ICON.cash}Pay Out</button>` : ''}
         </td>
       </tr>`;
     }).join('');
@@ -2648,8 +2712,12 @@
 
     let buttons = '';
     if (pending) {
-      buttons += `<button class="btn red small" data-disburse="${ref}">${ICON.cash}Approve &amp; Pay Out</button>`;
-      buttons += `<button class="btn ghost small" data-remind="${ref}" data-tpl="0A">${ICON.message}SMS 0A</button>`;
+      if (m.onHold) buttons += `<button class="btn small" data-unhold="${ref}">${ICON.check}Remove Hold</button>`;
+      else {
+        buttons += `<button class="btn red small" data-disburse="${ref}">${ICON.cash}Approve &amp; Pay Out</button>`;
+        buttons += `<button class="btn ghost small" data-hold="${ref}">${ICON.clock}Put on Hold</button>`;
+      }
+      buttons += `<button class="btn ghost small" data-remind="${ref}" data-tpl="${tpl}">${ICON.message}SMS ${tpl}</button>`;
       buttons += `<button class="btn ghost small danger" data-decline="${ref}">${ICON.close}Decline</button>`;
     } else if (m.stage === 'declined') {
       buttons += `<button class="btn ghost small" data-reopen="${ref}">${ICON.loans}Reopen Application</button>`;
@@ -2668,7 +2736,13 @@
     buttons += `<button class="btn ghost small" data-close-detail>${ICON.close}Close</button>`;
 
     const notes = [];
-    if (pending) notes.push(`<div class="profile-note info">${ICON.clock} Application on hold — nothing has been paid out. Due dates below assume it is paid out on ${fmtDate(loan.disbursementDate || todayISO())}; they are recalculated from the actual pay-out date.</div>`);
+    if (m.onHold) {
+      const h = m.hold;
+      notes.push(`<div class="profile-note ${m.holdExpired ? 'risk' : 'warn'}">${ICON.alert} <strong>On hold${m.holdExpired ? ' (expired)' : ''}</strong> since ${fmtDate(h.on)} (${m.holdDays} day${m.holdDays === 1 ? '' : 's'}): ${escapeHtml(h.reason || '')}${h.note ? ' — ' + escapeHtml(h.note) : ''}. Put on hold by ${escapeHtml(h.by || '—')}.
+        ${m.holdExpired ? `Waiting more than ${HOLD_EXPIRY_DAYS} days — decline it or follow up with the customer.` : (m.holdDays < HOLD_FOLLOWUP_DAYS ? `If still on hold after ${HOLD_FOLLOWUP_DAYS} days, the customer gets one reminder text (0E) with the 8 AM run.` : '')}
+        Pay-out is blocked until the hold is removed.</div>`);
+    }
+    if (pending) notes.push(`<div class="profile-note info">${ICON.clock} Application pending — nothing has been paid out. Due dates below assume it is paid out on ${fmtDate(loan.disbursementDate || todayISO())}; they are recalculated from the actual pay-out date.</div>`);
     if (m.stage === 'declined') notes.push(`<div class="profile-note risk">${ICON.close} Application declined${loan.declinedBy ? ' by ' + escapeHtml(loan.declinedBy) : ''}${loan.declinedOn ? ' on ' + fmtDate(loan.declinedOn) : ''}.</div>`);
     if (loan.topUpOf) notes.push(`<div class="profile-note info">${ICON.plus} Top-up of ${escapeHtml(loan.topUpOf)}${live ? ` — ${fmtGHS(m.topUpSettlement)} of this loan cleared the old balance; ${fmtGHS(m.cashToCustomer)} was paid to the customer.` : ' — the old balance will be cleared from this loan when it is paid out.'}</div>`);
     if (m.extension) {
@@ -2769,6 +2843,8 @@
     if ((b = t('[data-pay]'))) { openPaymentModal(b.dataset.pay); return; }
     if ((b = t('[data-disburse]'))) { startDisburse(b.dataset.disburse); return; }
     if ((b = t('[data-decline]'))) { declineApplication(b.dataset.decline); return; }
+    if ((b = t('[data-hold]'))) { startHold(b.dataset.hold); return; }
+    if ((b = t('[data-unhold]'))) { removeHold(b.dataset.unhold); return; }
     if ((b = t('[data-reopen]'))) { reopenApplication(b.dataset.reopen); return; }
     if ((b = t('[data-statement]'))) { openStatement(b.dataset.statement); return; }
     if ((b = t('[data-topup]'))) { startTopUp(b.dataset.topup); return; }
@@ -2903,7 +2979,7 @@
             <div class="history-row" data-jump-loan="${escapeHtml(l.refNo)}" tabindex="0" role="button">
               <div>
                 <div class="cell-name">${escapeHtml(l.refNo)} · ${fmtGHS(l.principal)} over ${l.loanTermMonths} mo</div>
-                <div class="cell-sub">${m.stage === 'disbursed' ? `Disbursed ${fmtDate(l.disbursementDate)} · Paid ${fmtGHS(m.amountPaid)} · Balance ${fmtGHS(m.totalPayableWithPenalty)}` : (m.stage === 'pending' ? 'Application on hold — not paid out' : 'Application declined')}</div>
+                <div class="cell-sub">${m.stage === 'disbursed' ? `Disbursed ${fmtDate(l.disbursementDate)} · Paid ${fmtGHS(m.amountPaid)} · Balance ${fmtGHS(m.totalPayableWithPenalty)}` : (m.stage === 'pending' ? (m.onHold ? 'Application on hold — waiting for information' : 'Application pending — not paid out') : 'Application declined')}</div>
               </div>
               <div>${statusBadge(m.status)}</div>
             </div>`).join('')}
@@ -3109,7 +3185,7 @@
   // Values for every [placeholder], taken from the loan's live figures.
   function smsValues(loan, m, id) {
     const lastPay = m.loanPayments.length ? m.loanPayments[m.loanPayments.length - 1].amt : 0;
-    const amount = ['0A', '0B', '1A', '1B', '1C'].includes(id) ? (Number(loan.principal) || 0)
+    const amount = ['0A', '0B', '0D', '0E', '1A', '1B', '1C', '1D'].includes(id) ? (Number(loan.principal) || 0)
       : (id === '3C' ? m.totalPayableWithPenalty : (m.amountDueNext > 0 ? m.amountDueNext : m.monthlyInstallment));
     const newTotal = m.extActive ? m.amountDueNext : (m.isOverdue ? m.amountOverdueNow : m.totalPayableWithPenalty);
     const nextDate = m.nextDueDate ? fmtDate(m.nextDueDate) : "";
@@ -4085,6 +4161,13 @@
     confirmYes.textContent = opts.yesLabel || 'Confirm';
     confirmYes.className = 'btn' + (opts.danger ? ' red' : '');
     confirmYes.disabled = false;
+    // Optional tick box (e.g. "Text the customer"); its value is passed to onYes.
+    const checkRow = document.getElementById('confirmCheckRow');
+    checkRow.style.display = opts.check ? '' : 'none';
+    if (opts.check) {
+      document.getElementById('confirmCheckLabel').innerHTML = opts.check.label;
+      document.getElementById('confirmCheck').checked = opts.check.checked !== false;
+    }
     pendingConfirm = onYes;
     openModal('modalConfirm');
     setTimeout(() => (lastStaffName ? confirmPw : confirmName).focus(), 50);
@@ -4115,11 +4198,12 @@
       return;
     }
     const action = pendingConfirm;
+    const checked = document.getElementById('confirmCheckRow').style.display !== 'none' && document.getElementById('confirmCheck').checked;
     pendingConfirm = null;
     lastStaffName = name;
     confirmPw.value = '';
     closeModal('modalConfirm');
-    await action(name);
+    await action(name, checked);
   }
   function cancelConfirm() {
     pendingConfirm = null;
@@ -4279,11 +4363,19 @@
     updateStageUI();
     updateCalcPreview();
     updateEligibilityBox();
+    updateCardNote();
     openModal('modalNewLoan');
     setTimeout(() => { if (!document.getElementById('modalNewLoan').contains(document.activeElement)) (prefill || opts.topUpOf ? form.principal : form.borrowerName).focus(); }, 50);
   }
 
   const formNewLoan = document.getElementById('formNewLoan');
+  function formatGhanaCard(raw) {
+    let s = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (s.startsWith('GHA')) s = s.slice(3);
+    const d = s.replace(/\D/g, '').slice(0, 10);
+    return 'GHA-' + d.slice(0, 9) + (d.length > 9 ? '-' + d.slice(9) : '');
+  }
+  const ghanaCardValid = v => /^GHA-\d{9}-\d$/.test(String(v || '').trim());
   function updateStageUI() {
     const editing = !!editingLoanRefNo;
     const loan = editing ? loans.find(l => l.refNo === editingLoanRefNo) : null;
@@ -4292,6 +4384,12 @@
     document.getElementById('disbDateLabel').textContent =
       (editing ? (isDisbursed(loan) ? "Disbursement Date" : "Planned Pay-Out Date") : (payNow ? "Pay-Out Date" : "Planned Pay-Out Date")) + " *";
     formNewLoan.querySelector('button[type=submit]').textContent = editing ? "Save Changes" : (payNow ? "Approve & Pay Out" : "Save as Pending");
+    // Automatic text to the customer: "Application Received", or "Funds sent" when paying out now.
+    const textOk = !editing && canTextCustomer(formNewLoan.borrowerPhone.value);
+    document.getElementById('appTextRow').style.display = textOk ? '' : 'none';
+    document.getElementById('appTextHint').textContent = payNow
+      ? `— "Funds sent" message (${formNewLoan.topUpOf.value ? '1C' : fundsTemplateFor({disbursedVia: formNewLoan.disbursedVia.value})}) with the first due date`
+      : '— "Application Received" (0A)';
   }
 
   function topUpInfo(oldRef) {
@@ -4357,7 +4455,25 @@
   ['principal', 'interestRatePct', 'processingFeePct', 'disbursementDate'].forEach(n =>
     formNewLoan[n].addEventListener('input', updateCalcPreview));
   formNewLoan.querySelectorAll('input[name=stage]').forEach(r => r.addEventListener('change', updateStageUI));
+  // Ghana Card: GHA- is filled in, only digits are kept, and the dash before
+  // the last digit is added automatically (GHA-123456789-0).
+  formNewLoan.ghanaCardNo.addEventListener('focus', () => { if (!formNewLoan.ghanaCardNo.value) formNewLoan.ghanaCardNo.value = 'GHA-'; });
+  formNewLoan.ghanaCardNo.addEventListener('blur', () => { if (formNewLoan.ghanaCardNo.value === 'GHA-') formNewLoan.ghanaCardNo.value = ''; updateCardNote(); });
+  formNewLoan.ghanaCardNo.addEventListener('input', () => {
+    const el = formNewLoan.ghanaCardNo;
+    el.value = formatGhanaCard(el.value);
+    updateCardNote();
+  });
+  function updateCardNote() {
+    const v = formNewLoan.ghanaCardNo.value, note = document.getElementById('cardNote');
+    const digits = v.replace(/\D/g, '').length;
+    if (!v || v === 'GHA-') { note.textContent = 'Type the 10 digits — GHA- and the dash are added for you.'; note.style.color = ''; }
+    else if (ghanaCardValid(v)) { note.textContent = '✓ Format correct. Check it against the physical card.'; note.style.color = 'var(--good)'; }
+    else { note.textContent = `${digits} of 10 digits entered.`; note.style.color = 'var(--danger)'; }
+  }
   ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
+  formNewLoan.borrowerPhone.addEventListener('input', updateStageUI);
+  formNewLoan.disbursedVia.addEventListener('change', updateStageUI);
 
   // Pays out a loan (new or pending): records the pay-out, and for a top-up
   // clears the old loan's balance with a settlement payment.
@@ -4376,7 +4492,7 @@
     }
     const doc = Object.assign({}, base, {
       stage: 'disbursed', disbursementDate: dateISO, disbursedVia: via, disbursedBy: staffName,
-      disbursedAt: new Date().toISOString(), topUpSettlement: settlement
+      disbursedAt: new Date().toISOString(), topUpSettlement: settlement, hold: null
     });
     try {
       await db.collection("loans").doc(base.refNo).set(doc);
@@ -4390,7 +4506,7 @@
       logActivity("Loan Disbursed",
         `${base.refNo} — ${fmtGHS(cash)} paid to ${base.borrowerName} via ${via} on ${fmtDate(dateISO)} (principal ${fmtGHS(principal)}, fee ${fmtGHS(fee)}${settlement > 0.005 ? ", old balance " + fmtGHS(settlement) : ""})`,
         staffName);
-      return true;
+      return doc;
     } catch (err) {
       showToast(err && err.code === "quota_exceeded" ? "Storage is full — download a Full Backup and archive old loans" : "Could not save — try again");
       return false;
@@ -4418,6 +4534,13 @@
       purpose: fd.get('purpose').trim(),
       processedBy: fd.get('processedBy').trim()
     };
+    if (fields.ghanaCardNo === 'GHA-') fields.ghanaCardNo = '';
+    if (fields.ghanaCardNo && !ghanaCardValid(fields.ghanaCardNo)) {
+      const before = editing ? loans.find(l => l.refNo === editing) : null;
+      if (!before || before.ghanaCardNo !== fields.ghanaCardNo) {   // old records saved in another format can still be edited
+        showToast("Ghana Card number should be GHA- followed by 10 digits, e.g. GHA-123456789-0", 5000); formNewLoan.ghanaCardNo.focus(); return;
+      }
+    }
     if (!(fields.principal > 0)) { showToast("Enter a principal amount above zero"); return; }
     if (!(fields.loanTermMonths >= 1 && fields.loanTermMonths <= MAX_TERM)) { showToast("Term must be 1 to " + MAX_TERM + " months"); return; }
     if (isNaN(fields.processingFeePct) || fields.processingFeePct < 0) { showToast("Enter the processing fee %"); return; }
@@ -4446,16 +4569,20 @@
     if (topUpOf) base.topUpOf = topUpOf;
     const stageChoice = can('payout') ? fd.get('stage') : 'pending';
     const via = fd.get('disbursedVia');
-    withRuleCheck(base, null, overrideBy => saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via));
+    const wantText = fd.get('sendText') === 'on' && document.getElementById('appTextRow').style.display !== 'none';
+    withRuleCheck(base, null, overrideBy => saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via, wantText));
   });
-  function saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via) {
+  function saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via, wantText) {
     const refNo = base.refNo;
     if (overrideBy) base.ruleOverrideBy = overrideBy;
     if (stageChoice === 'disburse') {
       showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}? Enter your name and the staff password to authorise the payment.`,
         async name => {
-          const ok = await disburseLoanObject(base, base.disbursementDate, via, name);
-          if (ok) { showToast("Loan " + refNo + " paid out"); closeModal('modalNewLoan'); }
+          const doc = await disburseLoanObject(base, base.disbursementDate, via, name);
+          if (doc) {
+            showToast("Loan " + refNo + " paid out"); closeModal('modalNewLoan');
+            if (wantText) sendAutoText(doc, fundsTemplateFor(doc), "Loan " + refNo + " paid out");
+          }
         },
         {title: "Approve & Pay Out", yesLabel: "Approve & Pay Out"});
       return;
@@ -4465,10 +4592,11 @@
       try {
         await db.collection("loans").doc(refNo).set(base);
         logActivity("Application Created",
-          `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (on hold, not paid out)`,
+          `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (pending, not paid out)`,
           base.processedBy);
         showToast("Application " + refNo + " saved as pending");
         closeModal('modalNewLoan');
+        if (wantText) sendAutoText(base, '0A', "Application " + refNo + " saved");
       } catch (err) {
         showToast(err && err.code === "quota_exceeded" ? "Storage is full — download a Full Backup and archive old loans" : "Could not save — try again");
       } finally { btn.disabled = false; }
@@ -4482,6 +4610,7 @@
     if (!needs('payout')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan || loanStage(loan) !== 'pending') return;
+    if (loan.hold) { showToast(`${refNo} is on hold (${loan.hold.reason || 'waiting for information'}). Remove the hold first.`, 5000); return; }
     withRuleCheck(loan, loan.refNo, () => startDisburseChecked(loan));
   }
   function startDisburseChecked(loan) {
@@ -4495,6 +4624,9 @@
     formDisburse.reset();
     formDisburse.date.value = todayISO();
     document.getElementById('disburseSub').textContent = `${loan.borrowerName} — ${loan.refNo} · approved by ${editAuthName}`;
+    const textOk = canTextCustomer(loan.borrowerPhone);
+    document.getElementById('disbTextRow').style.display = textOk ? '' : 'none';
+    formDisburse.sendText.checked = textOk;
     updateDisburseSummary();
     openModal('modalDisburse');
   }
@@ -4502,6 +4634,8 @@
     const loan = loans.find(l => l.refNo === disburseRef);
     if (!loan) return;
     const date = formDisburse.date.value || todayISO();
+    document.getElementById('disbTextHint').textContent =
+      `— "Funds sent" message (${fundsTemplateFor({topUpOf: loan.topUpOf, disbursedVia: formDisburse.via.value})}) with the amount and first due date`;
     const tmp = computeLoanMetricsRaw(Object.assign(stripId(loan), {refNo: "__preview__", disbursementDate: date, stage: 'pending'}));
     const info = loan.topUpOf ? topUpInfo(loan.topUpOf) : null;
     const settlement = info ? info.m.totalPayableWithPenalty : 0;
@@ -4517,29 +4651,37 @@
       </div>`;
   }
   formDisburse.date.addEventListener('input', updateDisburseSummary);
+  formDisburse.via.addEventListener('change', updateDisburseSummary);
   formDisburse.addEventListener('submit', async e => {
     e.preventDefault();
     const loan = loans.find(l => l.refNo === disburseRef);
     if (!loan || loanStage(loan) !== 'pending') { closeModal('modalDisburse'); return; }
     const btn = formDisburse.querySelector('button[type=submit]');
     btn.disabled = true;
-    const ok = await disburseLoanObject(stripId(loan), formDisburse.date.value, formDisburse.via.value, editAuthName);
+    const wantText = formDisburse.sendText.checked && document.getElementById('disbTextRow').style.display !== 'none';
+    const doc = await disburseLoanObject(stripId(loan), formDisburse.date.value, formDisburse.via.value, editAuthName);
     btn.disabled = false;
-    if (ok) { showToast("Loan " + loan.refNo + " paid out"); closeModal('modalDisburse'); }
+    if (doc) {
+      showToast("Loan " + loan.refNo + " paid out"); closeModal('modalDisburse');
+      if (wantText) sendAutoText(doc, fundsTemplateFor(doc), "Loan " + loan.refNo + " paid out");
+    }
   });
 
   function declineApplication(refNo) {
     if (!needs('payout')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
+    const textOk = canTextCustomer(loan.borrowerPhone);
     showConfirm(`Decline application ${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)})? It stays on record as declined and can be reopened later.`,
-      async name => {
+      async (name, wantText) => {
         try {
-          await db.collection("loans").doc(refNo).update({stage: 'declined', declinedBy: name, declinedOn: todayISO()});
-          logActivity("Application Declined", `${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)})`, name);
+          await db.collection("loans").doc(refNo).update({stage: 'declined', declinedBy: name, declinedOn: todayISO(), hold: null});
+          logActivity("Application Declined", `${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)})${loan.hold ? ` — had been on hold: ${loan.hold.reason || ''}` : ''}`, name);
           showToast("Application declined");
+          if (wantText) sendAutoText(Object.assign(stripId(loan), {stage: 'declined', hold: null}), '0C', "Application declined");
         } catch (err) { showToast("Could not save — try again"); }
-      }, {title: "Decline Application", yesLabel: "Decline", danger: true});
+      }, {title: "Decline Application", yesLabel: "Decline", danger: true,
+          check: textOk ? {label: '<strong>Text the customer</strong> <span class="cell-sub">— "Application Not Approved" (0C)</span>'} : null});
   }
   function reopenApplication(refNo) {
     if (!needs('applications')) return;
@@ -4822,6 +4964,87 @@
         refreshSmsBalance();
       } else showToast('Payment recorded, but the receipt SMS failed: ' + (out.error || 'try Send on the SMS tab'), 6000);
     } catch (e) { showToast('Payment recorded, but the receipt SMS could not be sent (no connection)', 6000); }
+  }
+
+  // ---- Automatic texts for applications and pay-outs ----
+  // Same rules as receipts: online version, SMS permission, a phone number on file.
+  function canTextCustomer(phone) {
+    return storageMode === 'firebase' && can('sms') && String(phone || '').replace(/\D/g, '').length >= 9;
+  }
+  function buildAutoText(loanObj, id) {
+    const t = SMS_TEMPLATES.find(x => x.id === id);
+    if (!t) return null;
+    const m = computeLoanMetricsRaw(loanObj);
+    const vals = smsValues(loanObj, m, id);
+    return {id, text: applySwaps(t.text).replace(/\[[^\]]+\]/g, ph => vals[ph] !== undefined ? vals[ph] : ph)};
+  }
+  async function sendAutoText(loanObj, id, doneMsg) {
+    const r = buildAutoText(loanObj, id);
+    if (!r) return;
+    try {
+      const out = await smsApi({to: loanObj.borrowerPhone, message: r.text, refNo: loanObj.refNo, template: id});
+      if (out.ok) {
+        logActivity('SMS Sent', `${id} to ${loanObj.borrowerName} (${out.to || loanObj.borrowerPhone}) for ${loanObj.refNo}`, out.by || '');
+        showToast(`${doneMsg} · SMS ${id} sent to ${loanObj.borrowerName}`, 4000);
+        refreshSmsBalance();
+      } else showToast(`${doneMsg}, but SMS ${id} failed: ${out.error || 'try Send on the SMS tab'}`, 6000);
+    } catch (e) { showToast(`${doneMsg}, but SMS ${id} could not be sent (no connection)`, 6000); }
+  }
+
+  // ---------------- Hold an application ----------------
+  let holdRef = null;
+  const formHold = document.getElementById('formHold');
+  function startHold(refNo) {
+    if (!needs('applications')) return;
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan || loanStage(loan) !== 'pending') return;
+    showConfirm(`Enter your name and the staff password to put ${refNo} (${loan.borrowerName}) on hold.`,
+      name => { editAuthName = name; openHoldModal(loan); },
+      {title: "Put on Hold", yesLabel: "Continue"});
+  }
+  function openHoldModal(loan) {
+    holdRef = loan.refNo;
+    formHold.reset();
+    document.getElementById('holdSub').textContent = `${loan.borrowerName} — ${loan.refNo} · ${fmtGHS(loan.principal)} · by ${editAuthName}`;
+    const textOk = canTextCustomer(loan.borrowerPhone);
+    document.getElementById('holdTextRow').style.display = textOk ? '' : 'none';
+    formHold.sendText.checked = textOk;
+    openModal('modalHold');
+  }
+  formHold.addEventListener('submit', async e => {
+    e.preventDefault();
+    const loan = loans.find(l => l.refNo === holdRef);
+    if (!loan || loanStage(loan) !== 'pending') { closeModal('modalHold'); return; }
+    const choice = formHold.reason.value;
+    const note = formHold.note.value.trim();
+    if (choice === 'Other' && !note) { showToast("Type the reason in Details"); formHold.note.focus(); return; }
+    const hold = {reason: choice === 'Other' ? note : choice, note: choice === 'Other' ? '' : note,
+      by: editAuthName, on: todayISO(), at: new Date().toISOString()};
+    const wantText = formHold.sendText.checked && document.getElementById('holdTextRow').style.display !== 'none';
+    const btn = formHold.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await db.collection("loans").doc(loan.refNo).update({hold});
+      logActivity("Application On Hold", `${loan.refNo} (${loan.borrowerName}) — ${hold.reason}${hold.note ? "; " + hold.note : ""}`, editAuthName);
+      closeModal('modalHold');
+      showToast(`${loan.refNo} put on hold`);
+      if (wantText) sendAutoText(Object.assign(stripId(loan), {hold}), '0D', `${loan.refNo} put on hold`);
+    } catch (err) { showToast("Could not save — try again"); }
+    finally { btn.disabled = false; }
+  });
+  function removeHold(refNo) {
+    if (!needs('applications')) return;
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan || !loan.hold) return;
+    const m = computeLoanMetrics(loan);
+    showConfirm(`Remove the hold on ${refNo} (${loan.borrowerName})? It has been on hold ${m.holdDays} day${m.holdDays === 1 ? '' : 's'} (${loan.hold.reason || 'no reason given'}). It becomes a normal pending application, ready to pay out or decline.`,
+      async name => {
+        try {
+          await db.collection("loans").doc(refNo).update({hold: null});
+          logActivity("Hold Removed", `${refNo} (${loan.borrowerName}) — was on hold ${m.holdDays} day${m.holdDays === 1 ? '' : 's'}: ${loan.hold.reason || ''}`, name);
+          showToast("Hold removed — the application is ready to pay out");
+        } catch (err) { showToast("Could not save — try again"); }
+      }, {title: "Remove Hold", yesLabel: "Remove Hold"});
   }
 
   function deletePayment(paymentId) {
