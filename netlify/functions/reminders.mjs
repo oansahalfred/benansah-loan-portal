@@ -25,9 +25,12 @@ const SMS_TEMPLATES = [
   {id:"0A", title:"Application Received", text:"Dear [Customer Name], we have received your application for GHS [Amount] (Ref [Ref No.]). We will confirm by SMS once it has been reviewed. Benansah Financial Solutions. Tel 0543717151."},
   {id:"0B", title:"Application Confirmed", text:"Dear [Customer Name], your application for GHS [Amount] (Ref [Ref No.]) has been confirmed. The funds will be sent to you shortly. Benansah Financial Solutions. Tel 0543717151."},
   {id:"0C", title:"Application Not Approved", text:"Dear [Customer Name], thank you for your application (Ref [Ref No.]). We are unable to approve it at this time. You are welcome to apply again in future. Benansah Financial Solutions. Tel 0543717151."},
+  {id:"0D", title:"Application On Hold", text:"Dear [Customer Name], your application for GHS [Amount] (Ref [Ref No.]) is on hold as we need some more information from you. Please call 0543717151 or visit our office. Benansah Financial Solutions."},
+  {id:"0E", title:"Still Waiting for Information (Day 7)", text:"Dear [Customer Name], we are still waiting for some information to complete your application for GHS [Amount] (Ref [Ref No.]). Please call 0543717151 or visit our office. Benansah Financial Solutions."},
   {id:"1A", title:"Funds Sent (Mobile Wallet)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to your mobile wallet [MoMo Number] for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
   {id:"1B", title:"Funds Paid (Cash)", text:"Dear [Customer Name], GHS [Net Amount] has been paid to you in person for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
   {id:"1C", title:"Top-Up Completed", text:"Dear [Customer Name], your top-up Ref [Ref No.] is complete. GHS [Settled Amount] cleared your balance on Ref [Old Ref No.] and GHS [Net Amount] has been paid to you. First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
+  {id:"1D", title:"Funds Sent (Bank / Other)", text:"Dear [Customer Name], GHS [Net Amount] has been sent to you for Ref [Ref No.] (GHS [Amount] less GHS [Fee] processing fee). First payment of GHS [Installment] is due on [First Due Date]. We will never ask for your PIN. Benansah Financial Solutions."},
   {id:"2A", title:"Repayment Plan (1 Month)", text:"Dear [Customer Name], your repayment for Ref [Ref No.] is GHS [Total Repayment], due on [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred) quoting Ref [Ref No.]. Benansah Financial Solutions. Tel 0543717151."},
   {id:"2B", title:"Repayment Plan (Multi-Month)", text:"Dear [Customer Name], your repayment plan for Ref [Ref No.] is [Term] monthly payments of GHS [Installment], due on the [Day] of each month from [First Due Date] to [Final Due Date]. Pay to 0243642425 (Owusu-Ansah Alfred). Benansah Financial Solutions."},
   {id:"3A", title:"3-Day Reminder (1 Month)", text:"Dear [Customer Name], a friendly reminder that your payment of GHS [Amount] for Ref [Ref No.] is due on [Date]. Please pay to 0243642425 (Owusu-Ansah Alfred). Thank you. Benansah Financial Solutions."},
@@ -96,6 +99,10 @@ const MAX_LATE_CHARGES = 2;
 
 const DEFAULT_FEE_PCT = 0.02;
 
+const HOLD_FOLLOWUP_DAYS = 7;   // one follow-up text (0E) after this many days on hold
+
+const HOLD_EXPIRY_DAYS = 30;    // flagged as expired after this many days on hold
+
 function dayNum(iso) {
   const mt = ISO_RE.exec(String(iso || ""));
   return mt ? Math.round(Date.UTC(+mt[1], +mt[2] - 1, +mt[3]) / 86400000) : NaN;
@@ -127,6 +134,9 @@ function computeLoanMetricsRaw(loan) {
   const netDisbursed = round2(principal - processingFee);
   const topUpSettlement = round2(Number(loan.topUpSettlement) || 0);
   const cashToCustomer = round2(netDisbursed - topUpSettlement);
+  // An application put on hold while waiting for information from the customer.
+  const hold = stage === 'pending' && loan.hold && ISO_RE.test(loan.hold.on || "") ? loan.hold : null;
+  const holdDays = hold ? Math.max(0, daysBetween(hold.on, todayISO())) : 0;
 
   // Repayment schedule: one installment per month from the disbursement date.
   const startISO = ISO_RE.test(loan.disbursementDate || "") ? loan.disbursementDate : todayISO();
@@ -149,7 +159,8 @@ function computeLoanMetricsRaw(loan) {
 
   const base = {
     stage, principal, term, interestAmount, totalRepayment, monthlyInstallment, feePct, processingFee,
-    netDisbursed, topUpSettlement, cashToCustomer, schedule, firstDueDate, finalDueDate, amountPaid, loanPayments
+    netDisbursed, topUpSettlement, cashToCustomer, schedule, firstDueDate, finalDueDate, amountPaid, loanPayments,
+    hold, onHold: !!hold, holdDays, holdExpired: !!hold && holdDays >= HOLD_EXPIRY_DAYS
   };
 
   if (stage !== 'disbursed') {
@@ -161,7 +172,7 @@ function computeLoanMetricsRaw(loan) {
       daysUntilDue: null, dueSoon: false, dueThisWeek: false, installmentsPaid: 0,
       scheduleRows: schedule.map(s => ({...s, effDueDate: s.dueDate, paidAmt: 0, status: 'Planned'})),
       extension: null, extActive: false, extBreached: false,
-      status: stage === 'pending' ? 'Application Pending' : 'Declined', performanceRating: 'N/A'
+      status: stage === 'pending' ? (hold ? 'On Hold' : 'Application Pending') : 'Declined', performanceRating: 'N/A'
     });
   }
 
@@ -305,7 +316,7 @@ function money2(n) { return (Number(n) || 0).toLocaleString('en-GH', {minimumFra
 
 function smsValues(loan, m, id) {
   const lastPay = m.loanPayments.length ? m.loanPayments[m.loanPayments.length - 1].amt : 0;
-  const amount = ['0A', '0B', '1A', '1B', '1C'].includes(id) ? (Number(loan.principal) || 0)
+  const amount = ['0A', '0B', '0D', '0E', '1A', '1B', '1C', '1D'].includes(id) ? (Number(loan.principal) || 0)
     : (id === '3C' ? m.totalPayableWithPenalty : (m.amountDueNext > 0 ? m.amountDueNext : m.monthlyInstallment));
   const newTotal = m.extActive ? m.amountDueNext : (m.isOverdue ? m.amountOverdueNow : m.totalPayableWithPenalty);
   const nextDate = m.nextDueDate ? fmtDate(m.nextDueDate) : "";
@@ -355,7 +366,10 @@ let smsSwaps = DEFAULT_SWAPS.map(x => ({...x}));
 // Which message (if any) a loan should get automatically today.
 // Recipient "g" = guarantor, otherwise the borrower.
 function autoPlan(loan, m, opts) {
-  if (!m || m.stage !== "disbursed" || m.totalPayableWithPenalty <= 0.005) return [];
+  if (!m) return [];
+  // Application on hold: one "still waiting for information" text after 7 days.
+  if (m.stage === "pending") return (m.onHold && m.holdDays >= HOLD_FOLLOWUP_DAYS && m.holdDays <= HOLD_FOLLOWUP_DAYS + 6) ? ["0E"] : [];
+  if (m.stage !== "disbursed" || m.totalPayableWithPenalty <= 0.005) return [];
   const multi = m.term > 1;
   if (m.extActive) return (m.daysUntilDue !== null && m.daysUntilDue <= 2) ? ["6E"] : [];
   if (m.isOverdue) {
