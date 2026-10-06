@@ -2,3 +2,18 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+
+# Security headers (banking standard):
+# - the app cannot be shown inside another website (stops look-alike "clickjacking" pages)
+# - browsers must always use the secure https address
+# - links to other sites do not reveal the app's pages
+# - the camera, microphone and location are switched off for this site
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"

@@ -994,10 +994,13 @@
       </div>
     </div>
 
-    <div class="section-head"><h2>Staff Password</h2><span class="hint">Asked before every edit, approval, deletion and settings change</span></div>
-    <div class="subcard">
+    <div class="section-head"><h2 id="pwHead">Staff Password</h2><span class="hint" id="pwHint">Asked before every edit, approval, deletion and settings change</span></div>
+    <div class="subcard" id="pwCardLocal">
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">Choose a password that only you and staff you trust know. It is stored scrambled in your private database, never in the website code. <span id="pwStatus"></span></p>
       <button class="btn small" id="btnChangePw" data-icon="edit">Change Staff Password</button>
+    </div>
+    <div class="subcard" id="pwCardOnline" style="display:none;">
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0;">There is no shared staff password. Every edit, approval and deletion is confirmed by the person's <strong>own sign-in</strong> (Google, or their own email password), at most once every 10 minutes, and the Activity log records their account. Each person can only do what their role allows — this is also enforced by the database itself. The app signs out by itself after <strong>15 minutes without use</strong>.</p>
     </div>
 
     <div id="exportSection">
@@ -1100,6 +1103,11 @@
   <div class="footer-note">Benansah Financial Solutions — Internal Loan Manager. Data is private to your organization.</div>
 </div>
 
+<div id="idleBanner" role="alert" style="display:none; position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:200; background:var(--navy, #0f2c4f); color:#fff; padding:12px 16px; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.25); align-items:center; gap:12px; font-size:13.5px; max-width:calc(100% - 32px);">
+  <span>For your security you will be signed out in 1 minute because the app has not been used.</span>
+  <button type="button" class="btn small" id="btnStayIn" style="white-space:nowrap; flex:none; background:#fff; color:var(--navy-text, #0f2c4f);">Stay signed in</button>
+</div>
+
 <!-- ============ MODALS ============ -->
 
 <div class="modal-backdrop" id="modalNewLoan">
@@ -1166,7 +1174,7 @@
     <form id="formPayment">
       <input type="hidden" name="refNo">
       <div class="form-grid">
-        <div class="field"><label>Amount Paid (GHS) *</label><input required type="number" min="0.01" step="0.01" name="amountPaid"></div>
+        <div class="field"><label>Amount Paid (GHS) *</label><input required type="number" min="0.01" step="0.01" name="amountPaid"><span class="calc-note" id="payDueNote"></span></div>
         <div class="field"><label>Payment Date *</label><input required type="date" name="paymentDate"></div>
         <div class="field"><label>Payment Method</label>
           <select name="paymentMethod">
@@ -1235,15 +1243,16 @@
   <div class="modal" style="max-width:420px;">
     <h3 id="confirmTitle">Please Confirm</h3>
     <div class="modal-sub" id="confirmMessage" style="font-size:13.5px; line-height:1.55; color:var(--text);"></div>
-    <div class="field" style="margin-top:6px;">
+    <div id="confirmWho" class="calc-box" style="display:none; margin-top:6px; color:var(--text);"></div>
+    <div class="field" id="confirmNameRow" style="margin-top:6px;">
       <label for="confirmNameInput">Your Name</label>
       <input type="text" id="confirmNameInput" autocomplete="off" placeholder="Recorded in the activity log">
     </div>
-    <div class="field" style="margin-top:10px;">
-      <label for="confirmPasswordInput">Staff Password</label>
+    <div class="field" id="confirmPwRow" style="margin-top:10px;">
+      <label for="confirmPasswordInput" id="confirmPwLabel">Staff Password</label>
       <input type="password" id="confirmPasswordInput" autocomplete="off" placeholder="Enter password to continue">
-      <div id="confirmPasswordError" style="display:none; color:var(--danger); font-size:12px; font-weight:600;"></div>
     </div>
+    <div id="confirmPasswordError" style="display:none; color:var(--danger); font-size:12px; font-weight:600; margin-top:8px;"></div>
     <label class="auto-check tick" id="confirmCheckRow" style="display:none; margin-top:10px;"><input type="checkbox" id="confirmCheck"> <span id="confirmCheckLabel"></span></label>
     <div class="modal-actions">
       <button type="button" class="btn ghost" id="confirmNoBtn">Cancel</button>
@@ -1576,10 +1585,12 @@
   }
 
   // ---------------- Computed loan metrics ----------------
-  // Late charge rule (Option A): when a payment is missed, 10% of the unpaid
-  // loan balance is added the day after the due date, and a second 10% if it is
-  // still unpaid 15 days after the due date. No further charges after that
-  // (maximum 20%). An extension pauses charges; if the new date is missed the
+  // Late charge rule (standard for installment loans): each missed installment
+  // is charged on its own. The day after its due date, 10% of the part of that
+  // installment still unpaid is added; if it is still unpaid 15 days after the
+  // due date, another 10% of what is still unpaid. Never more than 2 charges
+  // (20%) per installment, and never on earlier charges. Money not yet due is
+  // never charged. An extension pauses charges; if the new date is missed the
   // same two steps apply again from that date.
   // (or part of a month) the account stays behind. Charges are added once and
   // stay on the account (they are not charged on earlier charges). Payments go
@@ -1680,28 +1691,31 @@
     const effDue = (k, d) => (ext && d >= grantDay && schedule[k].dueDay <= extDay) ? extDay : schedule[k].dueDay;
     const firstUnpaid = paidPI => schedule.findIndex(s => paidPI < s.cumulative - 0.005);
 
-    // Walk day by day from the first due date to today, adding late charges.
+    // Walk day by day from the first due date to today, adding late charges
+    // per installment (see the rule above).
     const charges = [];
-    let episode = null, pi = 0, paidToDate = 0;
+    const charged = schedule.map(() => 0);           // charges added so far, per installment
+    const unpaidOf = (i, paidPI) => round2(Math.min(Math.max(schedule[i].cumulative - paidPI, 0), schedule[i].amount));
+    let pi = 0, paidToDate = 0;
     const loopStart = schedule[0].dueDay + 1;
     while (pi < loanPayments.length && loanPayments[pi].day < loopStart) paidToDate += loanPayments[pi++].amt;
     for (let d = loopStart; d <= today; d++) {
       while (pi < loanPayments.length && loanPayments[pi].day <= d) paidToDate += loanPayments[pi++].amt;
-      if (ext && d >= grantDay && d <= extDay) { episode = null; continue; } // charges paused during an extension
-      const paidPI = Math.min(paidToDate, totalRepayment);
-      const k = firstUnpaid(paidPI);
-      if (k < 0) { episode = null; continue; }
-      const due = effDue(k, d);
-      if (d <= due) { episode = null; continue; }
-      if (!episode) {
-        const startISO_ = isoFromDay(due);
-        episode = {startDay: due, startISO: startISO_, tier: 1, charged: 0, installmentNo: k + 1};
+      if (ext && d >= grantDay && d <= extDay) {     // charges paused during an extension;
+        schedule.forEach((s, i) => { if (s.dueDay <= extDay) charged[i] = 0; });   // missed new date = start again
+        continue;
       }
-      episode.tier = Math.min(MAX_LATE_CHARGES, (d - episode.startDay) >= SECOND_CHARGE_DAY ? 2 : 1);
-      while (episode.charged < episode.tier) {
-        episode.charged++;
-        const owed = round2(totalRepayment - paidPI);
-        charges.push({date: isoFromDay(d), amount: round2(owed * LATE_FEE_RATE), base: owed, tier: episode.charged, installmentNo: k + 1});
+      const paidPI = Math.min(paidToDate, totalRepayment);
+      for (let i = 0; i < term; i++) {
+        const due = effDue(i, d);
+        if (d <= due) break;                           // later installments are not due yet
+        const unpaid = unpaidOf(i, paidPI);
+        if (unpaid <= 0.005) continue;
+        const tier = Math.min(MAX_LATE_CHARGES, (d - due) >= SECOND_CHARGE_DAY ? 2 : 1);
+        while (charged[i] < tier) {
+          charged[i]++;
+          charges.push({date: isoFromDay(d), amount: round2(unpaid * LATE_FEE_RATE), base: unpaid, tier: charged[i], installmentNo: i + 1});
+        }
       }
     }
 
@@ -1719,7 +1733,11 @@
     const extActive = !!ext && today <= extDay && totalPayableWithPenalty > 0.005 && (deferredCumAll - paidPI > 0.005 || lateFeeOutstanding > 0.005);
     const extBreached = !!ext && today > extDay && totalPayableWithPenalty > 0.005;
 
-    const piOverdue = !!episode && today >= loopStart;
+    // The oldest installment still unpaid after its due date sets the overdue status.
+    const kLate = firstUnpaid(paidPI);
+    const lateStart = kLate >= 0 ? effDue(kLate, today) : NaN;
+    const piOverdue = kLate >= 0 && today >= loopStart && today > lateStart && !(ext && today >= grantDay && today <= extDay);
+    const episode = piOverdue ? {startDay: lateStart, tier: Math.max(1, charged[kLate])} : null;
     const feesOnlyOverdue = !piOverdue && !extActive && remainingBalance <= 0.005 && lateFeeOutstanding > 0.005;
     const isOverdue = piOverdue || feesOnlyOverdue;
     const overdueTier = piOverdue ? episode.tier : 0;
@@ -1981,6 +1999,38 @@
     try { await fbAuthMod.sendPasswordResetEmail(fbAuth, email); errBox.textContent = "A password reset link has been sent to " + email + "."; }
     catch (err) { errBox.textContent = "Could not send the reset email — check the address."; }
   });
+  // ---- Automatic sign-out after 15 minutes without use (banking standard) ----
+  const IDLE_LIMIT_MS = 15 * 60 * 1000, IDLE_WARN_MS = 60 * 1000;
+  let lastActivity = Date.now(), idleWarned = false;
+  const markActive = () => {
+    lastActivity = Date.now();
+    if (idleWarned) { idleWarned = false; document.getElementById('idleBanner').style.display = 'none'; }
+  };
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev => document.addEventListener(ev, markActive, {capture: true, passive: true}));
+  let lastMove = 0;
+  document.addEventListener('mousemove', () => { const t = Date.now(); if (t - lastMove > 5000) { lastMove = t; markActive(); } }, {passive: true});
+  async function idleCheck() {
+    if (storageMode !== 'firebase' || !fbAuth || !fbAuth.currentUser) { lastActivity = Date.now(); return; }
+    const idle = Date.now() - lastActivity;
+    if (idle >= IDLE_LIMIT_MS) {
+      try { sessionStorage.setItem("bfsIdleOut", "1"); } catch (e) {}
+      try { await fbAuthMod.signOut(fbAuth); } catch (e) {}
+      location.reload();
+    } else if (idle >= IDLE_LIMIT_MS - IDLE_WARN_MS && !idleWarned) {
+      idleWarned = true;
+      document.getElementById('idleBanner').style.display = 'flex';
+    }
+  }
+  setInterval(idleCheck, 10000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) idleCheck(); });
+  document.getElementById('btnStayIn').addEventListener('click', markActive);
+  try {
+    if (sessionStorage.getItem("bfsIdleOut")) {
+      sessionStorage.removeItem("bfsIdleOut");
+      setTimeout(() => { document.getElementById('loginError').textContent = "You were signed out after 15 minutes without use, to keep customer records safe. Sign in again to continue."; }, 800);
+    }
+  } catch (e) {}
+
   document.getElementById('btnSmsBalance').addEventListener('click', () => refreshSmsBalance());
   document.getElementById('btnSignOut').addEventListener('click', async () => {
     try { await fbAuthMod.signOut(fbAuth); } catch (e) {}
@@ -2086,8 +2136,8 @@
     const d = new Date(entry.timestamp || Date.now());
     const ref = db.collection("auditLog").doc(auditBucketFor(isNaN(d) ? new Date() : d));
     const key = "r" + Math.random().toString(36).slice(2, 12);
-    try { await ref.update({entries: {[key]: entry}}); }
-    catch (err) { await ref.set({period: ref.id, entries: {[key]: entry}}); }
+    try { await ref.update({entries: {[key]: entry}, lastKey: key}); }
+    catch (err) { await ref.set({period: ref.id, lastKey: key, entries: {[key]: entry}}); }
   }
 
   function subscribeAll() {
@@ -2193,11 +2243,11 @@
     auditQueue = auditQueue.then(async () => {
       const ref = db.collection("auditLog").doc(auditBucketFor(now));
       try {
-        await ref.update({ entries: { [key]: entry } });
+        await ref.update({ entries: { [key]: entry }, lastKey: key });
       } catch (err) {
         try {
           const snap = await ref.get();
-          if (!snap.exists) await ref.set({ period: ref.id, entries: { [key]: entry } });
+          if (!snap.exists) await ref.set({ period: ref.id, lastKey: key, entries: { [key]: entry } });
         } catch (e2) { /* the log is best-effort; never block the real action */ }
       }
     });
@@ -2828,7 +2878,7 @@
               </tr>`).join('')}</tbody>
           </table>
         </div>
-        ${m.charges.length ? `<div class="cell-sub" style="margin-bottom:6px;">Late charges: ${m.charges.map(c => `${fmtDate(c.date)} — ${fmtGHS(c.amount)} (10% of ${fmtGHS(c.base)})`).join(' · ')}</div>` : ''}
+        ${m.charges.length ? `<div class="cell-sub" style="margin-bottom:6px;">Late charges: ${m.charges.map(c => `${fmtDate(c.date)} — ${fmtGHS(c.amount)} (10% of installment ${c.installmentNo}'s unpaid ${fmtGHS(c.base)})`).join(' · ')}</div>` : ''}
         ${live ? `
         <div style="font-size:12px; font-weight:700; color:var(--text-mute); margin:14px 0 8px 0;">Payment History</div>
         ${loanPayments.length ? `
@@ -3437,7 +3487,7 @@
     document.getElementById('formAddStaff').style.display = owner ? '' : 'none';
     document.getElementById('restoreRow').style.display = owner ? '' : 'none';
     document.getElementById('staffNote').textContent = owner
-      ? 'Staff must use a Gmail (Google) account and the Sign in with Google button. They use the same staff password for edits.'
+      ? 'Staff must use a Gmail (Google) account and the Sign in with Google button. They confirm edits with their own Google sign-in, and can only do what their role allows.'
       : 'Only the owner can add or remove staff.';
   }
   document.getElementById('formAddStaff').addEventListener('submit', e => {
@@ -3939,7 +3989,7 @@
     tx.push({date: loan.disbursementDate, order: 0, desc: `Amount repayable — principal ${fmtGHS(m.principal)} + interest ${fmtGHS(m.interestAmount)}`, dr: m.totalRepayment, cr: 0});
     m.loanPayments.forEach(x => tx.push({date: x.p.paymentDate, order: 1,
       desc: `Payment received — ${x.p.paymentMethod || 'payment'}${x.p.txnId && !/^manual-/.test(x.p.txnId) ? ' (' + x.p.txnId + ')' : ''}`, dr: 0, cr: x.amt}));
-    m.charges.forEach(c => tx.push({date: c.date, order: 2, desc: `Late charge ${c.tier} of 2 — 10% of ${fmtGHS(c.base)} unpaid`, dr: c.amount, cr: 0}));
+    m.charges.forEach(c => tx.push({date: c.date, order: 2, desc: `Late charge ${c.tier} of 2 on installment ${c.installmentNo} — 10% of ${fmtGHS(c.base)} unpaid`, dr: c.amount, cr: 0}));
     tx.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.order - b.order);
     let bal = 0;
     tx.forEach(t => { bal = round2(bal + t.dr - t.cr); t.balance = bal; });
@@ -3986,7 +4036,7 @@
         <h4>Transactions</h4>
         ${table(["Date", "Description", "Charges", "Payments", "Balance"], s.txRows, [2, 3, 4])}
         <div class="stmt-summary">${s.summary.map(d => `<div><span>${escapeHtml(d[0])}</span><strong>${escapeHtml(d[1])}</strong></div>`).join('')}</div>
-        <div class="stmt-foot">Payments: ${COMPANY.payTo}, quoting Ref ${escapeHtml(s.loan.refNo)}. Late charge: 10% of the unpaid balance the day after a missed due date, and another 10% if still unpaid 15 days after it (maximum 20%). Questions: ${COMPANY.phone}.</div>
+        <div class="stmt-foot">Payments: ${COMPANY.payTo}, quoting Ref ${escapeHtml(s.loan.refNo)}. Late charge: 10% of a missed installment the day after its due date, and another 10% if still unpaid 15 days after it (maximum 20% per installment). Questions: ${COMPANY.phone}.</div>
       </div>`;
   }
 
@@ -4126,7 +4176,7 @@
     y += 22;
     ensure(40);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(91, 107, 124);
-    doc.text(doc.splitTextToSize(pdfSafe(`Payments: ${COMPANY.payTo}, quoting Ref ${s.loan.refNo}. Late charge: 10% of the unpaid balance the day after a missed due date, and another 10% if still unpaid 15 days after it (maximum 20%). Questions: ${COMPANY.phone}.`), W - 2 * M), M, y);
+    doc.text(doc.splitTextToSize(pdfSafe(`Payments: ${COMPANY.payTo}, quoting Ref ${s.loan.refNo}. Late charge: 10% of a missed installment the day after its due date, and another 10% if still unpaid 15 days after it (maximum 20% per installment). Questions: ${COMPANY.phone}.`), W - 2 * M), M, y);
     return doc.output("arraybuffer");
   }
 
@@ -4159,6 +4209,11 @@
     renderPwStatus();
   }
   function renderPwStatus() {
+    const online = storageMode === 'firebase';
+    document.getElementById('pwCardLocal').style.display = online ? 'none' : '';
+    document.getElementById('pwCardOnline').style.display = online ? '' : 'none';
+    document.getElementById('pwHead').textContent = online ? 'Confirming Actions' : 'Staff Password';
+    document.getElementById('pwHint').textContent = online ? 'Own sign-in · no shared password' : 'Asked before every edit, approval, deletion and settings change';
     const el = document.getElementById('pwStatus');
     if (!el) return;
     el.innerHTML = staffPw && staffPw.updatedAt
@@ -4180,6 +4235,22 @@
   const confirmErr = document.getElementById('confirmPasswordError');
   const confirmYes = document.getElementById('confirmYesBtn');
 
+  // Online: no shared password. The signed-in person confirms with their own
+  // sign-in (Google window or their own password), remembered for 10 minutes.
+  const STEP_UP_MS = 10 * 60 * 1000;
+  let lastStepUp = 0;
+  function myName() {
+    if (storageMode !== 'firebase') return lastStaffName;
+    const d = myStaffDoc(), u = fbAuth && fbAuth.currentUser;
+    return ((d && d.name) || (u && u.displayName) || (isOwnerUser() ? 'Owner' : currentEmail().split('@')[0]) || '').trim();
+  }
+  function signedInWithGoogle() {
+    const u = fbAuth && fbAuth.currentUser;
+    return !!(u && (u.providerData || []).some(x => x && x.providerId === 'google.com'));
+  }
+  // Opening words of a confirmation message ("Confirm to edit …").
+  const confirmLead = () => storageMode === 'firebase' ? 'Confirm to' : 'Enter your name and the staff password to';
+  const needsStepUp = () => storageMode === 'firebase' && Date.now() - lastStepUp > STEP_UP_MS;
   function showConfirm(message, onYes, opts) {
     opts = opts || {};
     document.getElementById('confirmTitle').textContent = opts.title || 'Please Confirm';
@@ -4187,6 +4258,17 @@
     confirmName.value = lastStaffName;
     confirmPw.value = '';
     confirmErr.style.display = 'none';
+    const online = storageMode === 'firebase';
+    const google = online && signedInWithGoogle();
+    const step = needsStepUp();
+    document.getElementById('confirmNameRow').style.display = online ? 'none' : '';
+    document.getElementById('confirmPwRow').style.display = online ? (step && !google ? '' : 'none') : '';
+    document.getElementById('confirmPwLabel').textContent = online ? 'Your own sign-in password' : 'Staff Password';
+    confirmPw.placeholder = online ? 'The password you use to sign in' : 'Enter password to continue';
+    const who = document.getElementById('confirmWho');
+    who.style.display = online ? '' : 'none';
+    if (online) who.innerHTML = `Confirming as <strong>${escapeHtml(myName())}</strong> · ${escapeHtml(currentEmail())}` +
+      (step ? `<div class="cell-sub" style="margin-top:3px;">${google ? 'A Google window will open to confirm it is you.' : 'Enter your own password to confirm it is you.'}</div>` : '');
     confirmYes.textContent = opts.yesLabel || 'Confirm';
     confirmYes.className = 'btn' + (opts.danger ? ' red' : '');
     confirmYes.disabled = false;
@@ -4199,10 +4281,60 @@
     }
     pendingConfirm = onYes;
     openModal('modalConfirm');
-    setTimeout(() => (lastStaffName ? confirmPw : confirmName).focus(), 50);
+    setTimeout(() => {
+      if (!online) (lastStaffName ? confirmPw : confirmName).focus();
+      else if (document.getElementById('confirmPwRow').style.display !== 'none') confirmPw.focus();
+      else confirmYes.focus();
+    }, 50);
+  }
+  async function confirmIdentity() {
+    const user = fbAuth && fbAuth.currentUser;
+    if (!user) throw {msg: 'You are signed out — sign in again.'};
+    try {
+      if (signedInWithGoogle()) {
+        const provider = new fbAuthMod.GoogleAuthProvider();
+        provider.setCustomParameters({login_hint: user.email || ''});
+        await fbAuthMod.reauthenticateWithPopup(user, provider);
+      } else {
+        if (!confirmPw.value) throw {msg: 'Enter your password.'};
+        await fbAuthMod.reauthenticateWithCredential(user, fbAuthMod.EmailAuthProvider.credential(user.email, confirmPw.value));
+      }
+    } catch (err) {
+      if (err && err.msg) throw err;
+      const c = (err && err.code) || '';
+      throw {msg: /popup-closed|cancelled-popup/.test(c) ? 'The Google window was closed — click Confirm to try again.'
+        : /popup-blocked/.test(c) ? 'Your browser blocked the Google window — allow pop-ups for this site.'
+        : /user-mismatch/.test(c) ? 'Please choose your own account (' + (user.email || '') + ') in the Google window.'
+        : /invalid-credential|wrong-password/.test(c) ? 'Incorrect password — try again.'
+        : /too-many-requests/.test(c) ? 'Too many attempts — wait a few minutes.'
+        : /network/.test(c) ? 'No internet connection.' : 'Could not confirm — try again.'};
+    }
+    lastStepUp = Date.now();
   }
   async function submitConfirm() {
     if (!pendingConfirm) return;
+    if (storageMode === 'firebase') {
+      if (needsStepUp()) {
+        confirmYes.disabled = true;
+        try { await confirmIdentity(); }
+        catch (e) {
+          confirmYes.disabled = false;
+          confirmErr.textContent = e.msg; confirmErr.style.display = 'block';
+          if (document.getElementById('confirmPwRow').style.display !== 'none') { confirmPw.select(); confirmPw.focus(); }
+          return;
+        }
+        confirmYes.disabled = false;
+        if (!pendingConfirm) return;
+      }
+      const action = pendingConfirm, name = myName() || currentEmail();
+      const checked = document.getElementById('confirmCheckRow').style.display !== 'none' && document.getElementById('confirmCheck').checked;
+      pendingConfirm = null;
+      lastStaffName = name;
+      confirmPw.value = '';
+      closeModal('modalConfirm');
+      await action(name, checked);
+      return;
+    }
     const name = confirmName.value.trim().replace(/\s+/g, ' ');
     if (!name) {
       confirmErr.textContent = 'Please enter your name.';
@@ -4343,7 +4475,7 @@
     if (!needs('edit')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
-    showConfirm(`Enter your name and the staff password to edit ${refNo} (${loan.borrowerName}).`,
+    showConfirm(`${confirmLead()} edit ${refNo} (${loan.borrowerName}).`,
       name => { editAuthName = name; openLoanModal(loan); },
       {title: "Unlock Editing", yesLabel: "Edit Loan"});
   }
@@ -4470,7 +4602,7 @@
       ${term > 1 ? `<div class="calc-sched">${tmp.schedule.map(s => `<span>${s.no}. ${fmtDate(s.dueDate)} · ${fmtGHS(s.amount)}</span>`).join('')}</div>` : ''}
       ${cash < 0 ? `<div style="color:var(--danger); font-weight:700; margin-top:6px;">The principal is too small to clear the old balance plus the processing fee.</div>` : ''}
       <div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border); color:var(--danger);">
-        Late charge if a payment is missed: <strong>10% of the unpaid balance</strong> the next day, and <strong>another 10%</strong> if still unpaid after 15 days. Maximum 20%.
+        Late charge if a payment is missed: <strong>10% of the missed installment</strong> the next day, and <strong>another 10%</strong> if still unpaid after 15 days. Maximum 20% per installment.
       </div>
     ` : 'Enter a principal amount to see the repayment, fee and due dates.';
   }
@@ -4605,7 +4737,7 @@
     const refNo = base.refNo;
     if (overrideBy) base.ruleOverrideBy = overrideBy;
     if (stageChoice === 'disburse') {
-      showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}? Enter your name and the staff password to authorise the payment.`,
+      showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}?`,
         async name => {
           const doc = await disburseLoanObject(base, base.disbursementDate, via, name);
           if (doc) {
@@ -4644,7 +4776,7 @@
   }
   function startDisburseChecked(loan) {
     const refNo = loan.refNo;
-    showConfirm(`Enter your name and the staff password to approve and pay out ${refNo} (${loan.borrowerName}).`,
+    showConfirm(`${confirmLead()} approve and pay out ${refNo} (${loan.borrowerName}).`,
       name => { editAuthName = name; openDisburseModal(loan); },
       {title: "Approve & Pay Out", yesLabel: "Continue"});
   }
@@ -4753,7 +4885,7 @@
     if (!needs('extensions')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
-    showConfirm(`Enter your name and the staff password to change the payment date for ${refNo} (${loan.borrowerName}).`,
+    showConfirm(`${confirmLead()} change the payment date for ${refNo} (${loan.borrowerName}).`,
       name => { editAuthName = name; openExtensionModal(loan); },
       {title: "Payment Extension", yesLabel: "Continue"});
   }
@@ -4853,7 +4985,7 @@
     if (!needs('edit')) return;
     const p = payments.find(x => x._id === paymentId);
     if (!p) return;
-    showConfirm(`Enter your name and the staff password to edit the ${fmtGHS(p.amountPaid)} payment for ${p.borrowerName}.`,
+    showConfirm(`${confirmLead()} edit the ${fmtGHS(p.amountPaid)} payment for ${p.borrowerName}.`,
       name => { editAuthName = name; openPaymentModal(refNo, paymentId); },
       {title: "Unlock Editing", yesLabel: "Edit Payment"});
   }
@@ -4863,6 +4995,9 @@
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     if (!isDisbursed(loan)) { showToast("This application has not been paid out yet — use Pay Out first", 4000); return; }
+    if (!paymentId && computeLoanMetrics(loan).totalPayableWithPenalty <= 0.005) {
+      showToast(`${refNo} (${loan.borrowerName}) is fully paid — no payment is due.`, 4500); return;
+    }
     const form = document.getElementById('formPayment');
     form.reset();
     form.refNo.value = refNo;
@@ -4901,7 +5036,12 @@
         chips.push(`<button type="button" class="chip" data-fill="${m.totalPayableWithPenalty.toFixed(2)}">Full balance${m.lateFeeOutstanding > 0 ? " incl. late charges" : ""} · ${fmtGHS(m.totalPayableWithPenalty)}</button>`);
       }
       quick.innerHTML = chips.join('');
+      // The amount due now is filled in already: the next installment, or when
+      // late, the past-due installments plus their late charges.
+      const due = first > 0 ? first : m.totalPayableWithPenalty;
+      if (due > 0) form.amountPaid.value = round2(due).toFixed(2);
     }
+    document.getElementById('payDueNote').innerHTML = paymentId ? '' : payDueNote(m);
     const canReceipt = !paymentId && storageMode === 'firebase' && can('sms') && (loan.borrowerPhone || '').replace(/\D/g, '').length >= 9;
     document.getElementById('receiptRow').style.display = canReceipt ? '' : 'none';
     form.sendReceipt.checked = canReceipt;
@@ -4910,6 +5050,16 @@
       (m.totalPayableWithPenalty > 0 ? " · Balance due " + fmtGHS(m.totalPayableWithPenalty) : " · Fully paid");
     openModal('modalPayment');
     setTimeout(() => { if (!document.getElementById('modalPayment').contains(document.activeElement)) form.amountPaid.focus(); }, 50);
+  }
+  function payDueNote(m) {
+    if (m.isOverdue) {
+      const parts = [];
+      if (m.arrearsAmount > 0.005) parts.push(`${fmtGHS(m.arrearsAmount)} past-due installment amount`);
+      if (m.lateFeeOutstanding > 0.005) parts.push(`${fmtGHS(m.lateFeeOutstanding)} late charges`);
+      return `Filled in: ${parts.join(' + ')}. Change it if the customer paid a different amount.`;
+    }
+    if (m.term > 1 && m.nextInstallmentNo) return `Filled in: installment ${m.nextInstallmentNo} of ${m.term}, due ${fmtDate(m.nextDueDate)}. Change it if the customer paid a different amount.`;
+    return `Filled in: the amount due${m.nextDueDate ? ' on ' + fmtDate(m.nextDueDate) : ''}. Change it if the customer paid a different amount.`;
   }
   document.getElementById('paymentQuickFill').addEventListener('click', e => {
     const chip = e.target.closest('[data-fill]');
@@ -4936,6 +5086,11 @@
       receivedBy: fd.get('receivedBy').trim()
     };
     if (!(payment.amountPaid > 0)) { showToast("Enter an amount above zero"); return; }
+    if (loan && !editingPaymentId) {
+      const bal = computeLoanMetrics(loan).totalPayableWithPenalty;
+      if (bal <= 0.005) { showToast(`${refNo} is already fully paid.`); return; }
+      if (payment.amountPaid > bal + 0.005) { showToast(`That is more than the full balance of ${fmtGHS(bal)} — enter ${fmtGHS(bal)} or less.`, 5000); formEl.amountPaid.focus(); return; }
+    }
     if (payment.receivedBy) lastStaffName = payment.receivedBy;
     const paymentIdToEdit = editingPaymentId;
     const before = paymentIdToEdit ? payments.find(x => x._id === paymentIdToEdit) : null;
@@ -5027,7 +5182,7 @@
     if (!needs('applications')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan || loanStage(loan) !== 'pending') return;
-    showConfirm(`Enter your name and the staff password to put ${refNo} (${loan.borrowerName}) on hold.`,
+    showConfirm(`${confirmLead()} put ${refNo} (${loan.borrowerName}) on hold.`,
       name => { editAuthName = name; openHoldModal(loan); },
       {title: "Put on Hold", yesLabel: "Continue"});
   }
@@ -5134,7 +5289,7 @@
       e.preventDefault();
       const c = capitalEntries.find(x => x._id === edit.dataset.editCapital);
       if (!c) return;
-      showConfirm(`Enter your name and the staff password to edit the ${fmtGHS(c.amount)} capital entry.`,
+      showConfirm(`${confirmLead()} edit the ${fmtGHS(c.amount)} capital entry.`,
         name => { editAuthName = name; openCapitalModal(c); }, {title: "Unlock Editing", yesLabel: "Edit"});
       return;
     }
@@ -5161,7 +5316,7 @@
       e.preventDefault();
       const x = expenseEntries.find(y => y._id === edit.dataset.editExpense);
       if (!x) return;
-      showConfirm(`Enter your name and the staff password to edit the ${fmtGHS(x.amount)} expense.`,
+      showConfirm(`${confirmLead()} edit the ${fmtGHS(x.amount)} expense.`,
         name => { editAuthName = name; openExpenseModal(x); }, {title: "Unlock Editing", yesLabel: "Edit"});
       return;
     }
