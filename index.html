@@ -700,6 +700,19 @@
   .staff-row .s-main { min-width: 0; overflow-wrap: anywhere; }
   .staff-row .s-tag { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--neutral-bg); color: var(--navy-text); white-space: nowrap; }
   .staff-add { display: flex; gap: 8px; flex-wrap: wrap; }
+  body.no-payments [data-pay], body.no-payments #paymentQuickFill { display: none !important; }
+  body.no-applications #btnNewLoan, body.no-applications [data-topup], body.no-applications [data-reopen] { display: none !important; }
+  body.no-payout [data-disburse], body.no-payout [data-decline], body.no-payout #stageField { display: none !important; }
+  body.no-extensions [data-extend] { display: none !important; }
+  body.no-edit [data-edit-loan], body.no-edit [data-edit-payment] { display: none !important; }
+  body.no-delete [data-delete-loan], body.no-delete [data-delete-payment] { display: none !important; }
+  body.no-finances .tab-btn[data-tab="finances"], body.no-finances #profitSection, body.no-finances [data-edit-capital], body.no-finances [data-del-capital], body.no-finances [data-edit-expense], body.no-finances [data-del-expense] { display: none !important; }
+  body.no-sms [data-send], body.no-sms #btnAutoRun, body.no-sms #receiptRow { display: none !important; }
+  body.no-export #exportSection { display: none !important; }
+  .perm-panel { border-top: 1px dashed var(--border); margin-top: 8px; padding-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 14px; }
+  .perm-panel .presets { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .staff-row.has-perms { flex-wrap: wrap; }
+  .staff-row .s-perms { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
   .bin-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
   .staff-add .search-input { flex: 1 1 180px; min-width: 0; }
   .auto-pill { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px; margin-left: 6px; vertical-align: 1px; background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
@@ -825,8 +838,10 @@
     <div class="section-head"><h2>Borrower Performance</h2></div>
     <div class="tier-row" id="tierGrid"></div>
 
-    <div class="section-head"><h2>Capital &amp; Profitability</h2></div>
-    <div class="kpi-grid" id="kpiGrid2"></div>
+    <div id="profitSection">
+      <div class="section-head"><h2>Capital &amp; Profitability</h2></div>
+      <div class="kpi-grid" id="kpiGrid2"></div>
+    </div>
   </div>
 
   <!-- ================= LOANS ================= -->
@@ -966,6 +981,9 @@
         <form id="formAddStaff" class="staff-add" autocomplete="off">
           <input class="search-input" name="name" placeholder="Full name" required>
           <input class="search-input" name="email" type="email" placeholder="name@gmail.com" required>
+          <select class="search-input" name="role" style="flex:0 1 170px;">
+            <option value="cashier">Cashier</option><option value="officer" selected>Loan Officer</option><option value="manager">Manager</option>
+          </select>
           <button type="submit" class="btn small" data-icon="plus">Add Staff</button>
         </form>
         <div id="staffNote" class="cell-sub" style="margin-top:8px;"></div>
@@ -978,6 +996,7 @@
       <button class="btn small" id="btnChangePw" data-icon="edit">Change Staff Password</button>
     </div>
 
+    <div id="exportSection">
     <div class="section-head"><h2>Backup &amp; Export</h2><span class="hint">Download your records and keep a copy somewhere safe</span></div>
     <div class="subcard">
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">CSV files open in Excel or Google Sheets. The Full Backup contains every loan, payment, capital entry, expense and activity record in one file. Download one at least once a week.</p>
@@ -993,6 +1012,7 @@
         <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
       </div>
       <div id="usageArea" style="margin-top:16px;"></div>
+    </div>
     </div>
 
     <div class="section-head"><h2>Recycle Bin</h2><span class="hint">Deleted loans, payments, capital and expenses</span></div>
@@ -1121,6 +1141,7 @@
         </div>
         <div class="field"><label>Purpose of Loan</label><input name="purpose"></div>
         <div class="field"><label>Processed By</label><input name="processedBy" placeholder="Staff name"></div>
+        <div class="field span2" id="eligibilityBox" style="display:none; background:var(--danger-bg); color:var(--danger); border-radius:7px; padding:10px 12px; font-size:12.5px; font-weight:600;"></div>
         <div class="field span2" id="calcPreview" style="background:var(--bg);border-radius:7px;padding:10px 12px;font-size:12.5px;color:var(--text-mute);"></div>
       </div>
       <div class="modal-actions">
@@ -2120,6 +2141,8 @@
       description: description || "",
       performedBy: (performedBy || "").trim()
     };
+    const acct = storageMode === 'firebase' ? currentEmail() : '';
+    if (acct) entry.account = acct;
     const key = "e" + now.getTime().toString(36) + Math.random().toString(36).slice(2, 8);
     // One write at a time to the monthly record.
     auditQueue = auditQueue.then(async () => {
@@ -2173,6 +2196,7 @@
 
   // ---------------- Tabs ----------------
   function switchTab(name) {
+    if (name === 'finances' && !can('finances')) { needs('finances'); name = 'dashboard'; }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   }
@@ -2537,6 +2561,66 @@
   }
 
   // A top-up needs at least half of the current loan repaid and nothing overdue.
+  // ---------------- Lending rules ----------------
+  // 1. A customer may have only one active loan or pending application; more
+  //    money comes through a Top-Up, which needs 50% repaid and nothing overdue.
+  // 2. A guarantor cannot have an active loan, and cannot be the borrower.
+  // People are matched by phone number, Ghana Card or name.
+  const phoneKey = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; };
+  const cardKey = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  function samePerson(a, b) {
+    if (a.phone && b.phone && a.phone === b.phone) return true;
+    if (a.card && b.card && a.card.length >= 6 && a.card === b.card) return true;
+    return !!(a.name && b.name && a.name === b.name);
+  }
+  const borrowerOf = l => ({name: normName(l.borrowerName), phone: phoneKey(l.borrowerPhone), card: cardKey(l.ghanaCardNo)});
+  function isActiveLoan(l) { return isDisbursed(l) && computeLoanMetrics(l).totalPayableWithPenalty > 0.005; }
+  function eligibilityIssues(app, excludeRef) {
+    const issues = [];
+    const me = {name: normName(app.borrowerName), phone: phoneKey(app.borrowerPhone), card: cardKey(app.ghanaCardNo)};
+    const others = loans.filter(l => l.refNo !== excludeRef && loanStage(l) !== 'declined');
+    others.filter(l => samePerson(me, borrowerOf(l))).forEach(l => {
+      if (app.topUpOf && l.refNo === app.topUpOf) {
+        const why = topUpCheck(l, computeLoanMetrics(l));
+        if (why && !/already pending/.test(why)) issues.push(`Top-up of ${l.refNo} not allowed: ${why}`);
+        return;
+      }
+      if (loanStage(l) === 'pending') issues.push(`${l.borrowerName} already has a pending application (${l.refNo}).`);
+      else if (isActiveLoan(l)) {
+        const m = computeLoanMetrics(l);
+        const pct = m.totalRepayment ? Math.floor(m.amountPaid / m.totalRepayment * 100) : 0;
+        issues.push(`${l.borrowerName} already has an active loan ${l.refNo} (${pct}% repaid${m.isOverdue ? ', overdue' : ''}). Use Top-Up on that loan instead — allowed once half is repaid and nothing is overdue.`);
+      }
+    });
+    const g = {name: normName(app.guarantorName), phone: phoneKey(app.guarantorPhone), card: ''};
+    if (g.name || g.phone) {
+      if (samePerson(g, {name: me.name, phone: me.phone, card: ''})) issues.push('The guarantor cannot be the borrower.');
+      const gl = others.find(l => isActiveLoan(l) && samePerson(g, {...borrowerOf(l), card: ''}));
+      if (gl) issues.push(`Guarantor ${app.guarantorName || app.guarantorPhone} has an active loan (${gl.refNo}) and cannot guarantee another customer.`);
+    }
+    return issues;
+  }
+  // Staff are blocked; the owner may override, and the override is logged.
+  function withRuleCheck(app, excludeRef, proceed) {
+    const issues = eligibilityIssues(app, excludeRef);
+    if (!issues.length) return proceed(null);
+    const owner = storageMode !== 'firebase' || isOwnerUser();
+    if (!owner) { showToast("Not allowed: " + issues[0], 7000); return; }
+    showConfirm(`This application breaks the lending rules:\n• ${issues.join('\n• ')}\n\nAs the owner you can override. Continue anyway? (The override is recorded.)`, async who => {
+      logActivity("Rule Override", `${app.refNo || 'New application'} (${app.borrowerName}) — ${issues.join(' ')}`, who);
+      await proceed(who);
+    }, {title: "Override Lending Rules", yesLabel: "Override & Continue", danger: true});
+  }
+  function updateEligibilityBox() {
+    const f = document.getElementById('formNewLoan');
+    const box = document.getElementById('eligibilityBox');
+    if (editingLoanRefNo) { box.style.display = 'none'; return; }
+    const issues = eligibilityIssues({borrowerName: f.borrowerName.value, borrowerPhone: f.borrowerPhone.value, ghanaCardNo: f.ghanaCardNo.value,
+      guarantorName: f.guarantorName.value, guarantorPhone: f.guarantorPhone.value, topUpOf: (f.topUpOf.value || '').trim()}, null);
+    box.style.display = issues.length ? '' : 'none';
+    box.innerHTML = issues.map(i => '⛔ ' + escapeHtml(i)).join('<br>');
+  }
+
   function topUpCheck(loan, m) {
     if (m.stage !== 'disbursed' || m.totalPayableWithPenalty <= 0.005) return "This loan is already fully paid — create a normal new loan instead.";
     if (m.isOverdue) return "Not available while the loan is overdue. Collect the arrears first.";
@@ -2917,7 +3001,7 @@
         <td class="nowrap">${fmtStamp(e.timestamp)}</td>
         <td><span class="act-badge ${actionClass(e.action)}">${escapeHtml(e.action)}</span></td>
         <td class="details">${escapeHtml(e.description)}</td>
-        <td>${escapeHtml(e.performedBy || '—')}</td>
+        <td>${escapeHtml(e.performedBy || '—')}${e.account && e.account !== (e.performedBy || '').toLowerCase() ? `<div class="cell-sub">${escapeHtml(e.account)}</div>` : ''}</td>
       </tr>`).join('');
     const more = document.getElementById('btnActivityMore');
     more.style.display = list.length > activityLimit ? 'inline-flex' : 'none';
@@ -3097,6 +3181,7 @@
   // ---- Send through G Online ----
   let pendingSms = null;
   function openSendModal(id) {
+    if (!needs('sms')) return;
     const refNo = document.getElementById('smsLoanPicker').value;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
@@ -3181,8 +3266,47 @@
   const OWNER_EMAIL = "oansah717@gmail.com";
   const SYSTEM_EMAILS = ["reminders@benansah-fs.web.app"];
   let staffDocs = [];
+  const PERMS = [
+    ['payments', 'Record payments'],
+    ['applications', 'Create loan applications & top-ups'],
+    ['payout', 'Approve, pay out & decline loans'],
+    ['extensions', 'Grant payment extensions'],
+    ['edit', 'Edit loans & payments'],
+    ['delete', 'Delete records (to the Recycle Bin)'],
+    ['finances', 'Finances: capital, expenses & profit figures'],
+    ['sms', 'Send SMS (incl. receipts & Send Now)'],
+    ['export', 'Download exports & backups']
+  ];
+  const ROLE_PRESETS = {
+    cashier: {label: 'Cashier', perms: ['payments', 'sms']},
+    officer: {label: 'Loan Officer', perms: ['payments', 'applications', 'extensions', 'sms']},
+    manager: {label: 'Manager', perms: PERMS.map(p => p[0])}
+  };
+  const presetPerms = key => Object.fromEntries(PERMS.map(([k]) => [k, (ROLE_PRESETS[key] || ROLE_PRESETS.officer).perms.includes(k)]));
+  function myStaffDoc() { return staffDocs.find(d => d._id === currentEmail()); }
+  function permsOf(doc) { return doc && doc.perms ? doc.perms : presetPerms('officer'); }
+  function can(perm) {
+    if (storageMode !== 'firebase' || isOwnerUser()) return true;
+    return !!permsOf(myStaffDoc())[perm];
+  }
+  function needs(perm) {
+    if (can(perm)) return true;
+    const label = (PERMS.find(p => p[0] === perm) || [perm, perm])[1];
+    showToast(`You don't have access to: ${label}. Ask the owner.`, 4500);
+    return false;
+  }
+  function applyPermissions() {
+    PERMS.forEach(([k]) => document.body.classList.toggle('no-' + k, !can(k)));
+    if (!can('finances') && document.querySelector('.tab-btn.active[data-tab="finances"]')) switchTab('dashboard');
+  }
+  function roleName(perms) {
+    const on = PERMS.filter(([k]) => perms[k]).map(([k]) => k).sort().join();
+    const hit = Object.entries(ROLE_PRESETS).find(([, r]) => [...r.perms].sort().join() === on);
+    return hit ? hit[1].label : 'Custom';
+  }
   function currentEmail() { return (fbAuth && fbAuth.currentUser && fbAuth.currentUser.email || "").toLowerCase(); }
   function isOwnerUser() { return currentEmail() === OWNER_EMAIL; }
+  let staffEditing = null;
   function renderStaff() {
     const sec = document.getElementById('staffSection');
     if (storageMode !== 'firebase') { sec.style.display = 'none'; return; }
@@ -3191,11 +3315,18 @@
     const rows = [...staffDocs].sort((a, b) => (a.name || a._id).localeCompare(b.name || b._id));
     document.getElementById('staffList').innerHTML =
       `<div class="staff-row"><div class="s-main"><strong>Owner</strong> · ${escapeHtml(OWNER_EMAIL)}</div><span class="s-tag">Always has access</span></div>` +
-      (rows.length ? rows.map(r => `<div class="staff-row">
-          <div class="s-main"><strong>${escapeHtml(r.name || 'Staff')}</strong> · ${escapeHtml(r._id)}
+      (rows.length ? rows.map(r => { const pm = permsOf(r); const open = staffEditing === r._id; return `<div class="staff-row has-perms">
+          <div class="s-main"><strong>${escapeHtml(r.name || 'Staff')}</strong> · ${escapeHtml(r._id)} <span class="s-tag">${escapeHtml(roleName(pm))}</span>
+            <div class="s-perms">Can: ${escapeHtml(PERMS.filter(([k]) => pm[k]).map(([, l]) => l).join(' · ') || 'view only')}</div>
             <div class="cell-sub">Added ${escapeHtml(fmtStamp(r.addedAt))}${r.addedBy ? ' by ' + escapeHtml(r.addedBy) : ''}</div></div>
-          ${owner ? `<button type="button" class="btn ghost small danger" data-staff-remove="${escapeHtml(r._id)}">Remove</button>` : '<span class="s-tag">Staff</span>'}
-        </div>`).join('') : '<div class="cell-sub">No staff added yet.</div>');
+          ${owner ? `<div class="bin-actions"><button type="button" class="btn ghost small" data-staff-perms="${escapeHtml(r._id)}">${open ? 'Close' : 'Edit Access'}</button>
+            <button type="button" class="btn ghost small danger" data-staff-remove="${escapeHtml(r._id)}">Remove</button></div>` : ''}
+          ${owner && open ? `<div class="perm-panel" data-perm-for="${escapeHtml(r._id)}">
+            <div class="presets"><span class="cell-sub">Quick set:</span>${Object.entries(ROLE_PRESETS).map(([k, v]) => `<button type="button" class="btn ghost small" data-preset="${k}">${v.label}</button>`).join('')}</div>
+            ${PERMS.map(([k, l]) => `<label class="auto-check tick"><input type="checkbox" data-perm="${k}" ${pm[k] ? 'checked' : ''}> <span>${escapeHtml(l)}</span></label>`).join('')}
+            <div class="presets"><button type="button" class="btn small" data-perm-save="${escapeHtml(r._id)}">Save Access</button></div>
+          </div>` : ''}
+        </div>`; }).join('') : '<div class="cell-sub">No staff added yet.</div>');
     document.getElementById('formAddStaff').style.display = owner ? '' : 'none';
     document.getElementById('restoreRow').style.display = owner ? '' : 'none';
     document.getElementById('staffNote').textContent = owner
@@ -3212,16 +3343,40 @@
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast("Enter a valid email address"); return; }
     if (email === OWNER_EMAIL || SYSTEM_EMAILS.includes(email)) { showToast("That account already has access"); return; }
     if (staffDocs.some(d => d._id === email)) { showToast(email + " is already on the staff list"); return; }
-    showConfirm(`Give ${name} (${email}) access to the loan manager?`, async who => {
+    const role = f.role.value || 'officer';
+    showConfirm(`Give ${name} (${email}) access as ${ROLE_PRESETS[role].label}?`, async who => {
       try {
-        await db.collection("staff").doc(email).set({name, email, addedBy: who, addedAt: new Date().toISOString()});
-        logActivity("Staff Added", `${name} (${email}) can now sign in`, who);
+        await db.collection("staff").doc(email).set({name, email, perms: presetPerms(role), addedBy: who, addedAt: new Date().toISOString()});
+        logActivity("Staff Added", `${name} (${email}) can now sign in as ${ROLE_PRESETS[role].label}`, who);
         f.reset();
         showToast(`${name} added — they can sign in with Google now`, 4000);
       } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can add staff" : "Could not add — try again"); }
     }, {title: "Add Staff", yesLabel: "Add"});
   });
   document.getElementById('staffList').addEventListener('click', e => {
+    const pe = e.target.closest('[data-staff-perms]');
+    if (pe) { staffEditing = staffEditing === pe.dataset.staffPerms ? null : pe.dataset.staffPerms; renderStaff(); return; }
+    const pr = e.target.closest('[data-preset]');
+    if (pr) {
+      const panel = pr.closest('[data-perm-for]'); const set = presetPerms(pr.dataset.preset);
+      panel.querySelectorAll('[data-perm]').forEach(cb => { cb.checked = !!set[cb.dataset.perm]; });
+      return;
+    }
+    const ps = e.target.closest('[data-perm-save]');
+    if (ps) {
+      const email = ps.dataset.permSave, rec = staffDocs.find(d => d._id === email) || {};
+      const perms = {};
+      ps.closest('[data-perm-for]').querySelectorAll('[data-perm]').forEach(cb => { perms[cb.dataset.perm] = cb.checked; });
+      showConfirm(`Save access for ${rec.name || email} as ${roleName(perms)}?`, async who => {
+        try {
+          await db.collection("staff").doc(email).set({...stripId(rec), perms, permsUpdatedBy: who, permsUpdatedAt: new Date().toISOString()});
+          logActivity("Staff Access Changed", `${rec.name || email} (${email}) — ${roleName(perms)}: ${PERMS.filter(([k]) => perms[k]).map(([, l]) => l).join(', ') || 'view only'}`, who);
+          staffEditing = null;
+          showToast("Access saved — it applies straight away");
+        } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can change access" : "Could not save — try again"); }
+      }, {title: "Staff Access", yesLabel: "Save"});
+      return;
+    }
     const btn = e.target.closest('[data-staff-remove]');
     if (!btn) return;
     const email = btn.dataset.staffRemove;
@@ -3515,6 +3670,7 @@
     finally { btn.disabled = false; btn.textContent = "Preview Today's List"; }
   });
   document.getElementById('btnAutoRun').addEventListener('click', () => {
+    if (!needs('sms')) return;
     const n = (autoPreviewItems || []).filter(i => i.status === 'send').length;
     if (!n) return;
     showConfirm(`Send ${n} reminder SMS now through G Online?`, async () => {
@@ -4065,10 +4221,11 @@
   let editAuthName = "";   // staff name entered when an edit form was unlocked with the password
   function stripId(o) { const {_id, ...rest} = o || {}; return rest; }
 
-  document.getElementById('btnNewLoan').addEventListener('click', () => openLoanModal(null));
+  document.getElementById('btnNewLoan').addEventListener('click', () => { if (needs('applications')) openLoanModal(null); });
 
   // Editing always starts with the staff name + password.
   function startEditLoan(refNo) {
+    if (!needs('edit')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     showConfirm(`Enter your name and the staff password to edit ${refNo} (${loan.borrowerName}).`,
@@ -4119,6 +4276,7 @@
     }
     updateStageUI();
     updateCalcPreview();
+    updateEligibilityBox();
     openModal('modalNewLoan');
     setTimeout(() => { if (!document.getElementById('modalNewLoan').contains(document.activeElement)) (prefill || opts.topUpOf ? form.principal : form.borrowerName).focus(); }, 50);
   }
@@ -4197,6 +4355,7 @@
   ['principal', 'interestRatePct', 'processingFeePct', 'disbursementDate'].forEach(n =>
     formNewLoan[n].addEventListener('input', updateCalcPreview));
   formNewLoan.querySelectorAll('input[name=stage]').forEach(r => r.addEventListener('change', updateStageUI));
+  ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
 
   // Pays out a loan (new or pending): records the pay-out, and for a top-up
   // clears the old loan's balance with a settlement payment.
@@ -4283,9 +4442,14 @@
     const base = Object.assign({}, fields, {stage: 'pending', createdAt: new Date().toISOString()});
     const topUpOf = (fd.get('topUpOf') || '').trim();
     if (topUpOf) base.topUpOf = topUpOf;
-
-    if (fd.get('stage') === 'disburse') {
-      const via = fd.get('disbursedVia');
+    const stageChoice = can('payout') ? fd.get('stage') : 'pending';
+    const via = fd.get('disbursedVia');
+    withRuleCheck(base, null, overrideBy => saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via));
+  });
+  function saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via) {
+    const refNo = base.refNo;
+    if (overrideBy) base.ruleOverrideBy = overrideBy;
+    if (stageChoice === 'disburse') {
       showConfirm(`Approve ${refNo} for ${base.borrowerName} and pay out now via ${via}? Enter your name and the staff password to authorise the payment.`,
         async name => {
           const ok = await disburseLoanObject(base, base.disbursementDate, via, name);
@@ -4307,14 +4471,19 @@
         showToast(err && err.code === "quota_exceeded" ? "Storage is full — download a Full Backup and archive old loans" : "Could not save — try again");
       } finally { btn.disabled = false; }
     })();
-  });
+  }
 
   // ---------------- Pay out a pending application ----------------
   let disburseRef = null;
   const formDisburse = document.getElementById('formDisburse');
   function startDisburse(refNo) {
+    if (!needs('payout')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan || loanStage(loan) !== 'pending') return;
+    withRuleCheck(loan, loan.refNo, () => startDisburseChecked(loan));
+  }
+  function startDisburseChecked(loan) {
+    const refNo = loan.refNo;
     showConfirm(`Enter your name and the staff password to approve and pay out ${refNo} (${loan.borrowerName}).`,
       name => { editAuthName = name; openDisburseModal(loan); },
       {title: "Approve & Pay Out", yesLabel: "Continue"});
@@ -4358,6 +4527,7 @@
   });
 
   function declineApplication(refNo) {
+    if (!needs('payout')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     showConfirm(`Decline application ${refNo} (${loan.borrowerName}, ${fmtGHS(loan.principal)})? It stays on record as declined and can be reopened later.`,
@@ -4370,6 +4540,7 @@
       }, {title: "Decline Application", yesLabel: "Decline", danger: true});
   }
   function reopenApplication(refNo) {
+    if (!needs('applications')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     showConfirm(`Reopen ${refNo} (${loan.borrowerName}) as a pending application?`,
@@ -4384,6 +4555,7 @@
 
   // ---------------- Top-up ----------------
   function startTopUp(refNo) {
+    if (!needs('applications')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     const why = topUpCheck(loan, computeLoanMetrics(loan));
@@ -4405,6 +4577,7 @@
     return y + "-" + pad2(mo) + "-" + pad2(last);
   }
   function startExtension(refNo) {
+    if (!needs('extensions')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     showConfirm(`Enter your name and the staff password to change the payment date for ${refNo} (${loan.borrowerName}).`,
@@ -4469,6 +4642,7 @@
   });
 
   function deleteLoan(refNo) {
+    if (!needs('delete')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     const relatedPayments = payments.filter(p => p.refNo === refNo);
@@ -4503,6 +4677,7 @@
   let editingPaymentId = null;
 
   function startEditPayment(refNo, paymentId) {
+    if (!needs('edit')) return;
     const p = payments.find(x => x._id === paymentId);
     if (!p) return;
     showConfirm(`Enter your name and the staff password to edit the ${fmtGHS(p.amountPaid)} payment for ${p.borrowerName}.`,
@@ -4511,6 +4686,7 @@
   }
 
   function openPaymentModal(refNo, paymentId) {
+    if (!paymentId && !needs('payments')) return;
     const loan = loans.find(l => l.refNo === refNo);
     if (!loan) return;
     if (!isDisbursed(loan)) { showToast("This application has not been paid out yet — use Pay Out first", 4000); return; }
@@ -4553,7 +4729,7 @@
       }
       quick.innerHTML = chips.join('');
     }
-    const canReceipt = !paymentId && storageMode === 'firebase' && (loan.borrowerPhone || '').replace(/\D/g, '').length >= 9;
+    const canReceipt = !paymentId && storageMode === 'firebase' && can('sms') && (loan.borrowerPhone || '').replace(/\D/g, '').length >= 9;
     document.getElementById('receiptRow').style.display = canReceipt ? '' : 'none';
     form.sendReceipt.checked = canReceipt;
     document.getElementById('receiptHint').textContent = canReceipt ? `— SMS to ${loan.borrowerPhone} through G Online` : '';
@@ -4647,6 +4823,7 @@
   }
 
   function deletePayment(paymentId) {
+    if (!needs('delete')) return;
     const p = payments.find(x => x._id === paymentId);
     if (!p) return;
     showConfirm(
@@ -4697,6 +4874,7 @@
   }
 
   document.getElementById('capitalList').addEventListener('click', e => {
+    if (e.target.closest('a') && !needs('finances')) { e.preventDefault(); return; }
     const edit = e.target.closest('[data-edit-capital]');
     if (edit) {
       e.preventDefault();
@@ -4723,6 +4901,7 @@
     }, {title: "Delete Capital Entry", yesLabel: "Delete", danger: true});
   });
   document.getElementById('expenseList').addEventListener('click', e => {
+    if (e.target.closest('a') && !needs('finances')) { e.preventDefault(); return; }
     const edit = e.target.closest('[data-edit-expense]');
     if (edit) {
       e.preventDefault();
@@ -4750,8 +4929,8 @@
   });
 
   document.getElementById('btnResetAll').addEventListener('click', resetToFreshStart);
-  document.getElementById('btnAddCapital').addEventListener('click', () => openCapitalModal(null));
-  document.getElementById('btnAddExpense').addEventListener('click', () => openExpenseModal(null));
+  document.getElementById('btnAddCapital').addEventListener('click', () => { if (needs('finances')) openCapitalModal(null); });
+  document.getElementById('btnAddExpense').addEventListener('click', () => { if (needs('finances')) openExpenseModal(null); });
 
   document.getElementById('formCapital').addEventListener('submit', async e => {
     e.preventDefault();
@@ -4848,6 +5027,7 @@
   }
 
   function exportLoansCSV() {
+    if (!needs('export')) return;
     if (!loans.length) { showToast("No loans to export yet"); return; }
     const headers = ["Ref No", "Borrower", "Phone", "Ghana Card No", "Guarantor", "Guarantor Phone",
       "Disbursement Date", "Term (months)", "Principal (GHS)", "Interest Rate (%)", "Interest (GHS)",
@@ -4870,6 +5050,7 @@
   }
 
   function exportPaymentsCSV() {
+    if (!needs('export')) return;
     if (!payments.length) { showToast("No payments to export yet"); return; }
     const headers = ["Payment Date", "Ref No", "Borrower", "Amount (GHS)", "Method", "Txn / Receipt ID", "Sender", "Received By"];
     const rows = [...payments]
@@ -4879,9 +5060,10 @@
   }
 
   function exportActivityCSV() {
+    if (!needs('export')) return;
     if (!auditLog.length) { showToast("No activity recorded yet"); return; }
-    const headers = ["Date & Time", "Action", "Details", "By"];
-    const rows = auditLog.map(e => [fmtStamp(e.timestamp), e.action, e.description, e.performedBy]);
+    const headers = ["Date & Time", "Action", "Details", "By", "Account"];
+    const rows = auditLog.map(e => [fmtStamp(e.timestamp), e.action, e.description, e.performedBy, e.account || ""]);
     downloadFile(`BFS_Activity_Log_${todayISO()}.csv`, toCSV(headers, rows), 'text/csv');
   }
 
@@ -4910,7 +5092,7 @@
   document.getElementById('btnExportLoans').addEventListener('click', exportLoansCSV);
   document.getElementById('btnExportPayments').addEventListener('click', exportPaymentsCSV);
   document.getElementById('btnExportActivity').addEventListener('click', exportActivityCSV);
-  document.getElementById('btnExportBackup').addEventListener('click', () => exportFullBackup());
+  document.getElementById('btnExportBackup').addEventListener('click', () => { if (needs('export')) exportFullBackup(); });
 
   // ---------------- Master render ----------------
   function renderTabBadges() {
@@ -4935,6 +5117,7 @@
     renderAutoCard();
     renderPwStatus();
     renderStaff();
+    applyPermissions();
     renderBin();
     renderOldBin();
     renderRecoverList();
