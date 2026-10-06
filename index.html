@@ -834,6 +834,7 @@
   </div>
   <div class="tabs" id="tabs">
     <button class="tab-btn active" data-tab="dashboard" data-icon="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="applications" data-icon="edit">Loan Applications <span class="tab-count" id="appsTabCount"></span></button>
     <button class="tab-btn" data-tab="loans" data-icon="loans">Loans <span class="tab-count" id="loansTabCount"></span></button>
     <button class="tab-btn" data-tab="borrowers" data-icon="users">Borrowers</button>
     <button class="tab-btn" data-tab="finances" data-icon="wallet">Finances</button>
@@ -864,10 +865,37 @@
   </div>
 
   <!-- ================= LOANS ================= -->
+  <div class="view" id="view-applications">
+    <div class="section-head">
+      <h2>Loan Applications</h2>
+      <button class="btn red" id="btnNewLoan" data-icon="plus">New Application</button>
+    </div>
+    <div class="search-bar">
+      <input class="search-input" id="appSearch" placeholder="Search applications by name, phone or Ref No....">
+      <select class="search-input" id="appFilter" style="max-width:230px;">
+        <option value="">All open applications</option>
+        <option value="sign">Waiting for signature</option>
+        <option value="ready">Signed — ready to pay out</option>
+        <option value="hold">On hold</option>
+        <option value="declined">Declined</option>
+      </select>
+      <span class="search-count" id="appsCount"></span>
+    </div>
+    <div class="cell-sub" style="margin:-4px 0 10px;">Steps: <strong>1.</strong> New Application → <strong>2.</strong> sign the agreement with the SMS code (borrower and guarantor) → <strong>3.</strong> Pay Out. Once paid out, the loan moves to the <strong>Loans</strong> tab.</div>
+    <div id="appDetailArea"></div>
+    <div class="table-wrap">
+      <table class="wide">
+        <thead><tr><th>Ref No.</th><th>Applicant</th><th>Amount</th><th>Term</th><th>Applied</th><th>Agreement</th><th>Status</th><th></th></tr></thead>
+        <tbody id="appsTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="appsEmpty" style="display:none;"></div>
+    </div>
+  </div>
+
   <div class="view" id="view-loans">
     <div class="section-head">
-      <h2>All Loans</h2>
-      <button class="btn red" id="btnNewLoan" data-icon="plus">New Loan</button>
+      <h2>Loans Paid Out</h2>
+      <span class="hint">New loans start on the Loan Applications tab</span>
     </div>
     <div class="search-bar">
       <input class="search-input" id="loanSearch" placeholder="Search by name, phone, Ref No., guarantor or Ghana Card...">
@@ -876,12 +904,9 @@
         <option value="Overdue">Overdue</option>
         <option value="__dueSoon">Due within 3 days</option>
         <option value="Extended">Extended</option>
-        <option value="Application Pending">Application Pending</option>
-        <option value="On Hold">On Hold</option>
         <option value="Pending Payment">Pending Payment</option>
         <option value="Partially Paid">Partially Paid</option>
         <option value="Fully Paid">Fully Paid</option>
-        <option value="Declined">Declined</option>
       </select>
       <label class="auto-check" style="white-space:nowrap;"><input type="checkbox" id="showFinished"> <span>Show finished loans</span></label>
       <span class="search-count" id="loansCount"></span>
@@ -1154,14 +1179,16 @@
             <div class="field"><label>Next of Kin (Name)</label><input name="k_nokName"></div>
             <div class="field"><label>Next of Kin (Phone)</label><input name="k_nokPhone" inputmode="tel"></div>
             <div class="field"><label>Relationship to Next of Kin</label><input name="k_nokRelationship"></div>
-            <div class="field"><label>Personal Reference (Name &amp; Phone)</label><input name="k_reference"></div>
-            <div class="field span2"><label>Other Active Loans (lender &amp; balance)</label><input name="k_otherLoans" placeholder="None, or e.g. ABC Finance GHS 500"></div>
+            <div class="field"><label>Other Active Loans (lender &amp; balance)</label><input name="k_otherLoans" placeholder="None, or e.g. ABC Finance GHS 500"></div>
             <div class="kyc-head span2">Guarantor</div>
             <div class="field"><label>Guarantor Ghana Card No.</label><input name="k_gCard" placeholder="GHA-XXXXXXXXX-X" autocomplete="off"></div>
             <div class="field"><label>Relationship to Borrower</label><input name="k_gRelationship"></div>
             <div class="field"><label>Guarantor Service No. &amp; Rank</label><input name="k_gServiceRank"></div>
             <div class="field"><label>Guarantor Station / Unit</label><input name="k_gStation"></div>
             <div class="field span2"><label>Guarantor Address / GhanaPost GPS</label><input name="k_gAddress"></div>
+            <div class="kyc-head span2">Witness <span class="cell-sub" style="font-weight:400;">— required; signs with a code on their own phone</span></div>
+            <div class="field"><label>Witness Name</label><input name="k_witnessName" placeholder="Not the borrower, guarantor or approving staff"></div>
+            <div class="field"><label>Witness Phone</label><input name="k_witnessPhone" inputmode="tel" placeholder="024XXXXXXX"></div>
             <div class="kyc-head span2">Checked in person by staff</div>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_cardChecked"> <span>Borrower's original Ghana Card checked (photo, number and expiry match). <span class="cell-sub">No copy of the card is kept.</span></span></label>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_gCardChecked"> <span>Guarantor's original Ghana Card checked</span></label>
@@ -1346,6 +1373,25 @@
         <button type="submit" class="btn red">Confirm Pay-Out</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalSignCode">
+  <div class="modal" style="max-width:440px;">
+    <button class="modal-close" data-close>&times;</button>
+    <h3 id="signTitle">Sign with SMS code</h3>
+    <div class="modal-sub" id="signSub"></div>
+    <div class="calc-box" id="signInfo" style="color:var(--text); font-size:13px;"></div>
+    <div class="field" style="margin-top:12px;">
+      <label for="signCodeInput">6-digit code</label>
+      <input id="signCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" style="font-size:24px; letter-spacing:8px; text-align:center; font-family:var(--mono, monospace);">
+    </div>
+    <div id="signErr" style="color:var(--danger); font-size:12.5px; font-weight:600; margin-top:8px; min-height:16px;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="btnSignResend" style="margin-right:auto;">Send new code</button>
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="button" class="btn red" id="btnSignConfirm">Confirm Signature</button>
+    </div>
   </div>
 </div>
 
@@ -2362,7 +2408,8 @@
 
   // Jump from anywhere to a loan's detail panel on the Loans tab.
   function openLoan(refNo) {
-    switchTab('loans');
+    const l = loans.find(x => x.refNo === refNo);
+    switchTab(l && !isDisbursed(l) ? 'applications' : 'loans');
     expandedLoanRef = refNo;
     renderLoanDetail();
     scrollToDetail();
@@ -2709,7 +2756,7 @@
     const search = (document.getElementById('loanSearch').value || "").trim().toLowerCase();
     const statusFilter = document.getElementById('loanStatusFilter').value;
 
-    let rows = loans.map(l => ({loan: l, m: computeLoanMetrics(l)}));
+    let rows = loans.filter(isDisbursed).map(l => ({loan: l, m: computeLoanMetrics(l)}));   // applications live on their own tab
     if (search) {
       const digits = search.replace(/\D/g, "");
       rows = rows.filter(r => {
@@ -2723,8 +2770,8 @@
       });
     }
     // Finished loans (fully paid, declined) are tucked away unless asked for.
-    const isFinished = r => r.m.status === "Fully Paid" || r.m.status === "Declined";
-    const showFinished = document.getElementById('showFinished').checked || statusFilter === "Fully Paid" || statusFilter === "Declined" || !!search;
+    const isFinished = r => r.m.status === "Fully Paid";
+    const showFinished = document.getElementById('showFinished').checked || statusFilter === "Fully Paid" || !!search;
     const hiddenFinished = showFinished ? 0 : rows.filter(isFinished).length;
     if (!showFinished) rows = rows.filter(r => !isFinished(r));
     if (statusFilter === "__dueSoon") rows = rows.filter(r => r.m.dueSoon);
@@ -2733,13 +2780,14 @@
     updateSortHeaders();
 
     const filtered = !!(search || statusFilter);
-    document.getElementById('loansCount').textContent = loans.length
-      ? (filtered ? `${rows.length} of ${loans.length} loans` : `${rows.length} ${showFinished ? "" : "active "}loan${rows.length === 1 ? "" : "s"}`) +
+    const paidOutCount = loans.filter(isDisbursed).length;
+    document.getElementById('loansCount').textContent = paidOutCount
+      ? (filtered ? `${rows.length} of ${paidOutCount} loans` : `${rows.length} ${showFinished ? "" : "active "}loan${rows.length === 1 ? "" : "s"}`) +
         (hiddenFinished ? ` · ${hiddenFinished} finished hidden` : "")
       : "";
     const empty = document.getElementById('loansEmpty');
     empty.style.display = rows.length ? 'none' : 'block';
-    empty.textContent = loans.length ? (hiddenFinished && !filtered ? "No active loans — tick Show finished loans to see paid ones." : "No loans match your search or filter.") : 'No loans yet — click "New Loan" to add your first one.';
+    empty.textContent = loans.some(isDisbursed) ? (hiddenFinished && !filtered ? "No active loans — tick Show finished loans to see paid ones." : "No loans match your search or filter.") : 'No loans paid out yet — new loans start on the Loan Applications tab.';
     document.getElementById('loansTableBody').innerHTML = rows.map(({loan:l, m}) => {
       const live = m.stage === 'disbursed';
       return `
@@ -2835,10 +2883,15 @@
     return "";
   }
 
+  // Applications (not paid out yet) open on the Loan Applications tab,
+  // paid-out loans on the Loans tab.
+  const detailAreaFor = loan => document.getElementById(loan && !isDisbursed(loan) ? 'appDetailArea' : 'loanDetailArea');
   function renderLoanDetail() {
-    const area = document.getElementById('loanDetailArea');
+    const loanNow = expandedLoanRef ? loans.find(l => l.refNo === expandedLoanRef) : null;
+    const area = detailAreaFor(loanNow);
+    ['appDetailArea', 'loanDetailArea'].forEach(id => { const el = document.getElementById(id); if (el !== area) el.innerHTML = ''; });
     if (!expandedLoanRef) { area.innerHTML = ''; return; }
-    const loan = loans.find(l => l.refNo === expandedLoanRef);
+    const loan = loanNow;
     if (!loan) { area.innerHTML = ''; expandedLoanRef = null; return; }
     const m = computeLoanMetrics(loan);
     const ref = escapeHtml(loan.refNo);
@@ -2971,10 +3024,11 @@
     if (row) { expandedLoanRef = row.dataset.view; renderLoanDetail(); scrollToDetail(); }
   });
   function scrollToDetail() {
-    const el = document.getElementById('loanDetailArea');
+    const el = detailAreaFor(loans.find(l => l.refNo === expandedLoanRef));
     if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
   }
-  document.getElementById('loanDetailArea').addEventListener('click', e => {
+  ['loanDetailArea', 'appDetailArea'].forEach(id => document.getElementById(id).addEventListener('click', loanDetailClick));
+  function loanDetailClick(e) {
     const t = sel => e.target.closest(sel);
     let b;
     if (t('[data-close-detail]')) { expandedLoanRef = null; renderLoanDetail(); return; }
@@ -2985,7 +3039,7 @@
     if ((b = t('[data-decline]'))) { declineApplication(b.dataset.decline); return; }
     if ((b = t('[data-hold]'))) { startHold(b.dataset.hold); return; }
     if ((b = t('[data-sign-send]'))) { signSend(b.dataset.ref, b.dataset.signSend, b); return; }
-    if ((b = t('[data-sign-verify]'))) { signVerify(b.dataset.ref, b.dataset.signVerify, b, b.parentElement.querySelector('[data-sign-code]')); return; }
+    if ((b = t('[data-sign-enter]'))) { openSignModal(b.dataset.ref, b.dataset.signEnter, false); return; }
     if ((b = t('[data-agreement]'))) { openAgreement(b.dataset.agreement); return; }
     if ((b = t('[data-agreement-pdf]'))) { agreementPdf(b.dataset.agreementPdf); return; }
     if ((b = t('[data-unhold]'))) { removeHold(b.dataset.unhold); return; }
@@ -2997,7 +3051,61 @@
     if ((b = t('[data-delete-loan]'))) { deleteLoan(b.dataset.deleteLoan); return; }
     if ((b = t('[data-edit-payment]'))) { e.preventDefault(); startEditPayment(b.dataset.refno, b.dataset.editPayment); return; }
     if ((b = t('[data-delete-payment]'))) { e.preventDefault(); deletePayment(b.dataset.deletePayment); return; }
+  }
+
+  // ---------------- Render: Loan Applications ----------------
+  function appStage(l, m) {
+    if (m.stage === 'declined') return {key: 'declined', label: 'Declined'};
+    if (m.onHold) return {key: 'hold', label: m.holdExpired ? 'On Hold — expired' : 'On Hold'};
+    const s = signStatus(l);
+    if (storageMode !== 'firebase' || s.complete || l.paperSigned) return {key: 'ready', label: 'Ready to pay out'};
+    return {key: 'sign', label: 'Waiting for signature'};
+  }
+  function agreementCell(l) {
+    if (storageMode !== 'firebase') return '—';
+    const s = signStatus(l);
+    if (s.complete) return '<span style="color:var(--good); font-weight:700;">✓ Signed</span>';
+    if (l.paperSigned) return 'Paper';
+    const need = 2 + (s.g.state === 'na' ? 0 : 1), done = (s.b.state === 'ok' ? 1 : 0) + (s.g.state === 'ok' ? 1 : 0) + (s.w.state === 'ok' ? 1 : 0);
+    return `<span style="color:var(--warn); font-weight:700;">${done} of ${need} signed</span>`;
+  }
+  function renderApplications() {
+    const q = (document.getElementById('appSearch').value || '').trim().toLowerCase();
+    const filter = document.getElementById('appFilter').value;
+    let rows = loans.filter(l => !isDisbursed(l)).map(l => { const m = computeLoanMetrics(l); return {l, m, st: appStage(l, m)}; });
+    if (q) { const d = q.replace(/\D/g, ''); rows = rows.filter(r => (r.l.borrowerName || '').toLowerCase().includes(q) || (r.l.refNo || '').toLowerCase().includes(q) || (d.length >= 3 && (r.l.borrowerPhone || '').replace(/\D/g, '').includes(d))); }
+    rows = filter ? rows.filter(r => r.st.key === filter) : rows.filter(r => r.st.key !== 'declined' || !!q);
+    const order = {ready: 0, sign: 1, hold: 2, declined: 3};
+    rows.sort((a, b) => order[a.st.key] - order[b.st.key] || (b.l.createdAt || b.l.refNo || '').localeCompare(a.l.createdAt || a.l.refNo || ''));
+    const openCount = loans.filter(l => loanStage(l) === 'pending').length;
+    document.getElementById('appsCount').textContent = `${rows.length} shown · ${openCount} open`;
+    const empty = document.getElementById('appsEmpty');
+    empty.style.display = rows.length ? 'none' : 'block';
+    empty.textContent = openCount || q || filter ? 'No applications match.' : 'No open applications — click "New Application" to start one.';
+    const cls = {ready: 'badge-paid', sign: 'badge-pending', hold: 'badge-hold', declined: 'badge-declined'};
+    document.getElementById('appsTableBody').innerHTML = rows.map(({l, m, st}) => `
+      <tr class="clickable-row" data-app="${escapeHtml(l.refNo)}">
+        <td class="mono">${escapeHtml(l.refNo)}${l.topUpOf ? '<div class="cell-sub">Top-up</div>' : ''}</td>
+        <td><div class="cell-name">${escapeHtml(l.borrowerName)}</div><div class="cell-sub">${escapeHtml(l.borrowerPhone || '—')}</div></td>
+        <td class="mono">${fmtGHS(l.principal)}</td>
+        <td>${l.loanTermMonths} mo</td>
+        <td class="nowrap">${l.createdAt ? fmtDate(l.createdAt.slice(0, 10)) : '—'}</td>
+        <td>${st.key === 'declined' ? '—' : agreementCell(l)}</td>
+        <td><span class="badge ${cls[st.key]}">${escapeHtml(st.label)}</span></td>
+        <td>${st.key === 'ready' ? `<button class="btn red small" data-disburse="${escapeHtml(l.refNo)}">${ICON.cash}Pay Out</button>` : `<button class="btn ghost small" data-app="${escapeHtml(l.refNo)}">Open</button>`}</td>
+      </tr>`).join('');
+    const pill = document.getElementById('appsTabCount');
+    pill.textContent = openCount ? String(openCount) : '';
+    pill.title = openCount ? `${openCount} open application${openCount === 1 ? '' : 's'}` : '';
+  }
+  document.getElementById('appsTableBody').addEventListener('click', e => {
+    const d = e.target.closest('[data-disburse]');
+    if (d) { e.stopPropagation(); startDisburse(d.dataset.disburse); return; }
+    const r = e.target.closest('[data-app]');
+    if (r) { expandedLoanRef = r.dataset.app; renderLoanDetail(); scrollToDetail(); }
   });
+  document.getElementById('appSearch').addEventListener('input', renderApplications);
+  document.getElementById('appFilter').addEventListener('change', renderApplications);
 
   // ---------------- Render: Borrowers ----------------
   // Loans are grouped into one profile per borrower by name (spacing and
@@ -4610,7 +4718,7 @@
 
   // ---- Full application details (paperless form) ----
   const KYC_TEXT = ['serviceRank', 'station', 'altContact', 'language', 'address', 'employer', 'income', 'nokName', 'nokPhone',
-    'nokRelationship', 'reference', 'otherLoans', 'gCard', 'gRelationship', 'gServiceRank', 'gStation', 'gAddress'];
+    'nokRelationship', 'otherLoans', 'gCard', 'gRelationship', 'gServiceRank', 'gStation', 'gAddress', 'witnessName', 'witnessPhone'];
   const KYC_CHECKS = ['cardChecked', 'gCardChecked', 'incomeChecked'];
   function fillKyc(form, k) {
     k = k || {};
@@ -4853,6 +4961,13 @@
     };
     const kycBefore = editing ? (loans.find(l => l.refNo === editing) || {}).kyc : null;
     const kyc = readKyc(formNewLoan, kycBefore);
+    if (kyc.witnessName && !kyc.witnessPhone || !kyc.witnessName && kyc.witnessPhone) { showToast("Enter both the witness's name and phone", 4500); formNewLoan.k_witnessName.focus(); return; }
+    if (kyc.witnessPhone) {
+      if (last9(kyc.witnessPhone).length !== 9) { showToast("The witness phone number is not complete", 4500); formNewLoan.k_witnessPhone.focus(); return; }
+      if ([fields.borrowerPhone, fields.guarantorPhone].some(p => last9(p) && last9(p) === last9(kyc.witnessPhone))) {
+        showToast("The witness must be a different person — their phone cannot be the borrower's or guarantor's", 5500); formNewLoan.k_witnessPhone.focus(); return;
+      }
+    }
     if (Object.keys(kyc).length || kycBefore) fields.kyc = kyc;
     if (fields.ghanaCardNo === 'GHA-') fields.ghanaCardNo = '';
     if (fields.ghanaCardNo && !ghanaCardValid(fields.ghanaCardNo)) {
@@ -4923,8 +5038,9 @@
         logActivity("Application Created",
           `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (pending, not paid out)`,
           base.processedBy);
-        showToast("Application " + refNo + " saved as pending");
+        showToast("Application " + refNo + " saved — next, sign the agreement", 4500);
         closeModal('modalNewLoan');
+        setTimeout(() => openLoan(refNo), 300);
         if (wantText) sendAutoText(base, '0A', "Application " + refNo + " saved");
       } catch (err) {
         showToast(err && err.code === "quota_exceeded" ? "Storage is full — download a Full Backup and archive old loans" : "Could not save — try again");
@@ -5366,6 +5482,7 @@
     ["Electronic Signature", "The Borrower and Guarantor agree that entering the one-time code sent by SMS to their own phone number is their signature on this Agreement, with the same effect as a handwritten signature, and that the electronic record kept by Benansah Financial Solutions is the original Agreement."]
   ];
   const BORROWER_DECLARATION = "I confirm that all details given are true and accurate, and that I am not currently blacklisted or in default with any other lender. I have read, understood and agree to be bound by all terms of this Agreement, including the interest rate, the 2% processing fee, the repayment schedule and the late charge terms.";
+  const WITNESS_DECLARATION = "I confirm that I witnessed the Borrower and Guarantor agree to this Agreement voluntarily and without pressure. I am not a party to this loan (not the Borrower, the Guarantor, or a Benansah Financial Solutions staff member involved in approving it).";
   const GUARANTOR_DECLARATION = "I confirm that I have read and understood this Agreement and voluntarily guarantee this loan. I accept responsibility for the outstanding balance, including late charges, if the Borrower defaults, as described in Clause 5.";
   // The loan terms a signature covers. Changing any of them after signing
   // means the agreement must be signed again.
@@ -5378,15 +5495,20 @@
   }
   const sameTerms = (a, b) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
   const guarantorNeeded = loan => (loan.guarantorPhone || '').replace(/\D/g, '').length >= 9;
+  const last9 = p => String(p || '').replace(/\D/g, '').slice(-9);
+  const witnessOf = loan => ({name: ((loan.kyc || {}).witnessName || '').trim(), phone: ((loan.kyc || {}).witnessPhone || '').trim()});
   function signStatus(loan) {
     const t = signTerms(loan), sg = loan.sign || {};
     const st = who => {
       const r = sg[who];
       if (!r || !r.at) return {state: 'none'};
+      if (who === 'witness' && last9(r.phone) !== last9(witnessOf(loan).phone)) return {state: 'changed', rec: r};
       return sameTerms(r.terms, t) ? {state: 'ok', rec: r} : {state: 'changed', rec: r};
     };
     const b = st('borrower'), g = guarantorNeeded(loan) ? st('guarantor') : {state: 'na'};
-    return {b, g, complete: b.state === 'ok' && (g.state === 'ok' || g.state === 'na'),
+    const wv = witnessOf(loan);
+    const w = last9(wv.phone).length === 9 ? st('witness') : {state: 'missing'};
+    return {b, g, w, complete: b.state === 'ok' && (g.state === 'ok' || g.state === 'na') && w.state === 'ok',
       paper: loan.paperSigned || null, any: b.state !== 'none' || (g.state !== 'none' && g.state !== 'na')};
   }
   const maskPhone = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(0, 3) + '****' + d.slice(-3) : (p || ''); };
@@ -5395,6 +5517,7 @@
     const pending = loanStage(loan) === 'pending';
     const row = (who, label, name, phone, st) => {
       if (st.state === 'na') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state">No guarantor phone — not needed</div></div></div>`;
+      if (st.state === 'missing') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state no">No witness yet — click Edit and add the witness's name and phone (Full application details)</div></div></div>`;
       const ok = st.state === 'ok';
       const stateTxt = ok ? `✓ Signed ${escapeHtml(fmtStamp(st.rec.at))} · code sent to ${escapeHtml(maskPhone(st.rec.phone))}`
         : st.state === 'changed' ? 'Loan terms changed after signing — must sign again' : 'Not signed yet';
@@ -5403,9 +5526,8 @@
         <div><strong>${label}</strong> · ${escapeHtml(name || '—')} · ${escapeHtml(phone || 'no phone')}
           <div class="sign-state ${ok ? 'ok' : 'no'}">${stateTxt}</div></div>
         ${can ? `<div class="export-row" style="margin:0;">
-          <button type="button" class="btn ghost small" data-sign-send="${who}" data-ref="${ref}">${ICON.message}${st.state === 'none' ? 'Send code' : 'Send new code'}</button>
-          <input class="search-input" style="width:110px; padding:6px 8px;" inputmode="numeric" maxlength="6" placeholder="6-digit code" data-sign-code="${who}">
-          <button type="button" class="btn small" data-sign-verify="${who}" data-ref="${ref}">${ICON.check}Confirm</button>
+          <button type="button" class="btn small" data-sign-send="${who}" data-ref="${ref}">${ICON.message}Sign with SMS code</button>
+          <button type="button" class="btn ghost small" data-sign-enter="${who}" data-ref="${ref}" title="A code was already sent — type it in">Enter code</button>
         </div>` : ''}
       </div>`;
     };
@@ -5413,10 +5535,11 @@
     return `<div class="sign-panel">
       <h4>${ICON.loans} Loan Agreement ${head}</h4>
       <div class="cell-sub" style="margin-bottom:6px;">${pending
-        ? (online ? 'Show the customer the agreement, send the code to their phone, and type in the code they read back. Pay-out unlocks when the borrower (and guarantor) have signed.' : 'Code signing works on the online version only.')
+        ? (online ? '1. View Agreement with the customer. 2. Click Sign with SMS code — a code goes to their phone. 3. Type the code they read back. Pay-out unlocks when the borrower, guarantor and witness have all signed.' : 'Code signing works on the online version only.')
         : (s.complete ? 'Signed electronically before pay-out.' : s.paper ? `Paid out on a paper agreement (${escapeHtml(s.paper.by || '')}, ${escapeHtml(fmtDate(s.paper.on || ''))}).` : 'Paid out before electronic signing was used.')}</div>
       ${row('borrower', 'Borrower', loan.borrowerName, loan.borrowerPhone, s.b)}
       ${row('guarantor', 'Guarantor', loan.guarantorName, loan.guarantorPhone, s.g)}
+      ${row('witness', 'Witness', witnessOf(loan).name, witnessOf(loan).phone, s.w)}
       <div class="export-row" style="margin-top:8px;">
         <button type="button" class="btn ghost small" data-agreement="${ref}">${ICON.loans}View Agreement</button>
         <button type="button" class="btn ghost small" data-agreement-pdf="${ref}">${ICON.download || ""}Download Agreement PDF</button>
@@ -5424,6 +5547,26 @@
     </div>`;
   }
   const can_ = p => can(p);
+  // The code is typed into its own dialog, so screen refreshes never clear it.
+  let signCtx = null;
+  function openSignModal(refNo, who, sent, sentTo) {
+    const loan = loans.find(l => l.refNo === refNo);
+    if (!loan) return;
+    signCtx = {refNo, who};
+    const wv = witnessOf(loan);
+    const name = who === 'borrower' ? loan.borrowerName : who === 'guarantor' ? loan.guarantorName : wv.name;
+    const phone = who === 'borrower' ? loan.borrowerPhone : who === 'guarantor' ? loan.guarantorPhone : wv.phone;
+    document.getElementById('signTitle').textContent = `${who === 'borrower' ? 'Borrower' : who === 'guarantor' ? 'Guarantor' : 'Witness'} signs — ${loan.refNo}`;
+    document.getElementById('signSub').textContent = `${name || ''} · ${phone || ''}`;
+    document.getElementById('signInfo').innerHTML = sent
+      ? `A 6-digit code was sent by SMS to <strong>${escapeHtml(sentTo || maskPhone(phone))}</strong>. Ask ${escapeHtml(name || 'them')} to read it from their phone, and type it below. It works for 10 minutes. <strong>Only the newest code works</strong> — if you send again, the old code stops working.`
+      : `Type the code from the <strong>most recent</strong> SMS the ${who} received. If they have no code, or it is older than 10 minutes, click <strong>Send new code</strong>.`;
+    document.getElementById('signErr').textContent = '';
+    const input = document.getElementById('signCodeInput');
+    input.value = '';
+    openModal('modalSignCode');
+    setTimeout(() => input.focus(), 60);
+  }
   async function signSend(refNo, who, btn) {
     if (!needs('applications')) return;
     const loan = loans.find(l => l.refNo === refNo);
@@ -5431,23 +5574,32 @@
     btn.disabled = true; const t0 = btn.innerHTML; btn.textContent = 'Sending…';
     try {
       const out = await fnApi('sign', {action: 'send', refNo, who});
-      if (out.ok) showToast(`Code sent to the ${who} (${out.to || maskPhone(who === 'borrower' ? loan.borrowerPhone : loan.guarantorPhone)}). Ask them to read it back — valid 10 minutes.`, 6000);
+      if (out.ok) openSignModal(refNo, who, true, out.to);
+      else if (/just sent/.test(out.error || '')) { openSignModal(refNo, who, false); document.getElementById('signErr').textContent = out.error; }
       else showToast(out.error || 'Could not send the code', 6000);
     } catch (e) { showToast('No internet connection — try again', 4000); }
     btn.disabled = false; btn.innerHTML = t0;
   }
-  async function signVerify(refNo, who, btn, input) {
-    if (!needs('applications')) return;
+  async function signVerify() {
+    if (!signCtx || !needs('applications')) return;
+    const input = document.getElementById('signCodeInput'), err = document.getElementById('signErr'), btn = document.getElementById('btnSignConfirm');
     const code = (input.value || '').replace(/\D/g, '');
-    if (code.length !== 6) { showToast('Type the 6-digit code the customer received'); input.focus(); return; }
-    btn.disabled = true;
+    if (code.length !== 6) { err.textContent = 'Type all 6 digits of the code.'; input.focus(); return; }
+    btn.disabled = true; btn.textContent = 'Checking…'; err.textContent = '';
     try {
-      const out = await fnApi('sign', {action: 'verify', refNo, who, code});
-      if (out.ok) { showToast(`${who === 'borrower' ? 'Borrower' : 'Guarantor'} signed ✓`, 4000); input.value = ''; }
-      else { showToast(out.error || 'Code not accepted', 6000); input.select(); }
-    } catch (e) { showToast('No internet connection — try again', 4000); }
-    btn.disabled = false;
+      const out = await fnApi('sign', {action: 'verify', refNo: signCtx.refNo, who: signCtx.who, code});
+      if (out.ok) {
+        closeModal('modalSignCode');
+        showToast(`${signCtx.who === 'borrower' ? 'Borrower' : signCtx.who === 'guarantor' ? 'Guarantor' : 'Witness'} signed ✓`, 4000);
+        signCtx = null;
+      } else { err.textContent = out.error || 'Code not accepted.'; input.select(); }
+    } catch (e) { err.textContent = 'No internet connection — try again.'; }
+    btn.disabled = false; btn.textContent = 'Confirm Signature';
   }
+  document.getElementById('btnSignConfirm').addEventListener('click', signVerify);
+  document.getElementById('signCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); signVerify(); } });
+  document.getElementById('signCodeInput').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+  document.getElementById('btnSignResend').addEventListener('click', e => { if (signCtx) signSend(signCtx.refNo, signCtx.who, e.currentTarget); });
 
   // The agreement as shown on screen (read to the customer before signing).
   function agreementFacts(loan) {
@@ -5472,7 +5624,8 @@
       <h5>Loan details</h5><table>${f.rows.map(r => `<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(String(r[1]))}</td></tr>`).join('')}</table>
       <h5>Terms and conditions</h5><ol style="padding-left:18px; margin:0;">${AGREEMENT_CLAUSES.map(c => `<li style="margin-bottom:4px;"><strong>${escapeHtml(c[0])}:</strong> ${escapeHtml(c[1])}</li>`).join('')}</ol>
       ${sig('Borrower declaration', s.b, BORROWER_DECLARATION)}
-      ${guarantorNeeded(loan) ? sig('Guarantor undertaking', s.g, GUARANTOR_DECLARATION) : ''}`;
+      ${guarantorNeeded(loan) ? sig('Guarantor undertaking', s.g, GUARANTOR_DECLARATION) : ''}
+      ${sig('Witness attestation' + (witnessOf(loan).name ? ' — ' + witnessOf(loan).name : ''), s.w.state === 'missing' ? {state: 'none'} : s.w, WITNESS_DECLARATION)}`;
   }
   function openAgreement(refNo) {
     const loan = loans.find(l => l.refNo === refNo);
@@ -5513,7 +5666,7 @@
     section('1. BORROWER');
     kv([['Full Name', loan.borrowerName], ['Phone', loan.borrowerPhone], ['Ghana Card No.', loan.ghanaCardNo], ['Service No. & Rank', k.serviceRank], ['Station / Unit', k.station],
       ['Address / GPS', k.address], ['Employer / Occupation', k.employer], ['Monthly Income', k.income ? fmtGHS(k.income) : ''], ['Alternate Contact', k.altContact],
-      ['Next of Kin', [k.nokName, k.nokPhone, k.nokRelationship].filter(Boolean).join(' - ')], ['Personal Reference', k.reference], ['Other Active Loans', k.otherLoans]]);
+      ['Next of Kin', [k.nokName, k.nokPhone, k.nokRelationship].filter(Boolean).join(' - ')], ['Other Active Loans', k.otherLoans]]);
     section('2. GUARANTOR');
     kv([['Name', loan.guarantorName], ['Phone', loan.guarantorPhone], ['Ghana Card No.', k.gCard], ['Relationship', k.gRelationship], ['Service No. & Rank', k.gServiceRank], ['Station / Unit', k.gStation], ['Address / GPS', k.gAddress]]);
     section('3. CHECKED IN PERSON BY STAFF');
@@ -5532,6 +5685,7 @@
     };
     sig('Borrower declaration', s.b, BORROWER_DECLARATION, loan.borrowerName);
     if (guarantorNeeded(loan)) sig('Guarantor undertaking', s.g, GUARANTOR_DECLARATION, loan.guarantorName);
+    sig(`Witness attestation - ${witnessOf(loan).name || 'no witness recorded'}${witnessOf(loan).phone ? ' (' + witnessOf(loan).phone + ')' : ''}`, s.w.state === 'missing' ? {state: 'none'} : s.w, WITNESS_DECLARATION, witnessOf(loan).name);
     if (s.paper) para(`A paper agreement was signed instead (recorded by ${s.paper.by || ''} on ${fmtDate(s.paper.on || '')}).`, 8.8, 'bold');
     if (isDisbursed(loan)) { section('7. PAY-OUT'); kv([['Paid out', `${fmtDate(loan.disbursementDate)} via ${loan.disbursedVia || '-'}`], ['Authorised by', loan.disbursedBy || '-']]); }
     y += 6; para(`Generated ${fmtStamp(new Date().toISOString())}. Pay only to MTN MoMo ${COMPANY.payTo}, quoting Ref ${loan.refNo}. Questions: ${COMPANY.phone}.`, 7.8, 'italic', [90, 105, 120]);
@@ -5545,7 +5699,7 @@
     if (storageMode !== 'firebase') return proceed();
     const s = signStatus(loan);
     if (s.complete || loan.paperSigned) return proceed();
-    const missing = [s.b.state !== 'ok' ? 'the borrower' : '', (s.g.state !== 'ok' && s.g.state !== 'na') ? 'the guarantor' : ''].filter(Boolean).join(' and ');
+    const missing = [s.b.state !== 'ok' ? 'the borrower' : '', (s.g.state !== 'ok' && s.g.state !== 'na') ? 'the guarantor' : '', s.w.state !== 'ok' ? 'the witness' : ''].filter(Boolean).join(', ');
     showConfirm(`${loan.refNo} has not been signed by ${missing}. Use the Loan Agreement panel to sign with a code first. Only continue if the customer signed a PAPER agreement — this is recorded.`,
       (name, paper) => {
         if (!paper) { showToast('Not paid out — sign the agreement with a code first', 5000); return; }
@@ -5898,6 +6052,7 @@
     clearMetrics();
     renderDashboard();
     renderLoans();
+    renderApplications();
     renderBorrowers();
     renderFinances();
     renderRateCard();
