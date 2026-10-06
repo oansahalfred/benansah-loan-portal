@@ -184,28 +184,31 @@ function computeLoanMetricsRaw(loan) {
   const effDue = (k, d) => (ext && d >= grantDay && schedule[k].dueDay <= extDay) ? extDay : schedule[k].dueDay;
   const firstUnpaid = paidPI => schedule.findIndex(s => paidPI < s.cumulative - 0.005);
 
-  // Walk day by day from the first due date to today, adding late charges.
+  // Walk day by day from the first due date to today, adding late charges
+  // per installment (see the rule above).
   const charges = [];
-  let episode = null, pi = 0, paidToDate = 0;
+  const charged = schedule.map(() => 0);           // charges added so far, per installment
+  const unpaidOf = (i, paidPI) => round2(Math.min(Math.max(schedule[i].cumulative - paidPI, 0), schedule[i].amount));
+  let pi = 0, paidToDate = 0;
   const loopStart = schedule[0].dueDay + 1;
   while (pi < loanPayments.length && loanPayments[pi].day < loopStart) paidToDate += loanPayments[pi++].amt;
   for (let d = loopStart; d <= today; d++) {
     while (pi < loanPayments.length && loanPayments[pi].day <= d) paidToDate += loanPayments[pi++].amt;
-    if (ext && d >= grantDay && d <= extDay) { episode = null; continue; } // charges paused during an extension
-    const paidPI = Math.min(paidToDate, totalRepayment);
-    const k = firstUnpaid(paidPI);
-    if (k < 0) { episode = null; continue; }
-    const due = effDue(k, d);
-    if (d <= due) { episode = null; continue; }
-    if (!episode) {
-      const startISO_ = isoFromDay(due);
-      episode = {startDay: due, startISO: startISO_, tier: 1, charged: 0, installmentNo: k + 1};
+    if (ext && d >= grantDay && d <= extDay) {     // charges paused during an extension;
+      schedule.forEach((s, i) => { if (s.dueDay <= extDay) charged[i] = 0; });   // missed new date = start again
+      continue;
     }
-    episode.tier = Math.min(MAX_LATE_CHARGES, (d - episode.startDay) >= SECOND_CHARGE_DAY ? 2 : 1);
-    while (episode.charged < episode.tier) {
-      episode.charged++;
-      const owed = round2(totalRepayment - paidPI);
-      charges.push({date: isoFromDay(d), amount: round2(owed * LATE_FEE_RATE), base: owed, tier: episode.charged, installmentNo: k + 1});
+    const paidPI = Math.min(paidToDate, totalRepayment);
+    for (let i = 0; i < term; i++) {
+      const due = effDue(i, d);
+      if (d <= due) break;                           // later installments are not due yet
+      const unpaid = unpaidOf(i, paidPI);
+      if (unpaid <= 0.005) continue;
+      const tier = Math.min(MAX_LATE_CHARGES, (d - due) >= SECOND_CHARGE_DAY ? 2 : 1);
+      while (charged[i] < tier) {
+        charged[i]++;
+        charges.push({date: isoFromDay(d), amount: round2(unpaid * LATE_FEE_RATE), base: unpaid, tier: charged[i], installmentNo: i + 1});
+      }
     }
   }
 
@@ -223,7 +226,11 @@ function computeLoanMetricsRaw(loan) {
   const extActive = !!ext && today <= extDay && totalPayableWithPenalty > 0.005 && (deferredCumAll - paidPI > 0.005 || lateFeeOutstanding > 0.005);
   const extBreached = !!ext && today > extDay && totalPayableWithPenalty > 0.005;
 
-  const piOverdue = !!episode && today >= loopStart;
+  // The oldest installment still unpaid after its due date sets the overdue status.
+  const kLate = firstUnpaid(paidPI);
+  const lateStart = kLate >= 0 ? effDue(kLate, today) : NaN;
+  const piOverdue = kLate >= 0 && today >= loopStart && today > lateStart && !(ext && today >= grantDay && today <= extDay);
+  const episode = piOverdue ? {startDay: lateStart, tier: Math.max(1, charged[kLate])} : null;
   const feesOnlyOverdue = !piOverdue && !extActive && remainingBalance <= 0.005 && lateFeeOutstanding > 0.005;
   const isOverdue = piOverdue || feesOnlyOverdue;
   const overdueTier = piOverdue ? episode.tier : 0;
@@ -402,10 +409,10 @@ function dec(v) {
   if ("arrayValue" in v) return (v.arrayValue.values || []).map(dec);
   return null;
 }
-function decFields(f) { const o = {}; for (const k of Object.keys(f || {})) o[k] = dec(f[k]); return o; }
+export function decFields(f) { const o = {}; for (const k of Object.keys(f || {})) o[k] = dec(f[k]); return o; }
 const str = s => ({stringValue: String(s == null ? "" : s)});
 
-async function listCollection(name, token) {
+export async function listCollection(name, token) {
   const out = [];
   let pageToken = "";
   for (let i = 0; i < 50; i++) {
@@ -421,7 +428,7 @@ async function listCollection(name, token) {
 }
 
 // Adds entries to this month's activity record without touching the others.
-async function writeAudit(token, auditDocs, entries) {
+export async function writeAudit(token, auditDocs, entries) {
   if (!entries.length) return;
   const now = new Date();
   const month = now.getUTCFullYear() + "-" + pad2(now.getUTCMonth() + 1);
@@ -478,14 +485,14 @@ async function callerEmail(req) {
 }
 
 // ---------- G Online ----------
-function normalizePhone(raw) {
+export function normalizePhone(raw) {
   let p = String(raw || "").replace(/[\s\-().]/g, "");
   if (p.startsWith("+")) p = p.slice(1);
   if (p.startsWith("00")) p = p.slice(2);
   if (/^0\d{9}$/.test(p)) p = "233" + p.slice(1);
   return /^233\d{9}$/.test(p) ? p : "";
 }
-async function sendSms(to, message) {
+export async function sendSms(to, message) {
   const KEY = process.env.GONLINE_API_KEY, SENDER = process.env.GONLINE_SENDER_ID;
   if (!KEY || !SENDER) return {ok: false, error: "G Online settings missing on Netlify"};
   const q = `action=send-sms&api_key=${encodeURIComponent(KEY)}&to=${encodeURIComponent(to)}&from=${encodeURIComponent(SENDER)}&sms=${encodeURIComponent(message)}`;
