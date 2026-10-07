@@ -1085,12 +1085,13 @@
     <div id="exportSection">
     <div class="section-head"><h2>Backup &amp; Export</h2><span class="hint">Download your records and keep a copy somewhere safe</span></div>
     <div class="subcard">
-      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;">CSV files open in Excel or Google Sheets. The Full Backup contains every loan, payment, capital entry, expense and activity record in one file. Download one at least once a week.</p>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px 0;"><strong>Loan Tracker (Excel)</strong> is your original Master Loan Tracker layout — Registered Loans, Master Loan Portfolio, Payment History, Dashboard, Capital, Expenses and more — with working formulas. It opens in Excel or Google Sheets, even with no internet, and can be shared with staff (it contains customer details, so share it only with staff). The <strong>Full Backup</strong> is the file used to restore the system — download both at least once a week.</p>
       <div class="export-row">
+        <button class="btn small" id="btnExportTracker" data-icon="download">Loan Tracker (Excel)</button>
         <button class="btn ghost small" id="btnExportLoans" data-icon="download">Loans (CSV)</button>
         <button class="btn ghost small" id="btnExportPayments" data-icon="download">Payments (CSV)</button>
         <button class="btn ghost small" id="btnExportActivity" data-icon="download">Activity Log (CSV)</button>
-        <button class="btn small" id="btnExportBackup" data-icon="download">Full Backup (JSON)</button>
+        <button class="btn ghost small" id="btnExportBackup" data-icon="download">Full Backup (JSON)</button>
       </div>
       <div id="restoreRow" style="display:none; margin-top:12px;">
         <p id="restoreNote" style="font-size:12.5px; color:var(--text-mute); margin:0 0 8px 0;">Records on this site are saved in this browser on this device only. Download a Full Backup often. To move records here (for example from the Claude version), restore a Full Backup file.</p>
@@ -6291,10 +6292,532 @@
     downloadFile(`${prefix}_${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
   }
 
+  document.getElementById('btnExportTracker').addEventListener('click', exportLoanTracker);
   document.getElementById('btnExportLoans').addEventListener('click', exportLoansCSV);
   document.getElementById('btnExportPayments').addEventListener('click', exportPaymentsCSV);
   document.getElementById('btnExportActivity').addEventListener('click', exportActivityCSV);
   document.getElementById('btnExportBackup').addEventListener('click', () => { if (needs('export')) exportFullBackup(); });
+
+  // ---------------- Excel Loan Tracker ----------------
+  // Builds the original BFS Master Loan Tracker (.xlsx) from the live records:
+  // the same tabs, columns and formulas as the Excel file the business started
+  // with, so it opens and calculates in Excel, Google Sheets or on a phone with
+  // no internet. Every formula also carries its current value, so phone
+  // previews (WhatsApp, e-mail) show the numbers without recalculating.
+  // Written by hand (no add-on library), so it works even when offline.
+  const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const xlEsc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function xlCol(c) { let s = ''; c++; while (c) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); } return s; }
+  const xlRef = (r, c) => xlCol(c) + r;                       // row 1-based, column 0-based
+  const xlSerial = iso => { const d = dayNum(iso); return isNaN(d) ? null : d + 25569; };   // Excel date number
+
+  function xlStyles() {
+    const fonts = ['<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>'];
+    const fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
+    const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>'];
+    const numFmts = [], dxfs = [], xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+    const FMT = {money: '"GHS "#,##0.00', date: 'dd-mmm-yyyy', pct: '0.0%', int: '#,##0'};
+    const idx = (arr, x) => { let i = arr.indexOf(x); if (i < 0) { arr.push(x); i = arr.length - 1; } return i; };
+    const cache = new Map();
+    function get(o) {
+      const key = JSON.stringify(o);
+      if (cache.has(key)) return cache.get(key);
+      const fontId = idx(fonts, `<font>${o.b ? '<b/>' : ''}${o.i ? '<i/>' : ''}<sz val="${o.sz || 11}"/><color rgb="FF${o.color || '000000'}"/><name val="${o.font || 'Calibri'}"/><family val="2"/></font>`);
+      const fillId = o.fill ? idx(fills, `<fill><patternFill patternType="solid"><fgColor rgb="FF${o.fill}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
+      const bc = o.bc || 'BFC7D2', side = n => `<${n} style="thin"><color rgb="FF${bc}"/></${n}>`;
+      const borderId = o.border ? idx(borders, `<border>${side('left')}${side('right')}${side('top')}${side('bottom')}<diagonal/></border>`) : 0;
+      const numFmtId = o.fmt ? 164 + idx(numFmts, FMT[o.fmt] || o.fmt) : 0;
+      const align = `<alignment${o.h ? ` horizontal="${o.h}"` : ''} vertical="center"${o.wrap ? ' wrapText="1"' : ''}/>`;
+      xfs.push(`<xf numFmtId="${numFmtId}" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0"${numFmtId ? ' applyNumberFormat="1"' : ''} applyFont="1"${fillId ? ' applyFill="1"' : ''}${borderId ? ' applyBorder="1"' : ''} applyAlignment="1">${align}</xf>`);
+      cache.set(key, xfs.length - 1);
+      return xfs.length - 1;
+    }
+    function dxf(color, fill) {
+      dxfs.push(`<dxf><font><color rgb="FF${color}"/></font><fill><patternFill><bgColor rgb="FF${fill}"/></patternFill></fill></dxf>`);
+      return dxfs.length - 1;
+    }
+    const xml = () => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      (numFmts.length ? `<numFmts count="${numFmts.length}">${numFmts.map((f, i) => `<numFmt numFmtId="${164 + i}" formatCode="${xlEsc(f)}"/>`).join('')}</numFmts>` : '') +
+      `<fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders>` +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      `<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+      `<dxfs count="${dxfs.length}">${dxfs.join('')}</dxfs></styleSheet>`;
+    return {get, dxf, xml};
+  }
+
+  function xlSheet(name) {
+    const rows = new Map();
+    const sh = {name, widths: [], merges: [], heights: {}, freeze: null, filter: null, cf: [], titleRow: null, portrait: false, tab: null};
+    const put = (r, c, x) => { if (!rows.has(r)) rows.set(r, new Map()); rows.get(r).set(c, x); };
+    const num = v => String(Math.round(v * 1e8) / 1e8);
+    // A value: number, text, or nothing (an empty cell that still shows its border/fill).
+    sh.cell = (r, c, v, s) => {
+      const ref = xlRef(r, c), st = s ? ` s="${s}"` : '';
+      if (v === null || v === undefined || v === '' || (typeof v === 'number' && !isFinite(v))) put(r, c, `<c r="${ref}"${st}/>`);
+      else if (typeof v === 'number') put(r, c, `<c r="${ref}"${st}><v>${num(v)}</v></c>`);
+      else put(r, c, `<c r="${ref}"${st} t="inlineStr"><is><t${/^\s|\s$/.test(v) ? ' xml:space="preserve"' : ''}>${xlEsc(v)}</t></is></c>`);
+    };
+    sh.date = (r, c, iso, s) => { const n = xlSerial(iso); sh.cell(r, c, n === null ? (iso || null) : n, s); };
+    // A formula together with its current value.
+    sh.f = (r, c, formula, value, s) => {
+      const ref = xlRef(r, c), st = s ? ` s="${s}"` : '', isText = typeof value === 'string';
+      const v = isText ? `<v>${xlEsc(value)}</v>` : (typeof value === 'number' && isFinite(value) ? `<v>${num(value)}</v>` : '');
+      put(r, c, `<c r="${ref}"${st}${isText ? ' t="str"' : ''}><f>${xlEsc(formula)}</f>${v}</c>`);
+    };
+    sh.lastRow = () => rows.size ? Math.max(...rows.keys()) : 1;
+    sh.xml = first => {
+      const rs = [...rows.keys()].sort((a, b) => a - b);
+      const maxC = Math.max(0, ...[...rows.values()].map(m => Math.max(...m.keys())));
+      const data = rs.map(r => {
+        const m = rows.get(r), h = sh.heights[r];
+        return `<row r="${r}"${h ? ` ht="${h}" customHeight="1"` : ''}>${[...m.keys()].sort((a, b) => a - b).map(c => m.get(c)).join('')}</row>`;
+      }).join('');
+      let pane = '';
+      if (sh.freeze) {
+        const {rows: fr, cols: fc} = sh.freeze, tl = xlRef(fr + 1, fc);
+        const ap = fr && fc ? 'bottomRight' : (fr ? 'bottomLeft' : 'topRight');
+        pane = `<pane${fc ? ` xSplit="${fc}"` : ''}${fr ? ` ySplit="${fr}"` : ''} topLeftCell="${tl}" activePane="${ap}" state="frozen"/><selection pane="${ap}" activeCell="${tl}" sqref="${tl}"/>`;
+      }
+      const cols = sh.widths.map((w, i) => w ? `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>` : '').join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        `<sheetPr>${sh.tab ? `<tabColor rgb="FF${sh.tab}"/>` : ''}<pageSetUpPr fitToPage="1"/></sheetPr>` +
+        `<dimension ref="A1:${xlRef(Math.max(1, sh.lastRow()), maxC)}"/>` +
+        `<sheetViews><sheetView workbookViewId="0"${first ? ' tabSelected="1"' : ''}>${pane}</sheetView></sheetViews>` +
+        '<sheetFormatPr defaultRowHeight="15"/>' + (cols ? `<cols>${cols}</cols>` : '') + `<sheetData>${data}</sheetData>` +
+        (sh.filter ? `<autoFilter ref="${sh.filter}"/>` : '') +
+        (sh.merges.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '') +
+        sh.cf.map((c, i) => `<conditionalFormatting sqref="${c.sqref}"><cfRule type="expression" dxfId="${c.dxf}" priority="${i + 1}"><formula>${xlEsc(c.formula)}</formula></cfRule></conditionalFormatting>`).join('') +
+        '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+        `<pageSetup paperSize="9" orientation="${sh.portrait ? 'portrait' : 'landscape'}" fitToWidth="1" fitToHeight="0"/>` +
+        `<headerFooter><oddFooter>${xlEsc('&L&8Benansah Financial Solutions - ' + name.replace(/&/g, '&&') + '&R&8Page &P of &N')}</oddFooter></headerFooter>` +
+        '</worksheet>';
+    };
+    return sh;
+  }
+
+  const XL_CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function xlCrc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = XL_CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  // A plain (uncompressed) zip file — an .xlsx file is a zip of XML parts.
+  function xlZip(files) {
+    const enc = new TextEncoder(), local = [], central = [];
+    const d = new Date();
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    let offset = 0;
+    files.forEach(([name, text]) => {
+      const nb = enc.encode(name), data = enc.encode(text), crc = xlCrc32(data);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true);
+      h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true);
+      h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nb.length, true);
+      local.push(new Uint8Array(h.buffer), nb, data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+      c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true);
+      c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nb.length, true);
+      c.setUint32(42, offset, true);
+      central.push(new Uint8Array(c.buffer), nb);
+      offset += 30 + nb.length + data.length;
+    });
+    const cdSize = central.reduce((s, x) => s + x.length, 0);
+    const e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+    e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
+    const parts = [...local, ...central, new Uint8Array(e.buffer)];
+    const out = new Uint8Array(parts.reduce((s, x) => s + x.length, 0));
+    let p = 0; parts.forEach(x => { out.set(x, p); p += x.length; });
+    return out;
+  }
+
+  function xlWorkbook(sheets, styles) {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+    const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+    const q = n => "'" + n.replace(/'/g, "''") + "'";
+    const names = [];
+    sheets.forEach((s, i) => {
+      if (s.filter) names.push(`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${xlEsc(q(s.name) + '!' + s.filter.replace(/([A-Z]+)(\d+)/g, '$$$1$$$2'))}</definedName>`);
+      if (s.titleRow) names.push(`<definedName name="_xlnm.Print_Titles" localSheetId="${i}">${xlEsc(q(s.name) + '!$' + s.titleRow + ':$' + s.titleRow)}</definedName>`);
+    });
+    const created = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    return xlZip([
+      ['[Content_Types].xml', head + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
+        '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>'],
+      ['_rels/.rels', head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'],
+      ['docProps/core.xml', head + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+        `<dc:title>BFS Master Loan Tracker</dc:title><dc:creator>Benansah Loan Manager</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created></cp:coreProperties>`],
+      ['xl/workbook.xml', head + `<workbook ${NS}><bookViews><workbookView activeTab="0"/></bookViews><sheets>` +
+        sheets.map((s, i) => `<sheet name="${xlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets>' +
+        (names.length ? `<definedNames>${names.join('')}</definedNames>` : '') + '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>'],
+      ['xl/_rels/workbook.xml.rels', head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+        `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+      ['xl/styles.xml', styles.xml()],
+      ...sheets.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, s.xml(i === 0)])
+    ]);
+  }
+
+  // The tracker itself: same tabs and columns as the original Excel file.
+  function buildLoanTracker() {
+    const S = xlStyles();
+    const NAVY = '1F4E79', BAND = 'F2F5F9', TOTAL = 'D9E1F2';
+    const T = {
+      title: S.get({b: 1, sz: 16, color: NAVY}),
+      sub: S.get({sz: 10, color: '595959'}),
+      note: S.get({sz: 9, i: 1, color: '555555', fill: 'FFFFCC'}),
+      head: S.get({b: 1, color: 'FFFFFF', fill: NAVY, h: 'center', wrap: 1, border: 1, bc: NAVY}),
+      headL: S.get({b: 1, color: 'FFFFFF', fill: NAVY, h: 'left', border: 1, bc: NAVY}),
+      headR: S.get({b: 1, color: 'FFFFFF', fill: NAVY, h: 'right', border: 1, bc: NAVY}),
+      section: S.get({b: 1, sz: 13, color: NAVY})
+    };
+    const KIND = {text: {h: 'left'}, wrap: {h: 'left', wrap: 1}, center: {h: 'center'}, money: {fmt: 'money', h: 'right'}, date: {fmt: 'date', h: 'center'},
+      pct: {fmt: 'pct', h: 'right', color: '0000FF'}, int: {fmt: 'int', h: 'center'}};
+    const cs = (kind, band, extra) => S.get(Object.assign({border: 1}, KIND[kind], band ? {fill: BAND} : {}, extra || {}));
+    const tot = kind => S.get(Object.assign({border: 1, b: 1, fill: TOTAL, color: NAVY}, KIND[kind]));
+    const GREEN = S.dxf('006100', 'C6EFCE'), RED = S.dxf('9C0006', 'FFC7CE'), AMBER = S.dxf('7A4A06', 'FFEB9C');
+    const stamp = fmtStamp(new Date().toISOString());
+    const quote = s => String(s).replace(/"/g, '""');
+    const header = (sh, r, cols, style) => { cols.forEach((h, c) => sh.cell(r, c, h, style || T.head)); };
+
+    const book = loans.filter(isDisbursed).sort((a, b) => (a.refNo || '').localeCompare(b.refNo || '', undefined, {numeric: true}));
+    const metrics = book.map(computeLoanMetrics);
+    // Principal still with customers: each repayment is split between principal and interest in the loan's own proportion.
+    const pOuts = metrics.map(m => m.totalRepayment > 0 ? round2(Math.max(0, m.principal * (1 - Math.min(m.amountPaid, m.totalRepayment) / m.totalRepayment))) : 0);
+    const pOutTotal = round2(pOuts.reduce((s, x) => s + x, 0));
+    const pays = [...payments].sort((a, b) => (a.paymentDate || '').localeCompare(b.paymentDate || '') || (a.refNo || '').localeCompare(b.refNo || '', undefined, {numeric: true}));
+    const MP = "'Master Loan Portfolio'", PH = "'Payment History'";
+    const M0 = 4, mLast = Math.max(M0, M0 + book.length - 1);              // Master data rows
+    const PH0 = 5, phLast = PH0 + pays.length + 50 - 1;                  // Payment History rows (+50 blank)
+    const mr = col => `${MP}!$${col}$${M0}:$${col}$${mLast}`;
+    const mSum = col => metrics.length ? `SUM(${mr(col)})` : '0';
+
+    // ===== Master Loan Portfolio =====
+    const ML = xlSheet('Master Loan Portfolio');
+    const mCols = ['Ref No.', 'Borrower Name', 'Phone Number', 'Ghana Card No.', 'Guarantor Name', 'Guarantor Phone', 'Disbursement Date', 'Loan Term (months)',
+      'Approved Principal (GHS)', 'Interest Rate (%)', 'Interest Amount (GHS)',
+      book.every(l => feePctOf(l) === DEFAULT_FEE_PCT) ? `Processing Fee (${+(DEFAULT_FEE_PCT * 100).toFixed(2)}%) (GHS)` : 'Processing Fee (GHS)', 'Net Disbursed Cash (GHS)', 'Total Repayment w/ Interest (GHS)',
+      'Monthly Installment (GHS)', 'Amount Paid (GHS)', 'Remaining Balance (GHS)', 'Next Due Date', 'Late Fee / Penalty (GHS)', 'Total Payable w/ Penalty (GHS)',
+      'Status', 'Performance Rating', 'Notes', 'Principal Still Out (GHS)', 'Days Overdue', 'Paid Out Via', 'Processed By'];
+    ML.widths = [15, 22, 14, 18, 21, 14, 14, 10, 15, 10, 13, 14, 15, 17, 15, 14, 15, 14, 14, 16, 22, 15, 34, 15, 10, 14, 16];
+    ML.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - MASTER LOAN TRACKER', T.title); ML.heights[1] = 21;
+    ML.cell(2, 0, `MoMo Payment Account: ${COMPANY.payTo} | Helpdesk: ${COMPANY.phone} | Figures as at ${stamp} (from the Loan Manager)`, T.sub);
+    header(ML, 3, mCols); ML.heights[3] = 45;
+    book.forEach((l, i) => {
+      const m = metrics[i], r = M0 + i, b = i % 2 === 1, fee = feePctOf(l);
+      ML.cell(r, 0, l.refNo, cs('center', b)); ML.cell(r, 1, l.borrowerName || '', cs('text', b)); ML.cell(r, 2, l.borrowerPhone || '', cs('center', b));
+      ML.cell(r, 3, l.ghanaCardNo || '', cs('center', b)); ML.cell(r, 4, l.guarantorName || '', cs('text', b)); ML.cell(r, 5, l.guarantorPhone || '', cs('center', b));
+      ML.date(r, 6, l.disbursementDate, cs('date', b)); ML.cell(r, 7, m.term, cs('int', b));
+      ML.cell(r, 8, m.principal, cs('money', b)); ML.cell(r, 9, Number(l.interestRatePct) || 0, cs('pct', b));
+      ML.f(r, 10, `ROUND(I${r}*J${r},2)`, m.interestAmount, cs('money', b));
+      ML.f(r, 11, `ROUND(I${r}*${fee},2)`, m.processingFee, cs('money', b));
+      ML.f(r, 12, `I${r}-L${r}`, m.netDisbursed, cs('money', b));
+      ML.f(r, 13, `I${r}+K${r}`, m.totalRepayment, cs('money', b));
+      ML.f(r, 14, `ROUND(N${r}/H${r},2)`, m.monthlyInstallment, cs('money', b));
+      ML.f(r, 15, `SUMIF(${PH}!$B$${PH0}:$B$${phLast},A${r},${PH}!$E$${PH0}:$E$${phLast})`, m.amountPaid, cs('money', b));
+      ML.f(r, 16, `MAX(0,N${r}-P${r})`, m.remainingBalance, cs('money', b));
+      if (m.nextDueDate && m.status !== 'Fully Paid') ML.date(r, 17, m.nextDueDate, cs('date', b)); else ML.cell(r, 17, '—', cs('center', b));
+      ML.cell(r, 18, m.lateFee, cs('money', b));
+      ML.f(r, 19, `MAX(0,N${r}+S${r}-P${r})`, m.totalPayableWithPenalty, cs('money', b));
+      const status = m.status === 'Overdue' ? `Overdue (${m.daysOverdue} day${m.daysOverdue === 1 ? '' : 's'})` : m.status;
+      if (m.status === 'Fully Paid') { ML.cell(r, 20, status, cs('center', b)); ML.cell(r, 21, m.performanceRating, cs('center', b)); }
+      else {
+        ML.f(r, 20, `IF(T${r}<=0,"Fully Paid","${quote(status)}")`, status, cs('center', b));
+        ML.f(r, 21, `IF(T${r}<=0,"Excellent","${quote(m.performanceRating)}")`, m.performanceRating, cs('center', b));
+      }
+      const notes = [l.purpose, l.topUpOf ? 'Top-up of ' + l.topUpOf : '',
+        m.extActive ? 'Extended to ' + fmtDate(m.extension.date) : (m.extBreached ? 'Extension date ' + fmtDate(m.extension.date) + ' missed' : ''),
+        m.overpaid > 0.005 ? 'Overpaid ' + fmtGHS(m.overpaid) : ''].filter(Boolean).join('; ');
+      ML.cell(r, 22, notes, cs('text', b));
+      ML.f(r, 23, `IF(N${r}>0,ROUND(MAX(0,I${r}*(1-MIN(P${r},N${r})/N${r})),2),0)`, pOuts[i], cs('money', b));
+      ML.cell(r, 24, m.isOverdue ? m.daysOverdue : 0, cs('int', b));
+      ML.cell(r, 25, l.disbursedVia || '', cs('center', b)); ML.cell(r, 26, l.processedBy || '', cs('text', b));
+    });
+    const mTot = M0 + book.length;
+    ML.cell(mTot, 0, 'TOTAL', tot('center'));
+    for (let c = 1; c < mCols.length; c++) ML.cell(mTot, c, '', tot('text'));
+    if (book.length) {
+      [[8, 'I'], [10, 'K'], [11, 'L'], [12, 'M'], [13, 'N'], [15, 'P'], [16, 'Q'], [18, 'S'], [19, 'T'], [23, 'X']].forEach(([c, col]) => {
+        const field = {I: 'principal', K: 'interestAmount', L: 'processingFee', M: 'netDisbursed', N: 'totalRepayment', P: 'amountPaid', Q: 'remainingBalance', S: 'lateFee', T: 'totalPayableWithPenalty'}[col];
+        const val = col === 'X' ? pOutTotal : round2(metrics.reduce((s, m) => s + (m[field] || 0), 0));
+        ML.f(mTot, c, `SUM(${col}${M0}:${col}${mLast})`, val, tot('money'));
+      });
+    }
+    ML.freeze = {rows: 3, cols: 2}; ML.titleRow = 3;
+    if (book.length) {
+      ML.filter = `A3:AA${mLast}`;
+      ML.cf.push({sqref: `A${M0}:AA${mLast}`, formula: `$U${M0}="Fully Paid"`, dxf: GREEN});
+      ML.cf.push({sqref: `U${M0}:U${mLast}`, formula: `LEFT($U${M0},7)="Overdue"`, dxf: RED});
+      ML.cf.push({sqref: `U${M0}:U${mLast}`, formula: `$U${M0}="Extended"`, dxf: AMBER});
+    }
+
+    // ===== REGISTERED LOANS (summary view of the Master tab) =====
+    const RL = xlSheet('REGISTERED LOANS');
+    RL.widths = [24, 14, 15, 14, 16, 10, 16, 16, 22, 18];
+    RL.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS', S.get({b: 1, sz: 16, color: '0B3D6B', font: 'Arial'})); RL.heights[1] = 21;
+    RL.cell(2, 0, 'REGISTERED LOANS', S.get({b: 1, i: 1, sz: 14, color: '555555', font: 'Arial'})); RL.heights[2] = 20;
+    RL.cell(3, 0, `Figures as at ${stamp}. Taken from the Master Loan Portfolio tab — this view updates itself. The Remarks column can be typed in.`, T.note);
+    RL.merges.push('A1:J1', 'A2:J2', 'A3:J3');
+    header(RL, 4, ['Customer Name', 'Phone No.', 'Loan ID', 'Date Disbursed', 'Principal Amount (GHS)', 'Tenure (months)', 'Monthly Payment (GHS)', 'Total Payable (GHS)', 'Status', 'Remarks'],
+      S.get({b: 1, sz: 9, font: 'Arial', color: 'FFFFFF', fill: '0B3D6B', h: 'center', wrap: 1, border: 1, bc: '0B3D6B'}));
+    RL.heights[4] = 30;
+    const link = (col, r) => `IF(${MP}!${col}${r}="","",${MP}!${col}${r})`;
+    book.forEach((l, i) => {
+      const m = metrics[i], r = 5 + i, src = M0 + i, b = i % 2 === 1;
+      const status = m.status === 'Overdue' ? `Overdue (${m.daysOverdue} day${m.daysOverdue === 1 ? '' : 's'})` : m.status;
+      RL.f(r, 0, link('B', src), l.borrowerName || '', cs('text', b));
+      RL.f(r, 1, link('C', src), l.borrowerPhone || '', cs('center', b));
+      RL.f(r, 2, link('A', src), l.refNo, cs('center', b));
+      RL.f(r, 3, link('G', src), xlSerial(l.disbursementDate), cs('date', b));
+      RL.f(r, 4, link('I', src), m.principal, cs('money', b));
+      RL.f(r, 5, link('H', src), m.term, cs('int', b));
+      RL.f(r, 6, link('O', src), m.monthlyInstallment, cs('money', b));
+      RL.f(r, 7, link('N', src), m.totalRepayment, cs('money', b));
+      RL.f(r, 8, link('U', src), status, cs('center', b));
+      RL.cell(r, 9, '', cs('text', b));
+    });
+    RL.freeze = {rows: 4, cols: 0}; RL.titleRow = 4; RL.portrait = true;
+    if (book.length) {
+      const rl = 4 + book.length;
+      RL.cf.push({sqref: `A5:J${rl}`, formula: '$I5="Fully Paid"', dxf: GREEN});
+      RL.cf.push({sqref: `I5:I${rl}`, formula: 'LEFT($I5,7)="Overdue"', dxf: RED});
+    }
+
+    // ===== Payment History =====
+    const PHs = xlSheet('Payment History');
+    PHs.widths = [22, 15, 22, 14, 16, 18, 26, 20];
+    PHs.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - PAYMENT HISTORY LOG', T.title); PHs.heights[1] = 21;
+    PHs.cell(2, 0, `All payments recorded in the Loan Manager as at ${stamp}. A payment typed into an empty row below updates the Master tab in THIS file only — always record it in the Loan Manager too.`, T.sub);
+    header(PHs, 4, ['Receipt / Txn ID', 'Ref No.', 'Borrower Name', 'Payment Date', 'Amount Paid (GHS)', 'Payment Method', "Sender's Name (MoMo/Cash)", 'Received By']); PHs.heights[4] = 30;
+    for (let i = 0; i < pays.length + 50; i++) {
+      const p = pays[i], r = PH0 + i, b = i % 2 === 1;
+      if (p) {
+        PHs.cell(r, 0, /^manual-/.test(p.txnId || '') ? 'Manual entry' : (p.txnId || ''), cs('center', b));
+        PHs.cell(r, 1, p.refNo || '', cs('center', b)); PHs.cell(r, 2, p.borrowerName || '', cs('text', b));
+        PHs.date(r, 3, p.paymentDate, cs('date', b)); PHs.cell(r, 4, Number(p.amountPaid) || 0, cs('money', b));
+        PHs.cell(r, 5, p.paymentMethod || '', cs('center', b)); PHs.cell(r, 6, p.senderName || '', cs('text', b)); PHs.cell(r, 7, p.receivedBy || '', cs('text', b));
+      } else {
+        ['center', 'center', 'text', 'date', 'money', 'center', 'text', 'text'].forEach((k, c) => PHs.cell(r, c, '', cs(k, b)));
+      }
+    }
+    PHs.cell(phLast + 1, 0, 'TOTAL', tot('center'));
+    [1, 2, 3, 5, 6, 7].forEach(c => PHs.cell(phLast + 1, c, '', tot('text')));
+    PHs.f(phLast + 1, 4, `SUM(E${PH0}:E${phLast})`, round2(pays.reduce((s, p) => s + (Number(p.amountPaid) || 0), 0)), tot('money'));
+    PHs.freeze = {rows: 4, cols: 0}; PHs.titleRow = 4; PHs.portrait = true;
+    PHs.filter = `A4:H${phLast}`;
+
+    // ===== Executive Dashboard =====
+    const ED = xlSheet('Executive Dashboard');
+    ED.widths = [52, 24, 60]; ED.portrait = true;
+    ED.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - EXECUTIVE DASHBOARD', T.title); ED.heights[1] = 21;
+    ED.cell(2, 0, `Key Performance Indicators (KPIs) & Portfolio Health — as at ${stamp}`, T.sub);
+    ED.cell(4, 0, 'Metric / Portfolio KPI', T.headL); ED.cell(4, 1, 'Current Value', T.headR); ED.cell(4, 2, 'How it is worked out', T.headL);
+    const sum = f => round2(metrics.reduce((s, m) => s + (m[f] || 0), 0));
+    const lbl = S.get({border: 1, b: 1}), how = S.get({border: 1, sz: 9, color: '595959', wrap: 1});
+    const money = S.get({border: 1, b: 1, fmt: 'money', h: 'right'}), count = S.get({border: 1, b: 1, fmt: 'int', h: 'right'}), pct = S.get({border: 1, b: 1, fmt: 'pct', h: 'right'});
+    const big = S.get({border: 1, b: 1, fill: TOTAL, color: NAVY}), bigMoney = S.get({border: 1, b: 1, fill: TOTAL, color: NAVY, fmt: 'money', h: 'right'});
+    const activeN = metrics.filter(m => m.totalPayableWithPenalty > 0.005).length;
+    const edRows = [
+      ['Loans Paid Out (count)', metrics.length ? `COUNTA(${mr('A')})` : '0', metrics.length, count, 'Every loan in the Master tab'],
+      ['Active Loans (balance still owed)', metrics.length ? `COUNTIF(${mr('T')},">0")` : '0', activeN, count, 'Loans whose Total Payable w/ Penalty is above zero'],
+      ['Total Principal Disbursed', mSum('I'), sum('principal'), money, 'Sum of Approved Principal'],
+      ['Total Expected Interest Revenue', mSum('K'), sum('interestAmount'), money, 'Sum of Interest Amount'],
+      ['Total Expected Repayment (w/ Interest)', mSum('N'), sum('totalRepayment'), money, 'Principal + interest'],
+      ['Total Amount Collected / Received', mSum('P'), sum('amountPaid'), money, 'Sum of Amount Paid (from Payment History)'],
+      ['Total Principal & Interest Remaining', mSum('Q'), sum('remainingBalance'), money, 'Sum of Remaining Balance'],
+      ['Total Late Charges Added', mSum('S'), sum('lateFee'), money, '10% of each missed installment, +10% after 15 days (max 20%)'],
+      ['GRAND TOTAL RECEIVABLE (w/ Late Charges)', mSum('T'), sum('totalPayableWithPenalty'), bigMoney, 'Everything customers still owe', big],
+      ['Principal Still With Customers', mSum('X'), pOutTotal, money, 'Loan amounts not yet repaid (interest excluded)'],
+      ['Overdue Loans (count)', metrics.length ? `COUNTIF(${mr('U')},"Overdue*")` : '0', metrics.filter(m => m.status === 'Overdue').length, count, 'Loans with a payment past its due date']
+    ];
+    edRows.forEach(([label, f, v, st, note, ls], i) => { const r = 5 + i; ED.cell(r, 0, label, ls || lbl); ED.f(r, 1, f, v, st); ED.cell(r, 2, note, how); });
+    // Portfolio quality as worked out by the Loan Manager (standard lender measures).
+    let r0 = 5 + edRows.length + 1;
+    ED.cell(r0, 0, 'Portfolio Quality (worked out by the Loan Manager)', T.headL); ED.cell(r0, 1, 'Value', T.headR); ED.cell(r0, 2, 'Meaning', T.headL);
+    const today = todayISO();
+    let dueSoFar = 0, paidTowardDue = 0;
+    metrics.forEach(m => {
+      const due = round2(m.scheduleRows.filter(x => (x.effDueDate || x.dueDate) < today).reduce((s, x) => s + x.amount, 0) + m.lateFee);
+      dueSoFar += due; paidTowardDue += Math.min(m.amountPaid, due);
+    });
+    const par30 = round2(metrics.reduce((s, m, i) => s + (m.isOverdue && m.remainingBalance > 0.005 && m.daysOverdue > 30 ? pOuts[i] : 0), 0));
+    const pending = loans.filter(l => loanStage(l) === 'pending');
+    const qRows = [
+      ['Collection Rate', dueSoFar > 0.005 ? paidTowardDue / dueSoFar : '—', pct, 'Paid ÷ what has fallen due so far (installments + late charges). Aim for 95% or more.'],
+      ['Portfolio at Risk (PAR 30)', pOutTotal > 0 ? par30 / pOutTotal : '—', pct, 'Share of principal still out that is more than 30 days late. Healthy: under 5%.'],
+      ['Overdue Now (incl. late charges)', round2(metrics.reduce((s, m) => s + m.amountOverdueNow, 0)), money, 'Amount past its due date today'],
+      ['Pending Applications', pending.length, count, `Applications not yet paid out — they need ${fmtGHS(round2(pending.reduce((s, l) => s + computeLoanMetrics(l).netDisbursed, 0)))} to pay out`]
+    ];
+    qRows.forEach(([label, v, st, note], i) => { const r = r0 + 1 + i; ED.cell(r, 0, label, lbl); ED.cell(r, 1, v, typeof v === 'string' ? S.get({border: 1, b: 1, h: 'right'}) : st); ED.cell(r, 2, note, how); });
+    r0 = r0 + 1 + qRows.length + 1;
+    ED.cell(r0, 0, 'Customer Performance Tier', T.headL); ED.cell(r0, 1, 'Borrower Count', T.headR); ED.cell(r0, 2, 'Meaning', T.headL);
+    [['Excellent', 'Excellent (Fully Paid / Clear)', 'Loan fully settled'], ['Good', 'Good (On-Time Installments)', 'Paying, nothing overdue'],
+     ['Standard', 'Standard (Active / New Loan)', 'No payment due yet'], ['High Risk', 'High Risk (Overdue / Extended)', 'Payment late or on an extension']].forEach(([key, label, note], i) => {
+      const r = r0 + 1 + i;
+      ED.cell(r, 0, label, lbl);
+      ED.f(r, 1, metrics.length ? `COUNTIF(${mr('V')},"${key}")` : '0', metrics.filter(m => m.performanceRating === key).length, count);
+      ED.cell(r, 2, note, how);
+    });
+
+    // ===== Capital & Utilization =====
+    const CU = xlSheet('Capital & Utilization');
+    CU.widths = [48, 20, 26, 40]; CU.portrait = true;
+    CU.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - CAPITAL & FUND UTILIZATION', T.title); CU.heights[1] = 21;
+    CU.cell(2, 0, `Capital put in, money out in loans, collections and cash available — as at ${stamp}`, T.sub);
+    const caps = [...capitalEntries].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const exps = [...expenseEntries].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const capTotal = round2(caps.reduce((s, c) => s + (Number(c.amount) || 0), 0)), expTotal = round2(exps.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+    const CAP0 = 16, capLast = CAP0 + caps.length + 20 - 1;
+    const EXP0 = 15, expLast = EXP0 + exps.length + 20 - 1;
+    const EP = "'Expenses & Profit'";
+    CU.cell(4, 0, 'Capital Summary Metric', T.headL); CU.cell(4, 1, 'Amount (GHS)', T.headR);
+    const netOut = sum('netDisbursed'), collected = sum('amountPaid');
+    const avail = round2(capTotal - netOut + collected - expTotal);
+    [['Total Capital Injected (Owner/Investors)', `SUM(B${CAP0}:B${capLast})`, capTotal, money],
+     ['Total Principal Paid Out in Loans', mSum('I'), sum('principal'), money],
+     ['Total Net Disbursed (principal less processing fees)', mSum('M'), netOut, money],
+     ['Total Collected / Recovered', mSum('P'), collected, money],
+     ['Total Operating Expenses', `${EP}!B8`, expTotal, money],
+     ['Principal Still With Customers', mSum('X'), pOutTotal, money],
+     ['Current Available Cash for New Loans', 'B5-B7+B8-B9', avail, bigMoney, big],
+     ['Capital Utilization Rate (%)', 'IF(B5>0,B10/B5,0)', capTotal > 0 ? pOutTotal / capTotal : 0, pct]
+    ].forEach(([label, f, v, st, ls], i) => { const r = 5 + i; CU.cell(r, 0, label, ls || lbl); CU.f(r, 1, f, v, st); });
+    CU.cell(13, 0, 'Available cash = Capital − Net Disbursed + Collected − Expenses (same as the Loan Manager). Utilization = principal still with customers ÷ capital.', S.get({sz: 9, i: 1, color: '595959'}));
+    header(CU, 15, ['Date', 'Amount (GHS)', 'Source', 'Notes']);
+    for (let i = 0; i < caps.length + 20; i++) {
+      const c = caps[i], r = CAP0 + i, b = i % 2 === 1;
+      if (c) { CU.date(r, 0, c.date, cs('date', b)); CU.cell(r, 1, Number(c.amount) || 0, cs('money', b)); CU.cell(r, 2, c.source || '', cs('text', b)); CU.cell(r, 3, c.notes || '', cs('text', b)); }
+      else ['date', 'money', 'text', 'text'].forEach((k, j) => CU.cell(r, j, '', cs(k, b)));
+    }
+    CU.cell(capLast + 1, 0, 'TOTAL CAPITAL INJECTED', tot('center')); CU.f(capLast + 1, 1, `SUM(B${CAP0}:B${capLast})`, capTotal, tot('money'));
+    CU.cell(capLast + 1, 2, '', tot('text')); CU.cell(capLast + 1, 3, '', tot('text'));
+
+    // ===== Expenses & Profit =====
+    const EX = xlSheet('Expenses & Profit');
+    EX.widths = [40, 18, 22, 40, 18, 22]; EX.portrait = true;
+    EX.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - OPERATING EXPENSES & NET PROFIT', T.title); EX.heights[1] = 21;
+    EX.cell(2, 0, `Operating costs (MoMo charges, airtime, transport…) and Net Operating Profit — as at ${stamp}`, T.sub);
+    EX.cell(4, 0, 'Financial Profitability Summary', T.headL); EX.cell(4, 1, 'Amount (GHS)', T.headR);
+    const grossRev = round2(sum('interestAmount') + sum('lateFee'));
+    [['Total Expected Interest Revenue', mSum('K'), sum('interestAmount'), money],
+     ['Total Late Charges Added', mSum('S'), sum('lateFee'), money],
+     ['Total Gross Business Revenue', 'B5+B6', grossRev, money],
+     ['Total Operating Expenses', `SUM(B${EXP0}:B${expLast})`, expTotal, money],
+     ['NET OPERATING PROFIT', 'B7-B8', round2(grossRev - expTotal), bigMoney, big],
+     ['Processing Fees Retained (deducted upfront)', mSum('L'), sum('processingFee'), money]
+    ].forEach(([label, f, v, st, ls], i) => { const r = 5 + i; EX.cell(r, 0, label, ls || lbl); EX.f(r, 1, f, v, st); });
+    EX.cell(12, 0, 'BUSINESS EXPENSE LOG', T.section); EX.heights[12] = 19;
+    header(EX, 14, ['Date', 'Amount (GHS)', 'Category', 'Description', 'Paid Via', 'Authorized By']);
+    for (let i = 0; i < exps.length + 20; i++) {
+      const x = exps[i], r = EXP0 + i, b = i % 2 === 1;
+      if (x) {
+        EX.date(r, 0, x.date, cs('date', b)); EX.cell(r, 1, Number(x.amount) || 0, cs('money', b)); EX.cell(r, 2, x.category || '', cs('text', b));
+        EX.cell(r, 3, x.description || '', cs('text', b)); EX.cell(r, 4, x.paidVia || '', cs('text', b)); EX.cell(r, 5, x.authorizedBy || '', cs('text', b));
+      } else ['date', 'money', 'text', 'text', 'text', 'text'].forEach((k, j) => EX.cell(r, j, '', cs(k, b)));
+    }
+    EX.cell(expLast + 1, 0, 'TOTAL EXPENSES', tot('center')); EX.f(expLast + 1, 1, `SUM(B${EXP0}:B${expLast})`, expTotal, tot('money'));
+    [2, 3, 4, 5].forEach(c => EX.cell(expLast + 1, c, '', tot('text')));
+
+    // ===== Deduction Chat (current rate card) =====
+    const DC = xlSheet('Deduction Chat');
+    const terms = Object.keys(RATE_CARD).map(Number).filter(n => n >= 1 && n <= MAX_TERM).sort((a, b) => a - b);
+    DC.widths = [16, 15, 16, ...terms.map(() => 17)];
+    DC.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS — DEDUCTION MATRIX (current rate card)', T.title); DC.heights[1] = 21;
+    DC.merges.push(`A1:${xlCol(2 + terms.length)}1`);
+    DC.cell(2, 0, `Monthly deduction for each amount and tenure. Total to repay = principal + interest; the ${(DEFAULT_FEE_PCT * 100).toFixed(0)}% processing fee is deducted when the loan is paid out.`, T.sub);
+    header(DC, 3, ['Principal (GHS)', `Processing Fee (${(DEFAULT_FEE_PCT * 100).toFixed(0)}%)`, 'Net Cash Received',
+      ...terms.map(n => n === 1 ? `1 Month (${(RATE_CARD[1] * 100).toFixed(0)}%) — one payment` : `${n} Months (${(RATE_CARD[n] / n * 100).toFixed(0)}%/mo) — monthly`)]);
+    DC.heights[3] = 45;
+    [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000].forEach((p, i) => {
+      const r = 4 + i, b = i % 2 === 1;
+      DC.cell(r, 0, p, cs('money', b, {b: 1}));
+      DC.f(r, 1, `ROUND(A${r}*${DEFAULT_FEE_PCT},2)`, round2(p * DEFAULT_FEE_PCT), cs('money', b));
+      DC.f(r, 2, `A${r}-B${r}`, round2(p - round2(p * DEFAULT_FEE_PCT)), cs('money', b));
+      terms.forEach((n, j) => DC.f(r, 3 + j, `ROUND(A${r}*(1+${RATE_CARD[n]})/${n},2)`, round2(round2(p * (1 + RATE_CARD[n])) / n), cs('money', b)));
+    });
+    DC.freeze = {rows: 3, cols: 1};
+
+    // ===== SMS Templates =====
+    const SM = xlSheet('SMS Templates');
+    SM.widths = [8, 34, 110]; SM.portrait = false;
+    SM.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - OFFICIAL SMS TEMPLATES', T.title); SM.heights[1] = 21;
+    SM.cell(2, 0, `Sender ID: BENANSAH | MoMo Account: ${COMPANY.payTo} | Support: ${COMPANY.phone}`, T.sub);
+    header(SM, 4, ['ID', 'Template Category / Title', 'SMS Message Text']);
+    SMS_TEMPLATES.forEach((t, i) => {
+      const r = 5 + i, b = i % 2 === 1;
+      SM.cell(r, 0, t.id, cs('center', b, {b: 1})); SM.cell(r, 1, t.title, cs('text', b)); SM.cell(r, 2, applySwaps(t.text), cs('wrap', b));
+    });
+    SM.freeze = {rows: 4, cols: 0};
+
+    // ===== Repayment Schedule (loans still being repaid) =====
+    const RS = xlSheet('Repayment Schedule');
+    RS.widths = [15, 22, 14, 13, 14, 15, 15, 15, 14];
+    RS.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - REPAYMENT SCHEDULE', T.title); RS.heights[1] = 21;
+    RS.cell(2, 0, `Every installment of the loans still being repaid, as at ${stamp}. Use the filter on Status to see what is past due.`, T.sub);
+    header(RS, 4, ['Ref No.', 'Borrower Name', 'Phone Number', 'Installment', 'Due Date', 'Amount Due (GHS)', 'Paid (GHS)', 'Unpaid (GHS)', 'Status']); RS.heights[4] = 30;
+    let rr = 5, band = false;
+    book.forEach((l, i) => {
+      const m = metrics[i];
+      if (m.totalPayableWithPenalty <= 0.005) return;
+      const rowsOf = m.scheduleRows.map(x => [`${x.no} of ${m.term}`, x.effDueDate || x.dueDate, x.amount, x.paidAmt, round2(x.amount - x.paidAmt), x.status]);
+      if (m.lateFee > 0.005) rowsOf.push(['Late charges', null, m.lateFee, m.lateFeePaid, m.lateFeeOutstanding, m.lateFeeOutstanding > 0.005 ? 'Unpaid' : 'Paid']);
+      rowsOf.forEach(x => {
+        RS.cell(rr, 0, l.refNo, cs('center', band)); RS.cell(rr, 1, l.borrowerName || '', cs('text', band)); RS.cell(rr, 2, l.borrowerPhone || '', cs('center', band));
+        RS.cell(rr, 3, x[0], cs('center', band));
+        if (x[1]) RS.date(rr, 4, x[1], cs('date', band)); else RS.cell(rr, 4, '—', cs('center', band));
+        RS.cell(rr, 5, x[2], cs('money', band)); RS.cell(rr, 6, x[3], cs('money', band));
+        RS.f(rr, 7, `MAX(0,F${rr}-G${rr})`, x[4], cs('money', band)); RS.cell(rr, 8, x[5], cs('center', band));
+        rr++;
+      });
+      band = !band;
+    });
+    if (rr === 5) { RS.cell(5, 0, 'No loans are being repaid right now.', S.get({i: 1, color: '595959'})); }
+    else {
+      RS.filter = `A4:I${rr - 1}`;
+      RS.cf.push({sqref: `I5:I${rr - 1}`, formula: '$I5="Past due"', dxf: RED});
+      RS.cf.push({sqref: `I5:I${rr - 1}`, formula: '$I5="Unpaid"', dxf: RED});
+      RS.cf.push({sqref: `I5:I${rr - 1}`, formula: '$I5="Paid"', dxf: GREEN});
+      RS.cf.push({sqref: `I5:I${rr - 1}`, formula: 'OR($I5="Due today",$I5="Part paid")', dxf: AMBER});
+    }
+    RS.freeze = {rows: 4, cols: 0}; RS.titleRow = 4; RS.portrait = true;
+
+    // ===== Loan Applications (not paid out) =====
+    const LA = xlSheet('Loan Applications');
+    LA.widths = [15, 22, 14, 16, 10, 14, 34, 18, 22, 16];
+    LA.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - LOAN APPLICATIONS', T.title); LA.heights[1] = 21;
+    LA.cell(2, 0, `Applications that have not been paid out (pending, on hold or declined), as at ${stamp}.`, T.sub);
+    header(LA, 4, ['Ref No.', 'Applicant', 'Phone Number', 'Amount Requested (GHS)', 'Term (months)', 'Applied On', 'Status', 'Agreement', 'Guarantor', 'Processed By']); LA.heights[4] = 30;
+    const apps = loans.filter(l => !isDisbursed(l)).sort((a, b) => (b.createdAt || b.disbursementDate || '').localeCompare(a.createdAt || a.disbursementDate || ''));
+    apps.forEach((l, i) => {
+      const r = 5 + i, b = i % 2 === 1, m = computeLoanMetrics(l), stg = loanStage(l);
+      const status = stg === 'declined' ? 'Declined' : (m.onHold ? `On hold ${m.holdDays} day${m.holdDays === 1 ? '' : 's'}: ${l.hold.reason || ''}${l.hold.note ? ' — ' + l.hold.note : ''}` : 'Pending — not paid out');
+      const s = stg === 'pending' ? signStatus(l) : null;
+      LA.cell(r, 0, l.refNo, cs('center', b)); LA.cell(r, 1, l.borrowerName || '', cs('text', b)); LA.cell(r, 2, l.borrowerPhone || '', cs('center', b));
+      LA.cell(r, 3, m.principal, cs('money', b)); LA.cell(r, 4, m.term, cs('int', b)); LA.date(r, 5, (l.createdAt || l.disbursementDate || '').slice(0, 10), cs('date', b));
+      LA.cell(r, 6, status, cs('text', b)); LA.cell(r, 7, !s ? '—' : (s.complete ? 'Signed' : (s.paper ? 'Paper agreement' : 'Not fully signed')), cs('center', b));
+      LA.cell(r, 8, l.guarantorName || '', cs('text', b)); LA.cell(r, 9, l.processedBy || '', cs('text', b));
+    });
+    if (!apps.length) LA.cell(5, 0, 'No applications waiting.', S.get({i: 1, color: '595959'}));
+    LA.freeze = {rows: 4, cols: 0}; LA.titleRow = 4;
+
+    return xlWorkbook([RL, ML, PHs, ED, CU, EX, DC, SM, RS, LA], S);
+  }
+
+  function exportLoanTracker() {
+    if (!needs('export')) return;
+    if (!loans.length) { showToast("No loans to export yet"); return; }
+    let bytes;
+    try { bytes = buildLoanTracker(); }
+    catch (e) { console.error(e); showToast("Could not build the Excel file — try again", 5000); return; }
+    downloadFile(`BFS_Loan_Tracker_${todayISO()}.xlsx`, bytes, XLSX_MIME);
+    showToast("Loan Tracker (Excel) downloaded — it opens in Excel or Google Sheets, even offline", 5000);
+    logActivity("Excel Tracker Downloaded", `Loan Tracker (Excel): ${loans.filter(isDisbursed).length} loans, ${payments.length} payments`, myName() || lastStaffName || "");
+  }
 
   // ---------------- Master render ----------------
   function renderTabBadges() {
