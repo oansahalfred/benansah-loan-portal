@@ -7,7 +7,7 @@
 # - the app cannot be shown inside another website (stops look-alike "clickjacking" pages)
 # - browsers must always use the secure https address
 # - links to other sites do not reveal the app's pages
-# - the camera, microphone and location are switched off for this site
+# - only this site itself may use the camera (for live customer photos); microphone and location are off
 [[headers]]
   for = "/*"
   [headers.values]
@@ -16,4 +16,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=31536000"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(), payment=()"

@@ -625,6 +625,20 @@
   .kyc-box > summary { cursor: pointer; font-size: 13px; }
   .kyc-head { grid-column: 1 / -1; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy-text); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-top: 4px; }
   .kyc-photo { width: 96px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); margin-top: 6px; }
+  .photo-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .photo-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .file-btn { cursor: pointer; }
+  .cam-wrap { position: relative; width: 100%; max-width: 340px; aspect-ratio: 4 / 5; margin: 4px auto 0; background: #0b1520; border-radius: 10px; overflow: hidden; }
+  .cam-wrap video, .cam-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam-wrap video.mirror { transform: scaleX(-1); }
+  .cam-guide { position: absolute; left: 20%; right: 20%; top: 9%; bottom: 20%; border: 2px dashed rgba(255,255,255,.75); border-radius: 50% 50% 44% 44%; pointer-events: none; }
+  .remote-box { border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; }
+  .remote-box.ok { background: var(--good-bg); color: var(--good); }
+  .remote-box.no { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
+  .remote-box.wait { background: var(--info-bg); color: var(--info); }
+  .remote-box ul { margin: 4px 0 0; padding-left: 18px; color: var(--warn); font-weight: 600; }
+  .remote-box .btn { margin-top: 6px; }
+  .chip-remote { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--info-bg); color: var(--info); margin-left: 4px; vertical-align: 1px; }
   .sign-panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 10px 0 14px; background: var(--surface); }
   .sign-panel h4 { margin: 0 0 8px 0; font-size: 13.5px; }
   .sign-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px dashed var(--border); }
@@ -1199,6 +1213,13 @@
       <input type="hidden" name="topUpOf">
       <div class="form-grid">
         <div class="field span2" id="topUpBanner" style="display:none; background:var(--info-bg); color:var(--info); border-radius:7px; padding:10px 12px; font-size:12.5px;"></div>
+        <div class="field span2" id="channelField"><label>How is the customer applying?</label>
+          <div class="seg">
+            <label><input type="radio" name="channel" value="office" checked><span><strong>In person</strong><small>At the office — Ghana Card checked, photo taken live</small></span></label>
+            <label><input type="radio" name="channel" value="remote"><span><strong>Remote repeat loan</strong><small>Returning customer, by phone or WhatsApp</small></span></label>
+          </div>
+        </div>
+        <div class="field span2 remote-box" id="remoteBox" style="display:none;"></div>
         <div class="field span2"><label>Borrower Full Name *</label><input required name="borrowerName"></div>
         <div class="field"><label>Borrower Phone</label><input name="borrowerPhone" placeholder="024XXXXXXX"></div>
         <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X" inputmode="numeric" autocomplete="off"><span class="calc-note" id="cardNote">Type the 10 digits — GHA- and the dash are added for you.</span></div>
@@ -1232,9 +1253,17 @@
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_cardChecked"> <span>Borrower's original Ghana Card checked (photo, number and expiry match). <span class="cell-sub">No copy of the card is kept.</span></span></label>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_gCardChecked"> <span>Guarantor's original Ghana Card checked</span></label>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_incomeChecked"> <span>Proof of income / employment ID seen</span></label>
-            <div class="kyc-head span2">Passport photos <span class="cell-sub" style="font-weight:400;">— take with the phone or tablet camera</span></div>
-            <div class="field"><label>Borrower photo</label><input type="file" accept="image/*" capture="user" id="photoBorrower"><img id="photoBorrowerPrev" class="kyc-photo" alt="" style="display:none;"></div>
-            <div class="field"><label>Guarantor photo</label><input type="file" accept="image/*" capture="user" id="photoGuarantor"><img id="photoGuarantorPrev" class="kyc-photo" alt="" style="display:none;"></div>
+            <div class="kyc-head span2">Passport photos <span class="cell-sub" style="font-weight:400;">— take them live in the office: plain wall, face fully visible, no cap or sunglasses</span></div>
+            <div class="field"><label>Borrower photo</label>
+              <div class="photo-row"><img id="photoBorrowerPrev" class="kyc-photo" alt="" style="display:none;">
+                <div class="photo-btns"><button type="button" class="btn small" data-camera="borrower" data-icon="camera">Take photo</button>
+                  <label class="btn ghost small file-btn">Upload picture<input type="file" accept="image/*" id="photoBorrower" hidden></label></div></div>
+              <span class="calc-note" id="photoBorrowerNote"></span></div>
+            <div class="field"><label>Guarantor photo</label>
+              <div class="photo-row"><img id="photoGuarantorPrev" class="kyc-photo" alt="" style="display:none;">
+                <div class="photo-btns"><button type="button" class="btn small" data-camera="guarantor" data-icon="camera">Take photo</button>
+                  <label class="btn ghost small file-btn">Upload picture<input type="file" accept="image/*" id="photoGuarantor" hidden></label></div></div>
+              <span class="calc-note" id="photoGuarantorNote"></span></div>
           </div>
         </details>
         <div class="field span2" id="stageField"><label>What happens now?</label>
@@ -1406,12 +1435,29 @@
         </div>
         <div class="field span2 calc-box" id="disburseSummary"></div>
         <label class="field span2 auto-check tick" id="disbTextRow" style="display:none;"><input type="checkbox" name="sendText" checked> <span><strong>Text the customer</strong> <span class="cell-sub" id="disbTextHint"></span></span></label>
+        <label class="field span2 auto-check tick remote-pay" id="disbRemoteRow" style="display:none;"><input type="checkbox" name="remoteNameOk"> <span id="disbRemoteText"></span></label>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" data-close>Cancel</button>
         <button type="submit" class="btn red">Confirm Pay-Out</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalCamera">
+  <div class="modal" style="max-width:460px;">
+    <button class="modal-close" data-close>&times;</button>
+    <h3 id="cameraTitle">Take Photo</h3>
+    <div class="modal-sub">Plain wall behind the customer, face fully visible, no cap or sunglasses, good light. Keep the face inside the outline.</div>
+    <div class="cam-wrap"><video id="camVideo" autoplay playsinline muted></video><img id="camStill" alt="" style="display:none;"><div class="cam-guide" id="camGuide"></div></div>
+    <div class="form-error" id="camErr" style="min-height:0; margin-top:8px;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="btnCamSwitch" style="display:none;">Switch camera</button>
+      <button type="button" class="btn ghost" id="btnCamRetake" style="display:none;">Retake</button>
+      <button type="button" class="btn red" id="btnCamSnap" disabled>Capture</button>
+      <button type="button" class="btn red" id="btnCamUse" style="display:none;">Use this photo</button>
+    </div>
   </div>
 </div>
 
@@ -1596,6 +1642,8 @@
     percent: svgIcon('<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>'),
     message: svgIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
     plus: svgIcon('<path d="M12 5v14M5 12h14"/>'),
+    camera: svgIcon('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'),
+    phone: svgIcon('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>'),
     edit: svgIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
     trash: svgIcon('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/>'),
     cash: svgIcon('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'),
@@ -3126,7 +3174,7 @@
     document.getElementById('appsTableBody').innerHTML = rows.map(({l, m, st}) => `
       <tr class="clickable-row" data-app="${escapeHtml(l.refNo)}">
         <td class="mono">${escapeHtml(l.refNo)}${l.topUpOf ? '<div class="cell-sub">Top-up</div>' : ''}</td>
-        <td><div class="cell-name">${escapeHtml(l.borrowerName)}</div><div class="cell-sub">${escapeHtml(l.borrowerPhone || '—')}</div></td>
+        <td><div class="cell-name">${escapeHtml(l.borrowerName)}${l.channel === 'remote' ? '<span class="chip-remote">Remote</span>' : ''}</div><div class="cell-sub">${escapeHtml(l.borrowerPhone || '—')}</div></td>
         <td class="mono">${fmtGHS(l.principal)}</td>
         <td>${l.loanTermMonths} mo</td>
         <td class="nowrap">${l.createdAt ? fmtDate(l.createdAt.slice(0, 10)) : '—'}</td>
@@ -3247,6 +3295,7 @@
           <h2>${escapeHtml(b.name)} <span class="cell-sub" style="font-weight:500;">— ${b.since ? 'customer since ' + fmtDate(b.since) : 'new applicant'}</span></h2>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn red small" data-new-loan-for="${escapeHtml(b.key)}">${ICON.plus}New Loan for ${escapeHtml(b.name.split(' ')[0])}</button>
+            ${b.loans.some(x => isDisbursed(x.loan)) ? `<button class="btn ghost small" data-remote-loan-for="${escapeHtml(b.key)}" title="Returning customer applying by phone or WhatsApp">${ICON.phone}Remote Repeat Loan</button>` : ''}
             <button class="btn ghost small" data-close-borrower>${ICON.close}Close</button>
           </div>
         </div>
@@ -3293,6 +3342,17 @@
     if (e.target.closest('[data-close-borrower]')) { expandedBorrower = null; renderBorrowerDetail(); return; }
     const jump = e.target.closest('[data-jump-loan]');
     if (jump) { openLoan(jump.dataset.jumpLoan); return; }
+    const rl = e.target.closest('[data-remote-loan-for]');
+    if (rl) {
+      if (!needs('applications')) return;
+      const b = groupBorrowers().find(x => x.key === rl.dataset.remoteLoanFor);
+      const latest = b && b.loans.map(x => x.loan).filter(l => isDisbursed(l) && last9(l.borrowerPhone).length === 9)
+        .sort((x, y) => (y.disbursementDate || '').localeCompare(x.disbursementDate || ''))[0];
+      if (!latest) { showToast("No paid-out loan with a phone number on file — this customer must apply in person", 5000); return; }
+      openLoanModal(null, null, {remote: true});
+      fillFromLoan(latest.refNo);
+      return;
+    }
     const nl = e.target.closest('[data-new-loan-for]');
     if (nl) {
       const b = groupBorrowers().find(x => x.key === nl.dataset.newLoanFor);
@@ -4721,7 +4781,7 @@
       fillKyc(form, loan.kyc);
     } else {
       editingLoanRefNo = null;
-      modalTitle.textContent = opts.topUpOf ? "Top-Up — " + opts.topUpOf : (prefill ? "New Loan — Repeat Customer" : "New Loan");
+      modalTitle.textContent = opts.topUpOf ? "Top-Up — " + opts.topUpOf : (opts.remote ? "Remote Repeat Loan" : (prefill ? "New Loan — Repeat Customer" : "New Application"));
       form.disbursementDate.value = todayISO();
       form.loanTermMonths.value = "1";
       form.interestRatePct.value = (RATE_CARD[1]*100).toFixed(2);
@@ -4736,10 +4796,12 @@
       }
       fillKyc(form, prefill && prefill.kyc ? prefill.kyc : null);
     }
-    pendingPhotos = {};
+    pendingPhotos = {}; remoteFill = null;
+    formNewLoan.querySelector(`input[name=channel][value=${!loan && opts.remote ? 'remote' : 'office'}]`).checked = true;
     document.getElementById('photoBorrower').value = ''; document.getElementById('photoGuarantor').value = '';
     showPhotosInForm(loan ? loan.refNo : null);
     updateStageUI();
+    updateRemoteBox();
     updateCalcPreview();
     updateEligibilityBox();
     updateCardNote();
@@ -4798,15 +4860,35 @@
       img.src = url;
     });
   }
+  // Each photo remembers how it was taken: live in the office, from a file,
+  // or carried over from the customer's previous loan (remote repeat loan).
+  const isPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  const photoEl = who => document.getElementById(who === 'guarantor' ? 'photoGuarantorPrev' : 'photoBorrowerPrev');
+  function photoNote(who, info) {
+    const el = document.getElementById(who === 'guarantor' ? 'photoGuarantorNote' : 'photoBorrowerNote');
+    if (!el) return;
+    el.style.color = '';
+    if (!info) { el.textContent = ''; return; }
+    const when = info.at ? fmtDate(String(info.at).slice(0, 10)) : '';
+    if (info.source === 'live') { el.textContent = `✓ Taken live${when ? ' ' + when : ''}${info.by ? ' by ' + info.by : ''}`; el.style.color = 'var(--good)'; }
+    else if (info.source === 'previous') {
+      const old = info.at && daysBetween(String(info.at).slice(0, 10), todayISO()) > 365;
+      el.textContent = `From ${info.fromRef}${when ? ', taken ' + when : ''}${old ? ' — over a year old: take a new one at the next visit' : ''}`;
+      el.style.color = old ? 'var(--warn)' : 'var(--info)';
+    } else { el.textContent = 'Uploaded from a file — a photo taken live in the office is better'; el.style.color = 'var(--warn)'; }
+  }
+  function setPendingPhoto(who, dataUrl, info) {
+    pendingPhotos[who] = dataUrl; pendingPhotos[who + 'Info'] = info;
+    const prev = photoEl(who); prev.src = dataUrl; prev.style.display = '';
+    photoNote(who, info);
+  }
   [['photoBorrower', 'borrower'], ['photoGuarantor', 'guarantor']].forEach(([id, who]) => {
     document.getElementById(id).addEventListener('change', async e => {
       const f = e.target.files && e.target.files[0];
       if (!f) return;
-      try {
-        pendingPhotos[who] = await resizePhoto(f);
-        const prev = document.getElementById(id + 'Prev');
-        prev.src = pendingPhotos[who]; prev.style.display = '';
-      } catch (err) { showToast("That file is not a photo"); e.target.value = ''; }
+      try { setPendingPhoto(who, await resizePhoto(f), {source: 'file', at: new Date().toISOString(), by: myName() || lastStaffName || ''}); }
+      catch (err) { showToast("That file is not a photo"); }
+      e.target.value = '';
     });
   });
   async function savePhotos(refNo) {
@@ -4816,7 +4898,9 @@
       const ref = db.collection("photos").doc(refNo);
       const old = await ref.get();
       const cur = old.exists ? old.data() : {};
-      await ref.set(Object.assign({}, cur, p.borrower ? {borrower: p.borrower} : {}, p.guarantor ? {guarantor: p.guarantor} : {},
+      await ref.set(Object.assign({}, cur,
+        p.borrower ? {borrower: p.borrower, borrowerInfo: p.borrowerInfo || null} : {},
+        p.guarantor ? {guarantor: p.guarantor, guarantorInfo: p.guarantorInfo || null} : {},
         {refNo, updatedBy: myName() || lastStaffName || '', updatedAt: new Date().toISOString()}));
       photoCache[refNo] = null;
     } catch (err) { showToast("Loan saved, but the photos could not be saved — try again from Edit", 6000); }
@@ -4831,12 +4915,208 @@
     return photoCache[refNo];
   }
   async function showPhotosInForm(refNo) {
-    ['photoBorrowerPrev', 'photoGuarantorPrev'].forEach(id => { const el = document.getElementById(id); el.style.display = 'none'; el.removeAttribute('src'); });
+    ['borrower', 'guarantor'].forEach(who => { const el = photoEl(who); el.style.display = 'none'; el.removeAttribute('src'); photoNote(who, null); });
     if (!refNo) return;
     const ph = await loadPhotos(refNo);
-    if (ph.borrower) { const el = document.getElementById('photoBorrowerPrev'); el.src = ph.borrower; el.style.display = ''; }
-    if (ph.guarantor) { const el = document.getElementById('photoGuarantorPrev'); el.src = ph.guarantor; el.style.display = ''; }
+    ['borrower', 'guarantor'].forEach(who => {
+      if (!ph[who] || pendingPhotos[who]) return;
+      const el = photoEl(who); el.src = ph[who]; el.style.display = '';
+      photoNote(who, ph[who + 'Info'] || {source: 'file', at: ph.updatedAt});
+    });
   }
+
+  // ---- Live photo: the laptop webcam or the phone camera, inside the app ----
+  const cam = {who: null, stream: null, facing: 'environment', shot: null};
+  const camVideo = document.getElementById('camVideo'), camStill = document.getElementById('camStill');
+  function cameraAllowedHere() {
+    const pp = document.permissionsPolicy || document.featurePolicy;
+    try { return !pp || typeof pp.allowsFeature !== 'function' || pp.allowsFeature('camera'); } catch (e) { return true; }
+  }
+  function camView(still) {
+    camVideo.style.display = still ? 'none' : ''; camStill.style.display = still ? '' : 'none';
+    document.getElementById('camGuide').style.display = still ? 'none' : '';
+    document.getElementById('btnCamSnap').style.display = still ? 'none' : '';
+    document.getElementById('btnCamRetake').style.display = still ? '' : 'none';
+    document.getElementById('btnCamUse').style.display = still ? '' : 'none';
+  }
+  function stopCamera() {
+    if (cam.stream) { cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null; }
+    camVideo.srcObject = null;
+    document.getElementById('btnCamSnap').disabled = true;
+  }
+  async function startCamera() {
+    stopCamera();
+    const err = document.getElementById('camErr'); err.textContent = '';
+    if (!cameraAllowedHere()) { err.textContent = 'The camera is switched off for this website. Install the latest netlify.toml file (it allows the camera), or use "Upload picture".'; return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: cam.facing}, width: {ideal: 1280}, height: {ideal: 960}}});
+      if (!document.getElementById('modalCamera').classList.contains('open')) { stream.getTracks().forEach(t => t.stop()); return; }
+      cam.stream = stream; camVideo.srcObject = stream;
+      const tr = stream.getVideoTracks()[0], st = tr && tr.getSettings ? tr.getSettings() : {};
+      camVideo.classList.toggle('mirror', st.facingMode ? st.facingMode === 'user' : !isPhone());
+      camVideo.onloadedmetadata = () => { document.getElementById('btnCamSnap').disabled = false; };
+      if (camVideo.readyState >= 1) document.getElementById('btnCamSnap').disabled = false;
+      try {
+        const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        document.getElementById('btnCamSwitch').style.display = cams.length > 1 ? '' : 'none';
+      } catch (e) {}
+    } catch (e) {
+      err.textContent = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')
+        ? 'The camera was not allowed. Click the camera icon in the browser address bar, choose Allow, then click Take photo again — or use "Upload picture".'
+        : 'No camera was found, or another app is using it. Close the other app and try again — or use "Upload picture".';
+    }
+  }
+  function openCamera(who) {
+    cam.who = who; cam.shot = null;
+    document.getElementById('cameraTitle').textContent = who === 'guarantor' ? 'Guarantor Photo' : 'Borrower Photo';
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+      // Very old phone browsers: open the phone's own camera instead.
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+      inp.addEventListener('change', async () => {
+        const f = inp.files && inp.files[0];
+        if (f) try { setPendingPhoto(who, await resizePhoto(f), {source: isPhone() ? 'live' : 'file', at: new Date().toISOString(), by: myName() || lastStaffName || ''}); } catch (e) { showToast("That file is not a photo"); }
+      });
+      inp.click();
+      return;
+    }
+    camView(false);
+    openModal('modalCamera');
+    startCamera();
+  }
+  function camSnap() {
+    const v = camVideo;
+    if (!v.videoWidth) return;
+    const W = 360, H = 450, c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    // Same crop as the preview (portrait 4:5, centred).
+    const vr = v.videoWidth / v.videoHeight, tr = W / H;
+    const sw = vr > tr ? v.videoHeight * tr : v.videoWidth, sh = vr > tr ? v.videoHeight : v.videoWidth / tr;
+    c.getContext('2d').drawImage(v, (v.videoWidth - sw) / 2, (v.videoHeight - sh) / 2, sw, sh, 0, 0, W, H);
+    cam.shot = c.toDataURL('image/jpeg', 0.75);
+    camStill.src = cam.shot;
+    camView(true);
+  }
+  document.getElementById('btnCamSnap').addEventListener('click', camSnap);
+  document.getElementById('btnCamRetake').addEventListener('click', () => { cam.shot = null; camView(false); });
+  document.getElementById('btnCamUse').addEventListener('click', () => {
+    if (!cam.shot) return;
+    setPendingPhoto(cam.who, cam.shot, {source: 'live', at: new Date().toISOString(), by: myName() || lastStaffName || ''});
+    closeModal('modalCamera');
+  });
+  document.getElementById('btnCamSwitch').addEventListener('click', () => { cam.facing = cam.facing === 'user' ? 'environment' : 'user'; camView(false); startCamera(); });
+  // However the dialog is closed (button, Escape, clicking outside), the camera is switched off.
+  new MutationObserver(() => { if (!document.getElementById('modalCamera').classList.contains('open')) stopCamera(); })
+    .observe(document.getElementById('modalCamera'), {attributes: true, attributeFilter: ['class']});
+  document.querySelectorAll('[data-camera]').forEach(b => b.addEventListener('click', () => openCamera(b.dataset.camera)));
+
+  // ---------------- Remote repeat loans ----------------
+  // A returning customer in good standing may apply by phone or WhatsApp.
+  // Their Ghana Card and photo were checked at an earlier visit, so identity is
+  // confirmed by the signing code sent to the phone number already on file.
+  let remoteFill = null;   // {fromRef, photoFrom, photoOn} once details were copied from an earlier loan
+  const channelOf = () => { const r = formNewLoan.querySelector('input[name=channel]:checked'); return r ? r.value : 'office'; };
+  function customerLoans(phone) {
+    const p9 = last9(phone);
+    return p9.length === 9 ? loans.filter(l => isDisbursed(l) && l.refNo !== editingLoanRefNo && last9(l.borrowerPhone) === p9) : [];
+  }
+  function remoteCheck(phone, cardNo, principal) {
+    const mine = customerLoans(phone).map(l => ({l, m: computeLoanMetrics(l)}))
+      .sort((a, b) => (b.l.disbursementDate || '').localeCompare(a.l.disbursementDate || ''));
+    if (!mine.length) {
+      const card = cardNo && ghanaCardValid(cardNo) ? loans.find(l => isDisbursed(l) && l.ghanaCardNo === cardNo) : null;
+      return {ok: false, reason: card
+        ? `This Ghana Card belongs to ${card.borrowerName}, whose phone on file is ${card.borrowerPhone || 'not recorded'}. A customer with a new phone number must apply in person.`
+        : 'No paid-out loan was found for this phone number. First loans, and customers with a new phone number, must apply in person.'};
+    }
+    const last = mine[0], name = last.l.borrowerName;
+    const problems = [];
+    if (!mine.some(x => x.m.status === 'Fully Paid')) problems.push('has not fully repaid a loan with us yet');
+    const late = mine.filter(x => x.m.isOverdue);
+    if (late.length) problems.push(`has an overdue loan (${late.map(x => x.l.refNo).join(', ')})`);
+    const ext = mine.filter(x => x.m.extActive || x.m.extBreached);
+    if (ext.length) problems.push(`is on a payment extension (${ext.map(x => x.l.refNo).join(', ')})`);
+    if (cardNo && cardNo !== 'GHA-' && last.l.ghanaCardNo && cardNo !== last.l.ghanaCardNo) problems.push(`gave a Ghana Card number different from the one on file (${last.l.ghanaCardNo})`);
+    if (problems.length) return {ok: false, reason: `${name} ${problems.join(' and ')} — must apply in person.`, last: last.l};
+    const warnings = [];
+    if (last.m.lateFee > 0.005) warnings.push(`Paid late before: ${fmtGHS(last.m.lateFee)} late charges on ${last.l.refNo}.`);
+    if (principal > (Number(last.l.principal) || 0) + 0.005) warnings.push(`${fmtGHS(principal)} is more than their last loan (${fmtGHS(last.l.principal)}). Many lenders ask the customer to come in for a bigger amount.`);
+    if (!(last.l.kyc && last.l.kyc.cardChecked)) warnings.push(`The Ghana Card check is not recorded on ${last.l.refNo} (older loans were before the paperless form).`);
+    return {ok: true, last: last.l, count: mine.length, active: mine.filter(x => x.m.status !== 'Fully Paid').length, warnings};
+  }
+  function setPayNowAllowed(ok) {
+    const now = formNewLoan.querySelector('input[name=stage][value=disburse]'), later = formNewLoan.querySelector('input[name=stage][value=pending]');
+    if (!now) return;
+    now.disabled = !ok;
+    if (!ok && now.checked) { later.checked = true; updateStageUI(); }
+  }
+  function updateRemoteBox() {
+    const box = document.getElementById('remoteBox');
+    const editing = editingLoanRefNo ? loans.find(l => l.refNo === editingLoanRefNo) : null;
+    document.getElementById('channelField').style.display = editing ? 'none' : '';
+    const remote = editing ? editing.channel === 'remote' : channelOf() === 'remote';
+    ['k_cardChecked', 'k_gCardChecked'].forEach(n => { const el = formNewLoan[n]; el.disabled = remote && !editing; if (el.disabled) el.checked = false; });
+    if (!editing) setPayNowAllowed(!remote);
+    if (!remote) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    if (editing) {
+      box.className = 'field span2 remote-box wait';
+      box.innerHTML = `<div>Remote repeat loan${editing.remote && editing.remote.fromRef ? ` (details from ${escapeHtml(editing.remote.fromRef)})` : ''}. The borrower phone must stay the number on file.</div>`;
+      return;
+    }
+    const phone = formNewLoan.borrowerPhone.value;
+    if (last9(phone).length !== 9) {
+      box.className = 'field span2 remote-box wait';
+      box.innerHTML = 'Type the customer\'s phone number — the one already on file. The app checks their record before anything else.';
+      return;
+    }
+    const chk = remoteCheck(phone, formNewLoan.ghanaCardNo.value.trim(), parseFloat(formNewLoan.principal.value) || 0);
+    if (!chk.ok) { box.className = 'field span2 remote-box no'; box.textContent = '✗ ' + chk.reason; return; }
+    const ref = chk.last.refNo, filled = remoteFill && remoteFill.fromRef === ref;
+    const w = chk.warnings.slice();
+    if (filled && !remoteFill.photoFrom) w.push('No photo on file — ask them to send one now (Upload picture) and take a live photo at their next visit.');
+    box.className = 'field span2 remote-box ok';
+    box.innerHTML = `<div>✓ <strong>Returning customer: ${escapeHtml(chk.last.borrowerName)}</strong> — ${chk.count} loan${chk.count === 1 ? '' : 's'} with us${chk.active ? `, ${chk.active} still being repaid` : ''}; last ${escapeHtml(ref)}. ` +
+      `The signing code will go to <strong>${escapeHtml(chk.last.borrowerPhone)}</strong>, the number on file.</div>` +
+      (filled ? `<div>Details copied from ${escapeHtml(ref)} — confirm any changes with the customer on the call.</div>`
+        : `<div><button type="button" class="btn small" data-remote-fill="${escapeHtml(ref)}">Fill details from ${escapeHtml(ref)}</button></div>`) +
+      (w.length ? `<ul>${w.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '') +
+      `<div class="cell-sub" style="margin-top:4px;">After saving: send the agreement PDF on WhatsApp, then sign with codes. The witness should be someone with the customer — not BFS staff.</div>`;
+  }
+  async function fillFromLoan(ref) {
+    const last = loans.find(l => l.refNo === ref);
+    if (!last) return;
+    const f = formNewLoan;
+    f.borrowerName.value = last.borrowerName || ''; f.borrowerPhone.value = last.borrowerPhone || ''; f.ghanaCardNo.value = last.ghanaCardNo || '';
+    f.guarantorName.value = last.guarantorName || ''; f.guarantorPhone.value = last.guarantorPhone || '';
+    const k = Object.assign({}, last.kyc || {});
+    ['witnessName', 'witnessPhone', 'cardChecked', 'gCardChecked', 'incomeChecked', 'checkedBy', 'checkedOn'].forEach(x => delete k[x]);
+    fillKyc(f, k);
+    remoteFill = {fromRef: ref, photoFrom: null, photoOn: null};
+    updateEligibilityBox(); updateCardNote(); updateStageUI(); updateCalcPreview(); updateRemoteBox();
+    // The newest photo on file for this customer.
+    const mine = customerLoans(last.borrowerPhone).sort((a, b) => (b.disbursementDate || '').localeCompare(a.disbursementDate || ''));
+    for (const l of mine) {
+      const ph = await loadPhotos(l.refNo);
+      if (!ph || !ph.borrower) continue;
+      if (!remoteFill || remoteFill.fromRef !== ref) return;      // the form was changed meanwhile
+      const at = String((ph.borrowerInfo && ph.borrowerInfo.at) || ph.updatedAt || l.createdAt || l.disbursementDate || '').slice(0, 10);
+      if (!pendingPhotos.borrower) setPendingPhoto('borrower', ph.borrower, {source: 'previous', fromRef: l.refNo, at});
+      remoteFill.photoFrom = l.refNo; remoteFill.photoOn = at;
+      if (ph.guarantor && !pendingPhotos.guarantor && last9(l.guarantorPhone) && last9(l.guarantorPhone) === last9(f.guarantorPhone.value)) {
+        setPendingPhoto('guarantor', ph.guarantor, {source: 'previous', fromRef: l.refNo, at: String((ph.guarantorInfo && ph.guarantorInfo.at) || at).slice(0, 10)});
+      }
+      break;
+    }
+    updateRemoteBox();
+  }
+  document.getElementById('remoteBox').addEventListener('click', e => {
+    const b = e.target.closest('[data-remote-fill]');
+    if (b) fillFromLoan(b.dataset.remoteFill);
+  });
+  formNewLoan.querySelectorAll('input[name=channel]').forEach(r => r.addEventListener('change', () => { remoteFill = null; updateRemoteBox(); }));
+  ['borrowerPhone', 'ghanaCardNo', 'principal'].forEach(n => formNewLoan[n].addEventListener('input', updateRemoteBox));
+
   function updateStageUI() {
     const editing = !!editingLoanRefNo;
     const loan = editing ? loans.find(l => l.refNo === editingLoanRefNo) : null;
@@ -4941,7 +5221,7 @@
 
   // Pays out a loan (new or pending): records the pay-out, and for a top-up
   // clears the old loan's balance with a settlement payment.
-  async function disburseLoanObject(base, dateISO, via, staffName) {
+  async function disburseLoanObject(base, dateISO, via, staffName, note) {
     let settlement = 0, old = null;
     if (base.topUpOf) {
       old = loans.find(l => l.refNo === base.topUpOf);
@@ -4969,7 +5249,7 @@
         logActivity("Top-up Settlement", `${fmtGHS(settlement)} cleared ${old.refNo} (${old.borrowerName}) from new loan ${base.refNo}`, staffName);
       }
       logActivity("Loan Disbursed",
-        `${base.refNo} — ${fmtGHS(cash)} paid to ${base.borrowerName} via ${via} on ${fmtDate(dateISO)} (principal ${fmtGHS(principal)}, fee ${fmtGHS(fee)}${settlement > 0.005 ? ", old balance " + fmtGHS(settlement) : ""})`,
+        `${base.refNo} — ${fmtGHS(cash)} paid to ${base.borrowerName} via ${via} on ${fmtDate(dateISO)} (principal ${fmtGHS(principal)}, fee ${fmtGHS(fee)}${settlement > 0.005 ? ", old balance " + fmtGHS(settlement) : ""})${note ? " — " + note : ""}`,
         staffName);
       return doc;
     } catch (err) {
@@ -5024,6 +5304,10 @@
 
     if (editing) {
       const before = loans.find(l => l.refNo === editing);
+      if (before.channel === 'remote' && last9(fields.borrowerPhone) !== last9(before.borrowerPhone)) {
+        showToast("This is a remote repeat loan — the borrower phone must stay the number on file. For a new number, the customer must apply in person.", 7000);
+        formNewLoan.borrowerPhone.focus(); return;
+      }
       const merged = Object.assign(stripId(before), fields);
       (async () => {
         btn.disabled = true;
@@ -5044,7 +5328,17 @@
     const base = Object.assign({}, fields, {stage: 'pending', createdAt: new Date().toISOString()});
     const topUpOf = (fd.get('topUpOf') || '').trim();
     if (topUpOf) base.topUpOf = topUpOf;
-    const stageChoice = can('payout') ? fd.get('stage') : 'pending';
+    const remote = channelOf() === 'remote';
+    if (remote) {
+      const chk = remoteCheck(fields.borrowerPhone, fields.ghanaCardNo, fields.principal);
+      if (!chk.ok) { showToast(chk.reason, 7000); formNewLoan.borrowerPhone.focus(); return; }
+      const fill = remoteFill && remoteFill.fromRef === chk.last.refNo ? remoteFill : {};
+      base.channel = 'remote';
+      base.remote = {fromRef: chk.last.refNo, idCheckedOn: (chk.last.kyc && chk.last.kyc.cardChecked && chk.last.kyc.checkedOn) || chk.last.disbursementDate || '',
+        idCheckedBy: (chk.last.kyc && chk.last.kyc.cardChecked && chk.last.kyc.checkedBy) || '', photoFrom: fill.photoFrom || '', photoOn: fill.photoOn || '',
+        by: myName() || fields.processedBy || '', at: new Date().toISOString()};
+    }
+    const stageChoice = can('payout') && !remote ? fd.get('stage') : 'pending';
     const via = fd.get('disbursedVia');
     const wantText = fd.get('sendText') === 'on' && document.getElementById('appTextRow').style.display !== 'none';
     withRuleCheck(base, null, overrideBy => saveNewApplication(base, topUpOf, stageChoice, btn, overrideBy, via, wantText));
@@ -5076,7 +5370,7 @@
         await db.collection("loans").doc(refNo).set(base);
         await savePhotos(refNo);
         logActivity("Application Created",
-          `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (pending, not paid out)`,
+          `${refNo} for ${base.borrowerName} — ${fmtGHS(base.principal)} over ${base.loanTermMonths} mo${topUpOf ? ", top-up of " + topUpOf : ""} (pending, not paid out)${base.channel === 'remote' ? ` — remote repeat loan, details from ${base.remote.fromRef}` : ""}`,
           base.processedBy);
         showToast("Application " + refNo + " saved — next, sign the agreement", 4500);
         closeModal('modalNewLoan');
@@ -5112,6 +5406,12 @@
     const textOk = canTextCustomer(loan.borrowerPhone);
     document.getElementById('disbTextRow').style.display = textOk ? '' : 'none';
     formDisburse.sendText.checked = textOk;
+    // Remote repeat loan: money goes only to the customer's own number, and the name shown must match.
+    const remote = loan.channel === 'remote';
+    document.getElementById('disbRemoteRow').style.display = remote ? '' : 'none';
+    formDisburse.remoteNameOk.checked = false;
+    document.getElementById('disbRemoteText').innerHTML = remote
+      ? `<strong>Remote loan:</strong> I am sending the money only to <strong>${escapeHtml(loan.borrowerPhone || '')}</strong> (the number on file), and the MoMo / account name shown is <strong>${escapeHtml(loan.borrowerName)}</strong>.` : '';
     updateDisburseSummary();
     openModal('modalDisburse');
   }
@@ -5144,7 +5444,13 @@
     const btn = formDisburse.querySelector('button[type=submit]');
     btn.disabled = true;
     const wantText = formDisburse.sendText.checked && document.getElementById('disbTextRow').style.display !== 'none';
-    const doc = await disburseLoanObject(stripId(loan), formDisburse.date.value, formDisburse.via.value, editAuthName);
+    const remote = loan.channel === 'remote';
+    if (remote && !formDisburse.remoteNameOk.checked) {
+      btn.disabled = false;
+      showToast("Remote loan: tick the box only after checking the MoMo name matches the customer. If it does not match, do not send.", 7000); return;
+    }
+    const doc = await disburseLoanObject(stripId(loan), formDisburse.date.value, formDisburse.via.value, editAuthName,
+      remote ? `remote loan: sent only to ${loan.borrowerPhone} (number on file) and the name shown matched` : '');
     btn.disabled = false;
     if (doc) {
       showToast("Loan " + loan.refNo + " paid out"); closeModal('modalDisburse');
@@ -5589,7 +5895,9 @@
     return `<div class="sign-panel">
       <h4>${ICON.loans} Loan Agreement ${head}</h4>
       <div class="cell-sub" style="margin-bottom:6px;">${pending
-        ? (online ? '1. View Agreement with the customer. 2. Click Sign with SMS code — a code goes to their phone. 3. Type the code they read back. Pay-out unlocks when the borrower, guarantor and witness have all signed.' : 'Code signing works on the online version only.')
+        ? (online ? (loan.channel === 'remote'
+            ? '<strong>Remote repeat loan.</strong> 1. Download Agreement PDF and send it to the customer on WhatsApp, or read the key terms on the call. 2. Click Sign with SMS code — the code goes to the number on file. 3. Type the code they read back. Pay-out unlocks when the borrower, guarantor and witness have all signed.'
+            : '1. View Agreement with the customer. 2. Click Sign with SMS code — a code goes to their phone. 3. Type the code they read back. Pay-out unlocks when the borrower, guarantor and witness have all signed.') : 'Code signing works on the online version only.')
         : (s.complete ? 'Signed electronically before pay-out.' : s.paper ? `Paid out on a paper agreement (${escapeHtml(s.paper.by || '')}, ${escapeHtml(fmtDate(s.paper.on || ''))}).` : 'Paid out before electronic signing was used.')}</div>
       ${row('borrower', 'Borrower', loan.borrowerName, loan.borrowerPhone, s.b)}
       ${row('guarantor', 'Guarantor', loan.guarantorName, loan.guarantorPhone, s.g)}
@@ -5666,6 +5974,7 @@
   // The agreement as shown on screen (read to the customer before signing).
   function agreementHtml(loan) {
     const m = computeLoanMetrics(loan), k = loan.kyc || {}, s = signStatus(loan), wv = witnessOf(loan);
+    const rm = loan.channel === 'remote' ? (loan.remote || {}) : null;
     const E = v => escapeHtml(v === undefined || v === null || v === '' ? '—' : String(v));
     const cell = (label, val, wide) => `<div class="agr-cell${wide ? ' wide' : ''}"><span>${escapeHtml(label)}</span><b>${E(val)}</b></div>`;
     const sec = (title, tag, body) => `<div class="agr-sec"><div class="agr-bar">${escapeHtml(title)}${tag ? `<i>${escapeHtml(tag)}</i>` : ''}</div>${body}</div>`;
@@ -5685,9 +5994,9 @@
         <div><div class="agr-co">BENANSAH FINANCIAL SOLUTIONS</div><div class="agr-title">Loan Agreement &amp; Credit Application</div>
           <div class="cell-sub">${escapeHtml(AGREEMENT_VERSION)} · Tel ${escapeHtml(COMPANY.phone)}</div></div>
         <div class="agr-meta"><div><span>Agreement No.</span>${escapeHtml('BFS-LN-' + loan.refNo.replace(/^BFS-/, ''))}</div><div><span>Loan Ref</span>${escapeHtml(loan.refNo)}</div>
-          <div><span>Date</span>${escapeHtml(fmtDate((loan.createdAt || todayISO()).slice(0, 10)))}</div><div><span>Status</span>${escapeHtml(status)}</div></div>
+          <div><span>Date</span>${escapeHtml(fmtDate((loan.createdAt || todayISO()).slice(0, 10)))}</div><div><span>Status</span>${escapeHtml(status)}${rm ? ' · Remote' : ''}</div></div>
       </div>
-      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}. Read it together before anyone signs.</p>
+      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}. ${rm ? `<strong>Remote repeat loan:</strong> a returning customer applying by phone; identity is confirmed by the signing code sent to the phone number on file. Send this agreement to the customer before anyone signs.` : 'Read it together before anyone signs.'}</p>
       <div class="agr-keys">
         <div><span>You receive</span><b>${fmtGHS(m.netDisbursed)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee of ${fmtGHS(m.processingFee)}</small></div>
         <div><span>You repay in total</span><b>${fmtGHS(m.totalRepayment)}</b><small>${m.term === 1 ? `one payment on ${escapeHtml(fmtDate(m.firstDueDate))}` : `${m.term} × ${fmtGHS(m.monthlyInstallment)} from ${escapeHtml(fmtDate(m.firstDueDate))}`}</small></div>
@@ -5700,8 +6009,11 @@
         cell('Preferred language', k.language), cell('Other active loans', k.otherLoans || 'None declared')]))}
       ${sec('2. Guarantor information', '', loan.guarantorName || loan.guarantorPhone ? grid([cell('Guarantor name', loan.guarantorName), cell('Service No. & rank', k.gServiceRank), cell('Ghana Card No.', k.gCard), cell('Phone / MoMo No.', loan.guarantorPhone),
         cell('Station / unit / division', k.gStation), cell('Relationship to borrower', k.gRelationship), cell('Residential address / GPS', k.gAddress, true)]) : '<div class="cell-sub" style="padding:6px 2px;">No guarantor on this loan.</div>')}
-      ${sec('3. Verification', 'By BFS staff', grid([cell("Borrower's Ghana Card", k.cardChecked ? 'Original checked in person' : 'Not recorded'), cell("Guarantor's Ghana Card", k.gCardChecked ? 'Original checked in person' : 'Not recorded'),
-        cell('Income / employment', k.incomeChecked ? 'Proof seen' : 'Not recorded'), cell('Verified by & date', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : '')]))}
+      ${sec('3. Verification', rm ? 'Remote repeat loan' : 'By BFS staff', grid((rm ? [cell('Application channel', 'Remote repeat loan (by phone / WhatsApp)'), cell('Identity confirmed by', `Signing code sent to the phone number on file since ${rm.fromRef || 'an earlier loan'}`),
+          cell("Borrower's Ghana Card", rm.idCheckedOn ? `Checked in person ${fmtDate(rm.idCheckedOn)}${rm.idCheckedBy ? ' by ' + rm.idCheckedBy : ''} (${rm.fromRef})` : `Checked at an earlier visit (${rm.fromRef})`),
+          cell('Borrower photo', rm.photoFrom ? `From ${rm.photoFrom}${rm.photoOn ? ', taken ' + fmtDate(rm.photoOn) : ''}` : 'No photo on file')] : [])
+        .concat([cell("Borrower's Ghana Card" + (rm ? ' (this time)' : ''), k.cardChecked ? 'Original checked in person' : (rm ? 'Not seen (remote)' : 'Not recorded')), cell("Guarantor's Ghana Card", k.gCardChecked ? 'Original checked in person' : 'Not recorded'),
+        cell('Income / employment', k.incomeChecked ? 'Proof seen' : 'Not recorded'), cell('Verified by & date', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : (rm ? `${rm.by || ''}${rm.at ? ', ' + fmtDate(rm.at.slice(0, 10)) : ''}` : ''))])))}
       ${sec('4. Loan details & repayment', 'Completed by BFS staff', grid([cell('Principal amount', fmtGHS(m.principal)), cell('Interest rate', rateTxt),
         cell(`Processing fee (${(m.feePct * 100).toFixed(0)}%, deducted)`, fmtGHS(m.processingFee)), cell('Net amount received', net),
         cell('Total interest payable', fmtGHS(m.interestAmount)), cell('Total payable', fmtGHS(m.totalRepayment)),
@@ -5735,6 +6047,7 @@
     try { JsPDF = await loadJsPDF(); } catch (e) { showToast("Could not load the PDF maker — check your internet", 4000); return; }
     const ph = storageMode ? await loadPhotos(refNo) : {};
     const m = computeLoanMetrics(loan), k = loan.kyc || {}, s = signStatus(loan), wv = witnessOf(loan);
+    const rm = loan.channel === 'remote' ? (loan.remote || {}) : null;
     const doc = new JsPDF({unit: 'pt', format: 'a4'});
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 34, CW = W - 2 * M, TOP = 40, BOTTOM = 44;
     const NAVY = [11, 61, 107], RED = [168, 39, 26], INK = [20, 30, 40], MUTE = [91, 107, 124], LINE = [201, 209, 219], LBG = [241, 243, 246], GOOD = [21, 128, 61];
@@ -5781,7 +6094,7 @@
     font('bold', 18, NAVY); doc.text('BENANSAH FINANCIAL SOLUTIONS', M, y + 14);
     font('bold', 10.5, INK); doc.text('LOAN AGREEMENT & CREDIT APPLICATION', M, y + 30);
     font('italic', 8, MUTE); doc.text(pdfSafe(COMPANY.tagline + '  ·  Tel ' + COMPANY.phone), M, y + 42);
-    const status = isDisbursed(loan) ? `Paid out ${fmtDate(loan.disbursementDate)}` : loanStage(loan) === 'declined' ? 'Declined' : (s.complete ? 'Signed - awaiting pay-out' : 'Awaiting signatures');
+    const status = (isDisbursed(loan) ? `Paid out ${fmtDate(loan.disbursementDate)}` : loanStage(loan) === 'declined' ? 'Declined' : (s.complete ? 'Signed - awaiting pay-out' : 'Awaiting signatures')) + (rm ? ' (remote)' : '');
     const info = [['Agreement No.', 'BFS-LN-' + loan.refNo.replace(/^BFS-/, '')], ['Loan Ref', loan.refNo],
       ['Date', fmtDate((loan.createdAt || todayISO()).slice(0, 10))], ['Status', status]];
     font('normal', 8, INK);
@@ -5798,7 +6111,9 @@
     y += 104;
     doc.setDrawColor(...RED); doc.setLineWidth(1.4); doc.line(M, y, M + CW, y); y += 6;
     para(`This Loan Agreement is made between Benansah Financial Solutions ("the Lender") and the Borrower named in Section 1, with the Guarantor named in Section 2. ` +
-      `It was explained to the Borrower and Guarantor in person and signed electronically by each of them, and by an independent Witness, using a one-time code sent by SMS to their own phone (Section 6).`, 8.2, 'normal', INK);
+      (rm ? `This is a remote repeat loan: the Borrower, a returning customer, applied by phone. The Agreement was sent to the Borrower before signing, and the Borrower's identity was confirmed by the code sent to the phone number on file since loan ${rm.fromRef || ''}. ` +
+            `It was signed electronically by the Borrower, the Guarantor and an independent Witness, each using a one-time code sent by SMS to their own phone (Section 6).`
+          : `It was explained to the Borrower and Guarantor in person and signed electronically by each of them, and by an independent Witness, using a one-time code sent by SMS to their own phone (Section 6).`), 8.2, 'normal', INK);
 
     // ---- 1. Borrower
     section('1. BORROWER INFORMATION');
@@ -5819,9 +6134,14 @@
     row1('Residential Address / GPS', k.gAddress);
 
     // ---- 3. Verification
-    section('3. VERIFICATION', 'BY BFS STAFF');
-    row2("Borrower's Ghana Card", k.cardChecked ? 'Original checked in person' : 'Not recorded', "Guarantor's Ghana Card", k.gCardChecked ? 'Original checked in person' : 'Not recorded');
-    row2('Income / Employment', k.incomeChecked ? 'Proof seen' : 'Not recorded', 'Verified By & Date', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : '');
+    section('3. VERIFICATION', rm ? 'REMOTE REPEAT LOAN' : 'BY BFS STAFF');
+    if (rm) {
+      row2('Application Channel', 'Remote repeat loan (by phone / WhatsApp)', 'Identity Confirmed By', `Signing code sent to the phone number on file since ${rm.fromRef || 'an earlier loan'}`);
+      row2("Borrower's Ghana Card", rm.idCheckedOn ? `Checked in person ${fmtDate(rm.idCheckedOn)}${rm.idCheckedBy ? ' by ' + rm.idCheckedBy : ''} (${rm.fromRef})` : `Checked at an earlier visit (${rm.fromRef})`,
+        'Borrower Photo', rm.photoFrom ? `From ${rm.photoFrom}${rm.photoOn ? ', taken ' + fmtDate(rm.photoOn) : ''}` : 'No photo on file');
+    }
+    row2("Borrower's Ghana Card" + (rm ? ' (this time)' : ''), k.cardChecked ? 'Original checked in person' : (rm ? 'Not seen (remote)' : 'Not recorded'), "Guarantor's Ghana Card", k.gCardChecked ? 'Original checked in person' : 'Not recorded');
+    row2('Income / Employment', k.incomeChecked ? 'Proof seen' : 'Not recorded', 'Verified By & Date', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : (rm ? `${rm.by || ''}${rm.at ? ', ' + fmtDate(rm.at.slice(0, 10)) : ''}` : ''));
     para('In line with National Identification Authority (NIA) guidance, this office does not keep copies of the Ghana Card; the original is checked in person.', 7.4, 'italic', MUTE);
 
     // ---- 4. Loan details
@@ -6530,7 +6850,7 @@
         ML.f(r, 20, `IF(T${r}<=0,"Fully Paid","${quote(status)}")`, status, cs('center', b));
         ML.f(r, 21, `IF(T${r}<=0,"Excellent","${quote(m.performanceRating)}")`, m.performanceRating, cs('center', b));
       }
-      const notes = [l.purpose, l.topUpOf ? 'Top-up of ' + l.topUpOf : '',
+      const notes = [l.purpose, l.topUpOf ? 'Top-up of ' + l.topUpOf : '', l.channel === 'remote' ? 'Remote repeat loan' : '',
         m.extActive ? 'Extended to ' + fmtDate(m.extension.date) : (m.extBreached ? 'Extension date ' + fmtDate(m.extension.date) + ' missed' : ''),
         m.overpaid > 0.005 ? 'Overpaid ' + fmtGHS(m.overpaid) : ''].filter(Boolean).join('; ');
       ML.cell(r, 22, notes, cs('text', b));
@@ -6795,7 +7115,7 @@
     const apps = loans.filter(l => !isDisbursed(l)).sort((a, b) => (b.createdAt || b.disbursementDate || '').localeCompare(a.createdAt || a.disbursementDate || ''));
     apps.forEach((l, i) => {
       const r = 5 + i, b = i % 2 === 1, m = computeLoanMetrics(l), stg = loanStage(l);
-      const status = stg === 'declined' ? 'Declined' : (m.onHold ? `On hold ${m.holdDays} day${m.holdDays === 1 ? '' : 's'}: ${l.hold.reason || ''}${l.hold.note ? ' — ' + l.hold.note : ''}` : 'Pending — not paid out');
+      const status = (stg === 'declined' ? 'Declined' : (m.onHold ? `On hold ${m.holdDays} day${m.holdDays === 1 ? '' : 's'}: ${l.hold.reason || ''}${l.hold.note ? ' — ' + l.hold.note : ''}` : 'Pending — not paid out')) + (l.channel === 'remote' ? ' (remote repeat loan)' : '');
       const s = stg === 'pending' ? signStatus(l) : null;
       LA.cell(r, 0, l.refNo, cs('center', b)); LA.cell(r, 1, l.borrowerName || '', cs('text', b)); LA.cell(r, 2, l.borrowerPhone || '', cs('center', b));
       LA.cell(r, 3, m.principal, cs('money', b)); LA.cell(r, 4, m.term, cs('int', b)); LA.date(r, 5, (l.createdAt || l.disbursementDate || '').slice(0, 10), cs('date', b));
