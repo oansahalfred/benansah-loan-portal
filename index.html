@@ -5325,7 +5325,7 @@
           await db.collection("loans").doc(refNo).set(merged);
           await savePhotos(refNo);
           let changes = describeChanges(Object.assign({processingFeePct: feePctOf(before)}, before), merged, LOAN_FIELDS);
-          if (JSON.stringify(before.kyc || {}) !== JSON.stringify(merged.kyc || {})) changes = (changes ? changes + "; " : "") + "application details updated";
+          if (stableJson(before.kyc || {}) !== stableJson(merged.kyc || {})) changes = (changes ? changes + "; " : "") + "application details updated";
           logActivity("Loan Edited", `${refNo} (${merged.borrowerName}) — ${changes || "saved with no changes"}`, editAuthName);
           showToast("Loan " + refNo + " updated");
           closeModal('modalNewLoan');
@@ -5872,7 +5872,14 @@
       principal: num(loan.principal), interestRatePct: num(loan.interestRatePct), loanTermMonths: num(loan.loanTermMonths),
       processingFeePct: num(feePctOf(loan))};
   }
-  const sameTerms = (a, b) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+  // The database returns stored fields in alphabetical order, so records are
+  // compared field by field — never by their written order.
+  function stableJson(o) {
+    const sort = v => Array.isArray(v) ? v.map(sort) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sort(v[k])])) : v;
+    return JSON.stringify(sort(o));
+  }
+  const TERM_KEYS = ['borrowerName', 'borrowerPhone', 'guarantorName', 'guarantorPhone', 'principal', 'interestRatePct', 'loanTermMonths', 'processingFeePct'];
+  const sameTerms = (a, b) => !!a && !!b && TERM_KEYS.every(k => String(a[k] == null ? '' : a[k]) === String(b[k] == null ? '' : b[k]));
   const guarantorNeeded = loan => (loan.guarantorPhone || '').replace(/\D/g, '').length >= 9;
   const last9 = p => String(p || '').replace(/\D/g, '').slice(-9);
   const witnessOf = loan => ({name: ((loan.kyc || {}).witnessName || '').trim(), phone: ((loan.kyc || {}).witnessPhone || '').trim()});
@@ -6273,7 +6280,7 @@
     y += 10;
     const terms = signTerms(loan);
     let fp = '-';
-    try { fp = (await sha256Hex(JSON.stringify({terms, sign: loan.sign || {}, ref: loan.refNo}))).toUpperCase().match(/.{1,8}/g).join(' '); } catch (e) {}
+    try { fp = (await sha256Hex(stableJson({terms, sign: loan.sign || {}, ref: loan.refNo}))).toUpperCase().match(/.{1,8}/g).join(' '); } catch (e) {}
     row2('Terms signed', `${money(Number(terms.principal))} over ${terms.loanTermMonths} month(s), interest ${(Number(terms.interestRatePct) * 100).toFixed(2)}% total, fee ${(Number(terms.processingFeePct) * 100).toFixed(0)}%`, 'Signature method', 'SMS one-time code (6 digits, valid 10 minutes, 5 attempts)');
     row1('Document fingerprint (SHA-256)', fp);
     row1('Generated', `${fmtStamp(new Date().toISOString())} by ${myName() || lastStaffName || 'staff'}`);
