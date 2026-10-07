@@ -144,7 +144,7 @@ export default async (req) => {
       const at = new Date().toISOString();
       const id = "SIG-" + crypto.randomBytes(5).toString("hex").toUpperCase();
       const rec = {at, phone: to, name: String(name || ""), by: who.name + " (" + who.email + ")", method: "SMS one-time code", id,
-        agreement: "BFS-LA v2 (October 2026)", terms};
+        agreement: "BFS-LA v3 (October 2026)", terms};
       // Only sign.<role> is written; the rest of the loan is untouched.
       const r = await fetch(`${FS}/loans/${encodeURIComponent(refNo)}?updateMask.fieldPaths=sign.${role}`, {
         method: "PATCH", headers: {authorization: "Bearer " + robot, "content-type": "application/json"},
