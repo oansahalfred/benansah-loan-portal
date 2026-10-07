@@ -2900,10 +2900,10 @@
     renderLoanDetail();
   }
 
-  // A top-up needs at least half of the current loan repaid and nothing overdue.
   // ---------------- Lending rules ----------------
   // 1. A customer may have only one active loan or pending application; more
-  //    money comes through a Top-Up, which needs 50% repaid and nothing overdue.
+  //    money comes through a Top-Up (rules in topUpCheck below: 50% repaid,
+  //    never late, no extension, not itself a top-up, at most 1.5x the loan).
   // 2. A guarantor cannot have an active loan, and cannot be the borrower.
   // People are matched by phone number, Ghana Card or name.
   const phoneKey = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; };
@@ -2923,13 +2923,15 @@
       if (app.topUpOf && l.refNo === app.topUpOf) {
         const why = topUpCheck(l, computeLoanMetrics(l));
         if (why && !/already pending/.test(why)) issues.push(`Top-up of ${l.refNo} not allowed: ${why}`);
+        const amt = Number(app.principal) || 0;
+        if (amt > topUpMax(l) + 0.005) issues.push(`Top-up of ${l.refNo} not allowed: the most allowed is ${fmtGHS(topUpMax(l))} (${TOPUP_MAX_MULTIPLE} times the current loan of ${fmtGHS(l.principal)}).`);
         return;
       }
       if (loanStage(l) === 'pending') issues.push(`${l.borrowerName} already has a pending application (${l.refNo}).`);
       else if (isActiveLoan(l)) {
         const m = computeLoanMetrics(l);
         const pct = m.totalRepayment ? Math.floor(m.amountPaid / m.totalRepayment * 100) : 0;
-        issues.push(`${l.borrowerName} already has an active loan ${l.refNo} (${pct}% repaid${m.isOverdue ? ', overdue' : ''}). Use Top-Up on that loan instead — allowed once half is repaid and nothing is overdue.`);
+        issues.push(`${l.borrowerName} already has an active loan ${l.refNo} (${pct}% repaid${m.isOverdue ? ', overdue' : ''}). Use Top-Up on that loan instead — allowed once half is repaid, with no late payments.`);
       }
     });
     const g = {name: normName(app.guarantorName), phone: phoneKey(app.guarantorPhone), card: ''};
@@ -2956,15 +2958,22 @@
     const box = document.getElementById('eligibilityBox');
     if (editingLoanRefNo) { box.style.display = 'none'; return; }
     const issues = eligibilityIssues({borrowerName: f.borrowerName.value, borrowerPhone: f.borrowerPhone.value, ghanaCardNo: f.ghanaCardNo.value,
-      guarantorName: f.guarantorName.value, guarantorPhone: f.guarantorPhone.value, topUpOf: (f.topUpOf.value || '').trim()}, null);
+      guarantorName: f.guarantorName.value, guarantorPhone: f.guarantorPhone.value, topUpOf: (f.topUpOf.value || '').trim(), principal: parseFloat(f.principal.value) || 0}, null);
     box.style.display = issues.length ? '' : 'none';
     box.innerHTML = issues.map(i => '⛔ ' + escapeHtml(i)).join('<br>');
   }
 
+  // Top-up rules: half repaid, a clean payment record (never late, never
+  // rescheduled), not itself a top-up, and at most 1.5 times the current loan.
+  const TOPUP_MAX_MULTIPLE = 1.5;
+  const topUpMax = loan => round2((Number(loan.principal) || 0) * TOPUP_MAX_MULTIPLE);
   function topUpCheck(loan, m) {
     if (m.stage !== 'disbursed' || m.totalPayableWithPenalty <= 0.005) return "This loan is already fully paid — create a normal new loan instead.";
     if (m.isOverdue) return "Not available while the loan is overdue. Collect the arrears first.";
     if (loans.some(x => x.topUpOf === loan.refNo && loanStage(x) === 'pending')) return "A top-up application for this loan is already pending.";
+    if (loan.topUpOf) return `This loan is already a top-up (of ${loan.topUpOf}). It must be fully repaid before the customer borrows again.`;
+    if (m.lateFee > 0.005) return `Not available: this loan had late payments (${fmtGHS(m.lateFee)} in late charges). A top-up needs a clean payment record. The customer can take a new loan after paying this one in full.`;
+    if (m.extension) return "Not available: this loan's payments were rescheduled with an extension. It must be fully repaid before the customer borrows again.";
     const share = m.totalRepayment ? m.amountPaid / m.totalRepayment : 0;
     if (share < 0.5) return `Available once half is repaid — ${Math.floor(share * 100)}% paid so far (${fmtGHS(m.amountPaid)} of ${fmtGHS(m.totalRepayment)}).`;
     return "";
@@ -5160,7 +5169,8 @@
       else if (info) settlement = info.m.totalPayableWithPenalty;
       banner.style.display = '';
       banner.innerHTML = info
-        ? `<strong>Top-up of ${escapeHtml(topRef)}</strong> (${escapeHtml(info.old.borrowerName)}): ${editingLoan && isDisbursed(editingLoan) ? 'cleared' : 'current balance'} <strong>${fmtGHS(settlement)}</strong> ${editingLoan && isDisbursed(editingLoan) ? 'was' : 'will be'} paid off from this new loan when it is paid out. The customer receives the rest.`
+        ? `<div><strong>Top-up of ${escapeHtml(topRef)}</strong> (${escapeHtml(info.old.borrowerName)}): ${editingLoan && isDisbursed(editingLoan) ? 'cleared' : 'current balance'} <strong>${fmtGHS(settlement)}</strong> ${editingLoan && isDisbursed(editingLoan) ? 'was' : 'will be'} paid off from this new loan when it is paid out. The customer receives the rest.</div>` +
+          (editingLoan ? '' : `<div style="margin-top:4px;">Most allowed: <strong>${fmtGHS(topUpMax(info.old))}</strong> (${TOPUP_MAX_MULTIPLE} times the current loan of ${fmtGHS(info.old.principal)}).</div>`)
         : `Top-up of ${escapeHtml(topRef)}`;
     } else {
       banner.style.display = 'none';
@@ -5215,7 +5225,7 @@
     else if (ghanaCardValid(v)) { note.textContent = '✓ Format correct. Check it against the physical card.'; note.style.color = 'var(--good)'; }
     else { note.textContent = `${digits} of 10 digits entered.`; note.style.color = 'var(--danger)'; }
   }
-  ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
+  ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone', 'principal'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
   formNewLoan.borrowerPhone.addEventListener('input', updateStageUI);
   formNewLoan.disbursedVia.addEventListener('change', updateStageUI);
 
@@ -5826,8 +5836,10 @@
   // The customer (and guarantor) sign by reading back a 6-digit code texted
   // to their own phone. The code is made and checked on the server, so staff
   // never see it; the server records the signature with the exact loan terms.
-  const AGREEMENT_VERSION = "BFS-LA v2 (October 2026)";
-  const AGREEMENT_CLAUSES = [
+  // Each signature records the agreement version; the wording each customer
+  // signed is kept, so an old agreement never shows newer terms.
+  const AGREEMENT_VERSION = "BFS-LA v3 (October 2026)";
+  const AGREEMENT_CLAUSES_V2 = [
     ["Repayment Obligation", "The Borrower agrees to repay the full Principal Amount plus interest strictly according to the agreed schedule, on or before each due date and the Final Due Date stated above."],
     ["Processing Fee", "A one-time processing fee of 2% of the Principal Amount is deducted when the loan is paid out. The Borrower receives the Net Amount stated above but repays the full Principal plus interest. The fee is not refundable once funds are paid out."],
     ["Late Payment Charges", "If an installment is not paid in full by its due date, a late charge of 10% of the unpaid part of that installment is added on the day after the due date, and a further 10% of what is still unpaid 15 days after the due date. Each missed installment is charged separately, up to a maximum of 20% of that installment. Amounts not yet due are never charged, and late charges are never calculated on earlier late charges."],
@@ -5841,6 +5853,13 @@
     ["Data Protection", "Personal information collected (including Ghana Card details) will be used only for loan verification, administration and recovery, and will not be shared with unauthorised third parties, in line with the Data Protection Act, 2012 (Act 843)."],
     ["Electronic Signature", "The Borrower, Guarantor and Witness agree that entering the one-time code sent by SMS to their own phone number is their signature on this Agreement, with the same effect as a handwritten signature, and that the electronic record kept by Benansah Financial Solutions is the original Agreement."]
   ];
+  const AGREEMENT_CLAUSES = AGREEMENT_CLAUSES_V2.map(c => c[0] === 'Top-Up' ? ['Top-Up', "The Borrower may apply for a top-up only when: (a) at least 50% of the Total Payable has been repaid; (b) no installment of this loan has ever been paid late, and its payments have not been rescheduled by an extension; (c) this loan is not itself a top-up; and (d) the top-up amount is not more than 1.5 times the Principal Amount of this loan. The new loan first clears the remaining balance of this loan and the Borrower receives the rest, less the processing fee. A top-up is a new agreement, approved at the discretion of Benansah Financial Solutions."] : c);
+  const AGREEMENT_TEXTS = {"BFS-LA v2 (October 2026)": AGREEMENT_CLAUSES_V2, [AGREEMENT_VERSION]: AGREEMENT_CLAUSES};
+  function agreementVersionOf(loan) {
+    const b = loan && loan.sign && loan.sign.borrower;
+    return b && b.agreement && AGREEMENT_TEXTS[b.agreement] && signStatus(loan).b.state === 'ok' ? b.agreement : AGREEMENT_VERSION;
+  }
+  const clausesOf = loan => AGREEMENT_TEXTS[agreementVersionOf(loan)];
   const BORROWER_DECLARATION = "I confirm that all details given are true and accurate, and that I am not currently blacklisted or in default with any other lender. I have read, understood and agree to be bound by all terms of this Agreement, including the interest rate, the 2% processing fee, the repayment schedule and the late charge terms.";
   const WITNESS_DECLARATION = "I confirm that I witnessed the Borrower and Guarantor agree to this Agreement voluntarily and without pressure. I am not a party to this loan (not the Borrower, the Guarantor, or a Benansah Financial Solutions staff member involved in approving it).";
   const GUARANTOR_DECLARATION = "I confirm that I have read and understood this Agreement and voluntarily guarantee this loan. I accept responsibility for the outstanding balance, including late charges, if the Borrower defaults, as described in Clause 5.";
@@ -5992,7 +6011,7 @@
     };
     return `<div class="agr-head">
         <div><div class="agr-co">BENANSAH FINANCIAL SOLUTIONS</div><div class="agr-title">Loan Agreement &amp; Credit Application</div>
-          <div class="cell-sub">${escapeHtml(AGREEMENT_VERSION)} · Tel ${escapeHtml(COMPANY.phone)}</div></div>
+          <div class="cell-sub">${escapeHtml(agreementVersionOf(loan))} · Tel ${escapeHtml(COMPANY.phone)}</div></div>
         <div class="agr-meta"><div><span>Agreement No.</span>${escapeHtml('BFS-LN-' + loan.refNo.replace(/^BFS-/, ''))}</div><div><span>Loan Ref</span>${escapeHtml(loan.refNo)}</div>
           <div><span>Date</span>${escapeHtml(fmtDate((loan.createdAt || todayISO()).slice(0, 10)))}</div><div><span>Status</span>${escapeHtml(status)}${rm ? ' · Remote' : ''}</div></div>
       </div>
@@ -6021,7 +6040,7 @@
         cell('First due date', fmtDate(m.firstDueDate)), cell('Final due date', fmtDate(m.finalDueDate))]) +
         `<table class="agr-sched"><thead><tr><th>#</th><th>Due date</th><th>Amount due</th><th>Balance after payment</th></tr></thead><tbody>${m.schedule.map(r =>
           `<tr><td>${r.no}</td><td>${escapeHtml(fmtDate(r.dueDate))}</td><td><b>${fmtGHS(r.amount)}</b></td><td>${fmtGHS(m.totalRepayment - r.cumulative)}</td></tr>`).join('')}</tbody></table>`)}
-      ${sec('5. Terms, conditions & declarations', '', `<ol class="agr-terms">${AGREEMENT_CLAUSES.map(c => `<li><strong>${escapeHtml(c[0])}:</strong> ${escapeHtml(c[1])}</li>`).join('')}</ol>
+      ${sec('5. Terms, conditions & declarations', '', `<ol class="agr-terms">${clausesOf(loan).map(c => `<li><strong>${escapeHtml(c[0])}:</strong> ${escapeHtml(c[1])}</li>`).join('')}</ol>
         <div class="agr-pay"><span>How to pay</span><b>MTN MoMo ${escapeHtml(COMPANY.payTo)}</b><small>Quote Loan Ref ${escapeHtml(loan.refNo)}. Pay only to this number — never to any other number, even if someone claims to be BFS staff.</small></div>`)}
       ${sec('6. Electronic signatures', 'Signed by SMS one-time code', `<div class="agr-sigs">
         ${sigCard('Borrower declaration', loan.borrowerName, s.b, BORROWER_DECLARATION)}
@@ -6177,7 +6196,7 @@
     // ---- 5. Terms
     section('5. TERMS, CONDITIONS & DECLARATIONS', null, 90);
     y += 2;
-    AGREEMENT_CLAUSES.forEach((c, i) => {
+    clausesOf(loan).forEach((c, i) => {
       font('bold', 8.3); const hw = doc.getTextWidth(pdfSafe(`${c[0]}:`)) + 4;
       font('normal', 8.3);
       const first = doc.splitTextToSize(pdfSafe(c[1]), CW - 14 - hw)[0] || '';
@@ -6234,7 +6253,7 @@
     // ---- Electronic signature certificate (audit trail)
     doc.addPage(); y = TOP;
     font('bold', 13, NAVY); doc.text('ELECTRONIC SIGNATURE CERTIFICATE', M, y + 12);
-    font('normal', 8.2, MUTE); doc.text(pdfSafe(`Loan Agreement ${loan.refNo} - ${AGREEMENT_VERSION} - Benansah Financial Solutions`), M, y + 25);
+    font('normal', 8.2, MUTE); doc.text(pdfSafe(`Loan Agreement ${loan.refNo} - ${agreementVersionOf(loan)} - Benansah Financial Solutions`), M, y + 25);
     y += 34;
     para('Each person signed by reading back a 6-digit one-time code sent by SMS to their own phone number. The codes were created and checked by the Benansah server; staff cannot see or create them. ' +
       'Each signature is tied to the exact loan terms shown below; if any of them changes, the signature stops being valid and the person must sign again.', 8.2, 'normal', INK);
@@ -6267,7 +6286,7 @@
       doc.setPage(i);
       doc.setDrawColor(...LINE); doc.setLineWidth(0.5); doc.line(M, H - 30, M + CW, H - 30);
       font('normal', 7, [148, 163, 179]);
-      doc.text(pdfSafe(`BFS Loan Agreement - ${AGREEMENT_VERSION} - Electronic record - Ref ${loan.refNo}`), M, H - 20);
+      doc.text(pdfSafe(`BFS Loan Agreement - ${agreementVersionOf(loan)} - Electronic record - Ref ${loan.refNo}`), M, H - 20);
       doc.text(`Page ${i} of ${n}`, M + CW, H - 20, {align: 'right'});
     }
     doc.save(`BFS_Agreement_${loan.refNo}.pdf`);
