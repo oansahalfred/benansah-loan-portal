@@ -5865,6 +5865,17 @@
   const GUARANTOR_DECLARATION = "I confirm that I have read and understood this Agreement and voluntarily guarantee this loan. I accept responsibility for the outstanding balance, including late charges, if the Borrower defaults, as described in Clause 5.";
   // The loan terms a signature covers. Changing any of them after signing
   // means the agreement must be signed again.
+  // Top-up: the old loan's balance is cleared from this loan and the customer
+  // gets the rest. Before pay-out the old balance is today's figure (it is
+  // fixed on the pay-out day); after pay-out it is the amount actually cleared.
+  function topUpFigures(loan, m) {
+    if (!loan || !loan.topUpOf) return null;
+    const live = isDisbursed(loan);
+    let settled = live ? (m.topUpSettlement || 0) : 0;
+    if (!live) { const info = topUpInfo(loan.topUpOf); settled = info && isDisbursed(info.old) ? info.m.totalPayableWithPenalty : 0; }
+    settled = round2(settled);
+    return {ref: loan.topUpOf, settled, cash: round2(m.netDisbursed - settled), final: live, asOf: live ? loan.disbursementDate : todayISO()};
+  }
   function signTerms(loan) {
     const num = v => String(Math.round((Number(v) || 0) * 10000) / 10000);
     return {borrowerName: (loan.borrowerName || '').trim(), borrowerPhone: (loan.borrowerPhone || '').replace(/\D/g, ''),
@@ -6007,7 +6018,8 @@
     const grid = cells => `<div class="agr-grid">${cells.join('')}</div>`;
     const status = isDisbursed(loan) ? `Paid out ${fmtDate(loan.disbursementDate)}` : loanStage(loan) === 'declined' ? 'Declined' : (s.complete ? 'Signed — awaiting pay-out' : 'Awaiting signatures');
     const rateTxt = m.term === 1 ? `${(Number(loan.interestRatePct) * 100).toFixed(2)}% for 1 month` : `${(Number(loan.interestRatePct) / m.term * 100).toFixed(2)}% per month (${(Number(loan.interestRatePct) * 100).toFixed(2)}% total)`;
-    const net = fmtGHS(m.netDisbursed) + (loan.topUpOf ? ` (old balance on ${loan.topUpOf} is cleared from this first)` : '');
+    const tf = topUpFigures(loan, m);
+    const tfNote = tf && !tf.final ? ` — balance on ${fmtDate(tf.asOf)}; the final figure is fixed on the pay-out day` : '';
     const sigCard = (label, name, st, decl) => {
       const ok = st.state === 'ok';
       const line = ok ? `Signed electronically ${escapeHtml(fmtStamp(st.rec.at))} with the code sent to ${escapeHtml(maskPhone(st.rec.phone))}${st.rec.id ? ` · ${escapeHtml(st.rec.id)}` : ''}.`
@@ -6022,9 +6034,10 @@
         <div class="agr-meta"><div><span>Agreement No.</span>${escapeHtml('BFS-LN-' + loan.refNo.replace(/^BFS-/, ''))}</div><div><span>Loan Ref</span>${escapeHtml(loan.refNo)}</div>
           <div><span>Date</span>${escapeHtml(fmtDate((loan.createdAt || todayISO()).slice(0, 10)))}</div><div><span>Status</span>${escapeHtml(status)}${rm ? ' · Remote' : ''}</div></div>
       </div>
-      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}. ${rm ? `<strong>Remote repeat loan:</strong> a returning customer applying by phone; identity is confirmed by the signing code sent to the phone number on file. Send this agreement to the customer before anyone signs.` : 'Read it together before anyone signs.'}</p>
+      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}. ${tf ? `<strong>Top-up of ${escapeHtml(tf.ref)}:</strong> on the pay-out day the remaining balance of ${escapeHtml(tf.ref)} is cleared from this loan and the Borrower receives the rest (Section 4). ` : ''}${rm ? `<strong>Remote repeat loan:</strong> a returning customer applying by phone; identity is confirmed by the signing code sent to the phone number on file. Send this agreement to the customer before anyone signs.` : 'Read it together before anyone signs.'}</p>
       <div class="agr-keys">
-        <div><span>You receive</span><b>${fmtGHS(m.netDisbursed)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee of ${fmtGHS(m.processingFee)}</small></div>
+        ${tf ? `<div><span>${tf.final ? 'Cash paid to you' : 'Cash you receive'}</span><b>${fmtGHS(tf.cash)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee (${fmtGHS(m.processingFee)}) and ${fmtGHS(tf.settled)} clearing ${escapeHtml(tf.ref)}${tf.final ? '' : ' (balance today)'}</small></div>`
+          : `<div><span>You receive</span><b>${fmtGHS(m.netDisbursed)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee of ${fmtGHS(m.processingFee)}</small></div>`}
         <div><span>You repay in total</span><b>${fmtGHS(m.totalRepayment)}</b><small>${m.term === 1 ? `one payment on ${escapeHtml(fmtDate(m.firstDueDate))}` : `${m.term} × ${fmtGHS(m.monthlyInstallment)} from ${escapeHtml(fmtDate(m.firstDueDate))}`}</small></div>
         <div><span>Total cost of credit</span><b>${fmtGHS(m.interestAmount + m.processingFee)}</b><small>interest ${fmtGHS(m.interestAmount)} + fee ${fmtGHS(m.processingFee)}</small></div>
         <div><span>If you pay late</span><b>10% of the missed installment</b><small>+10% more after 15 days (max 20%)</small></div>
@@ -6041,9 +6054,10 @@
         .concat([cell("Borrower's Ghana Card" + (rm ? ' (this time)' : ''), k.cardChecked ? 'Original checked in person' : (rm ? 'Not seen (remote)' : 'Not recorded')), cell("Guarantor's Ghana Card", k.gCardChecked ? 'Original checked in person' : 'Not recorded'),
         cell('Income / employment', k.incomeChecked ? 'Proof seen' : 'Not recorded'), cell('Verified by & date', k.checkedBy ? `${k.checkedBy}, ${fmtDate(k.checkedOn)}` : (rm ? `${rm.by || ''}${rm.at ? ', ' + fmtDate(rm.at.slice(0, 10)) : ''}` : ''))])))}
       ${sec('4. Loan details & repayment', 'Completed by BFS staff', grid([cell('Principal amount', fmtGHS(m.principal)), cell('Interest rate', rateTxt),
-        cell(`Processing fee (${(m.feePct * 100).toFixed(0)}%, deducted)`, fmtGHS(m.processingFee)), cell('Net amount received', net),
+        cell(`Processing fee (${(m.feePct * 100).toFixed(0)}%, deducted)`, fmtGHS(m.processingFee)), cell(tf ? 'Net amount (after fee)' : 'Net amount received', fmtGHS(m.netDisbursed)),
+        ...(tf ? [cell(`Old balance cleared (${tf.ref})`, fmtGHS(tf.settled) + tfNote), cell(tf.final ? 'Cash paid to borrower' : 'Cash to be paid to borrower', fmtGHS(tf.cash) + (tf.cash < 0 ? ' — the amount is too small to clear the old balance' : (tf.final ? '' : ' (if the old balance stays the same)')))] : []),
         cell('Total interest payable', fmtGHS(m.interestAmount)), cell('Total payable', fmtGHS(m.totalRepayment)),
-        cell('Tenure', `${m.term} month${m.term === 1 ? '' : 's'}`), cell('Purpose of loan', loan.purpose),
+        cell('Tenure', `${m.term} month${m.term === 1 ? '' : 's'}`), cell('Purpose of loan', loan.purpose), ...(tf ? [cell('Top-up of loan', tf.ref)] : []),
         cell('First due date', fmtDate(m.firstDueDate)), cell('Final due date', fmtDate(m.finalDueDate))]) +
         `<table class="agr-sched"><thead><tr><th>#</th><th>Due date</th><th>Amount due</th><th>Balance after payment</th></tr></thead><tbody>${m.schedule.map(r =>
           `<tr><td>${r.no}</td><td>${escapeHtml(fmtDate(r.dueDate))}</td><td><b>${fmtGHS(r.amount)}</b></td><td>${fmtGHS(m.totalRepayment - r.cumulative)}</td></tr>`).join('')}</tbody></table>`)}
@@ -6136,7 +6150,9 @@
     });
     y += 104;
     doc.setDrawColor(...RED); doc.setLineWidth(1.4); doc.line(M, y, M + CW, y); y += 6;
+    const tfp = topUpFigures(loan, m);
     para(`This Loan Agreement is made between Benansah Financial Solutions ("the Lender") and the Borrower named in Section 1, with the Guarantor named in Section 2. ` +
+      (tfp ? `It is a top-up of loan ${tfp.ref}: on the pay-out day the remaining balance of ${tfp.ref} is cleared from the Principal Amount and the Borrower receives the rest (Section 4). ` : '') +
       (rm ? `This is a remote repeat loan: the Borrower, a returning customer, applied by phone. The Agreement was sent to the Borrower before signing, and the Borrower's identity was confirmed by the code sent to the phone number on file since loan ${rm.fromRef || ''}. ` +
             `It was signed electronically by the Borrower, the Guarantor and an independent Witness, each using a one-time code sent by SMS to their own phone (Section 6).`
           : `It was explained to the Borrower and Guarantor in person and signed electronically by each of them, and by an independent Witness, using a one-time code sent by SMS to their own phone (Section 6).`), 8.2, 'normal', INK);
@@ -6174,7 +6190,10 @@
     section('4. LOAN DETAILS & REPAYMENT TERMS', 'COMPLETED BY BFS STAFF', 120);
     const rateTxt = m.term === 1 ? `${(Number(loan.interestRatePct) * 100).toFixed(2)}% for 1 month` : `${(Number(loan.interestRatePct) / m.term * 100).toFixed(2)}% per month (${(Number(loan.interestRatePct) * 100).toFixed(2)}% total)`;
     row2('Principal Amount', money(m.principal), 'Interest Rate', rateTxt);
-    row2(`Processing Fee (${(m.feePct * 100).toFixed(0)}%)`, money(m.processingFee), 'Net Amount Received', money(loan.topUpOf ? m.netDisbursed : m.netDisbursed) + (loan.topUpOf ? ` (old balance on ${loan.topUpOf} cleared first)` : ''));
+    const tf = topUpFigures(loan, m);
+    row2(`Processing Fee (${(m.feePct * 100).toFixed(0)}%)`, money(m.processingFee), tf ? 'Net Amount (after fee)' : 'Net Amount Received', money(m.netDisbursed));
+    if (tf) row2(`Old Balance Cleared (${tf.ref})`, money(tf.settled) + (tf.final ? '' : ` (balance on ${fmtDate(tf.asOf)}; final figure fixed on the pay-out day)`),
+      tf.final ? 'Cash Paid to Borrower' : 'Cash to be Paid to Borrower', money(tf.cash) + (tf.cash < 0 ? ' - amount too small to clear the old balance' : (tf.final ? '' : ' (if the old balance stays the same)')));
     row2('Total Interest Payable', money(m.interestAmount), 'Total Payable', money(m.totalRepayment));
     row2('Monthly Installment', m.term === 1 ? 'Single payment' : money(m.monthlyInstallment), 'Total Cost of Credit', money(m.interestAmount + m.processingFee) + ' (interest + fee)');
     row2('Tenure', `${m.term} month${m.term === 1 ? '' : 's'}`, 'Prior Loan Ref (Top-Up)', loan.topUpOf || 'None');
