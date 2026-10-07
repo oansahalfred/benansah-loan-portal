@@ -93,6 +93,13 @@ export default async (req) => {
     if (role === "witness" && [loan.borrowerPhone, loan.guarantorPhone].some(p => normalizePhone(p) === to)) {
       return json({ok: false, error: "The witness must be a different person from the borrower and guarantor."}, 400);
     }
+    // Remote repeat loan: the borrower's code may only go to a phone number that
+    // was already on file for an earlier paid-out loan (no new numbers remotely).
+    if (role === "borrower" && loan.channel === "remote") {
+      const all = await listCollection("loans", robot);
+      const onFile = all.some(l => l._id !== refNo && l.refNo !== refNo && (!l.stage || l.stage === "disbursed") && normalizePhone(l.borrowerPhone) === to);
+      if (!onFile) return json({ok: false, error: "Remote repeat loan: this phone number is not on file from an earlier loan. The customer must apply in person."}, 400);
+    }
     const terms = signTerms(loan);
     const otpPath = `otp/${encodeURIComponent(refNo + "_" + role)}`;
     const now = Date.now();
