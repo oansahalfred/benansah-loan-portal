@@ -33,7 +33,15 @@ function signTerms(loan) {
   return {borrowerName: String(loan.borrowerName || "").trim(), borrowerPhone: String(loan.borrowerPhone || "").replace(/\D/g, ""),
     guarantorName: String(loan.guarantorName || "").trim(), guarantorPhone: String(loan.guarantorPhone || "").replace(/\D/g, ""),
     principal: num(loan.principal), interestRatePct: num(loan.interestRatePct), loanTermMonths: num(loan.loanTermMonths),
-    processingFeePct: num(fee)};
+    processingFeePct: num(fee), ...(collateralKey(loan) ? {collateral: collateralKey(loan)} : {})};
+}
+// Must match collateralKey() in index.html: the pledged item is part of what is signed.
+function collateralKey(loan) {
+  const sec = ["guarantor", "collateral", "both"].includes(loan.security) ? loan.security : "guarantor";
+  const c = loan.collateral;
+  if (sec === "guarantor" || !c || !c.type) return "";
+  const num = v => String(Math.round((Number(v) || 0) * 10000) / 10000);
+  return [c.type, c.description, c.identifier].map(x => String(x || "").trim()).join("|") + "|" + num(c.value);
 }
 
 async function getDoc(path, token) {
@@ -117,7 +125,7 @@ export default async (req) => {
         ? `Benansah Financial Solutions: ${code} is your code to confirm you WITNESSED ${loan.borrowerName} agree to loan Ref ${refNo} (GHS ${money(loan.principal)}). Give this code to our staff only if you saw them agree freely. Valid ${CODE_MINUTES} min.`
         : role === "guarantor"
         ? `Benansah Financial Solutions: ${code} is your code to GUARANTEE the loan of ${loan.borrowerName} (Ref ${refNo}, total to repay GHS ${money(total)}). Give this code to our staff only if you agree to be guarantor. Valid ${CODE_MINUTES} min.`
-        : `Benansah Financial Solutions: ${code} is your code to SIGN loan agreement Ref ${refNo}: GHS ${money(loan.principal)} over ${term} month${term === 1 ? "" : "s"}, total to repay GHS ${money(total)}. Give this code to our staff only if you agree. Valid ${CODE_MINUTES} min.`;
+        : `Benansah Financial Solutions: ${code} is your code to SIGN loan agreement Ref ${refNo}: GHS ${money(loan.principal)} over ${term} month${term === 1 ? "" : "s"}, total to repay GHS ${money(total)}.${collateralKey(loan) ? ` Secured by your ${String(loan.collateral.type).toLowerCase()}.` : ""} Give this code to our staff only if you agree. Valid ${CODE_MINUTES} min.`;
       await patchDoc(otpPath, {hash: sha(salt + "|" + code), salt, expires: new Date(now + CODE_MINUTES * 60000).toISOString(),
         tries: 0, phone: to, termsJson: JSON.stringify(terms), sentAt: new Date(now).toISOString(), sentBy: who.email}, robot);
       const sms = await sendSms(to, msg);
