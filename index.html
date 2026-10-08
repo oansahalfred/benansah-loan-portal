@@ -674,6 +674,7 @@
   .agreement-body .agr-sched { margin-top: 6px; background: var(--surface); }
   .agreement-body .agr-sched th { text-align: left; font-size: 10.5px; color: var(--text-mute); font-weight: 600; padding: 4px 6px; background: var(--neutral-bg); }
   .agreement-body .agr-sched td, .agreement-body .agr-sched td:first-child { width: auto; color: var(--text); }
+  .agr-subhead { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--navy-text); padding: 8px 2px 4px; }
   .agr-terms { padding-left: 20px; margin: 6px 0 0; font-size: 12.5px; }
   .agr-terms li { margin-bottom: 4px; }
   .agr-pay { margin-top: 8px; background: var(--info-bg); border-left: 3px solid var(--navy); border-radius: 4px; padding: 6px 9px; }
@@ -744,7 +745,11 @@
   .seg input { width: auto; margin-top: 3px; }
   .seg span { display: flex; flex-direction: column; }
   .seg small { font-size: 11px; color: var(--text-faint); font-weight: 500; }
-  @media (max-width: 600px) { .seg { grid-template-columns: 1fr; } }
+  .seg.seg3 { grid-template-columns: 1fr 1fr 1fr; }
+  .collateral-box { border: 1.5px solid var(--warn); border-radius: 8px; padding: 10px 12px; background: var(--warn-bg); }
+  .collateral-box .kyc-head { color: var(--warn); border-bottom-color: rgba(181,117,14,.35); margin-top: 0; }
+  .collateral-box input, .collateral-box select { background: var(--surface); }
+  @media (max-width: 600px) { .seg, .seg.seg3 { grid-template-columns: 1fr; } }
   .calc-box { background: var(--bg); border-radius: 7px; padding: 10px 12px; font-size: 12.5px; color: var(--text-mute); }
   .calc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; }
   .calc-grid div { display: flex; flex-direction: column; }
@@ -1223,8 +1228,38 @@
         <div class="field span2"><label>Borrower Full Name *</label><input required name="borrowerName"></div>
         <div class="field"><label>Borrower Phone</label><input name="borrowerPhone" placeholder="024XXXXXXX"></div>
         <div class="field"><label>Ghana Card No.</label><input name="ghanaCardNo" placeholder="GHA-XXXXXXXXX-X" inputmode="numeric" autocomplete="off"><span class="calc-note" id="cardNote">Type the 10 digits — GHA- and the dash are added for you.</span></div>
-        <div class="field"><label>Guarantor Name</label><input name="guarantorName"></div>
-        <div class="field"><label>Guarantor Phone</label><input name="guarantorPhone"></div>
+        <div class="field span2" id="securityField"><label>Security for this loan</label>
+          <div class="seg seg3">
+            <label><input type="radio" name="security" value="guarantor" checked><span><strong>Guarantor</strong><small>A person who pays if the borrower does not</small></span></label>
+            <label><input type="radio" name="security" value="collateral"><span><strong>Collateral</strong><small>An item or its documents held as security</small></span></label>
+            <label><input type="radio" name="security" value="both"><span><strong>Both</strong><small>Guarantor and collateral — strongest</small></span></label>
+          </div>
+        </div>
+        <div class="field sec-g"><label>Guarantor Name</label><input name="guarantorName"></div>
+        <div class="field sec-g"><label>Guarantor Phone</label><input name="guarantorPhone"></div>
+        <div class="field span2 sec-c collateral-box" id="collateralBox" style="display:none;">
+          <div class="kyc-head">Collateral <span class="cell-sub" style="font-weight:400; text-transform:none; letter-spacing:0;">— the item or document pledged as security</span></div>
+          <div class="form-grid" style="margin-top:8px;">
+            <div class="field"><label>Type of collateral *</label>
+              <select name="c_type"><option value="">Choose…</option><option>Motorbike / tricycle</option><option>Car / vehicle</option><option>Land / house documents</option>
+                <option>Phone / laptop / TV</option><option>Household appliance</option><option>Gold / jewellery</option><option>Business equipment / stock</option>
+                <option>Cash deposit / savings</option><option>Other</option></select></div>
+            <div class="field"><label>Estimated value (GHS) *</label><input name="c_value" type="number" min="0" step="0.01"><span class="calc-note" id="ltvNote"></span></div>
+            <div class="field span2"><label>Description * <span class="cell-sub">(make, model, colour, size, condition)</span></label><input name="c_description" placeholder="e.g. Honda Ace motorbike, red, 2019, good condition"></div>
+            <div class="field"><label>Serial / Registration / Chassis / Plot No.</label><input name="c_identifier" placeholder="e.g. M-19-GR 1234"></div>
+            <div class="field"><label>Registered owner (name on documents)</label><input name="c_owner"></div>
+            <div class="field span2"><label>Documents or item held by BFS</label><input name="c_documents" placeholder="e.g. original vehicle registration document; land indenture and site plan"></div>
+            <div class="field"><label>Where it is kept</label>
+              <select name="c_keptBy"><option value="office">At the BFS office (item or documents)</option><option value="borrower">Borrower keeps the item; BFS holds the documents</option></select></div>
+            <div class="field"><label>Valued by</label><input name="c_valuedBy" placeholder="Staff name"></div>
+            <label class="field span2 auto-check tick"><input type="checkbox" name="c_ownershipChecked"> <span>Proof that the borrower owns it was checked <span class="cell-sub">(receipt, registration or title in the borrower's name)</span></span></label>
+            <div class="field span2"><label>Collateral photo</label>
+              <div class="photo-row"><img id="photoCollateralPrev" class="kyc-photo" alt="" style="display:none;">
+                <div class="photo-btns"><button type="button" class="btn small" data-camera="collateral" data-icon="camera">Take photo</button>
+                  <label class="btn ghost small file-btn">Upload picture<input type="file" accept="image/*" id="photoCollateral" hidden></label></div></div>
+              <span class="calc-note" id="photoCollateralNote"></span></div>
+          </div>
+        </div>
         <details class="field span2 kyc-box" id="kycBox" open>
           <summary><strong>Full application details</strong> <span class="cell-sub">— replaces the paper form (Sections 1–3)</span></summary>
           <div class="form-grid" style="margin-top:10px;">
@@ -1240,18 +1275,18 @@
             <div class="field"><label>Next of Kin (Phone)</label><input name="k_nokPhone" inputmode="tel"></div>
             <div class="field"><label>Relationship to Next of Kin</label><input name="k_nokRelationship"></div>
             <div class="field"><label>Other Active Loans (lender &amp; balance)</label><input name="k_otherLoans" placeholder="None, or e.g. ABC Finance GHS 500"></div>
-            <div class="kyc-head span2">Guarantor</div>
-            <div class="field"><label>Guarantor Ghana Card No.</label><input name="k_gCard" placeholder="GHA-XXXXXXXXX-X" autocomplete="off"></div>
-            <div class="field"><label>Relationship to Borrower</label><input name="k_gRelationship"></div>
-            <div class="field"><label>Guarantor Service No. &amp; Rank</label><input name="k_gServiceRank"></div>
-            <div class="field"><label>Guarantor Station / Unit</label><input name="k_gStation"></div>
-            <div class="field span2"><label>Guarantor Address / GhanaPost GPS</label><input name="k_gAddress"></div>
+            <div class="kyc-head span2 sec-g">Guarantor</div>
+            <div class="field sec-g"><label>Guarantor Ghana Card No.</label><input name="k_gCard" placeholder="GHA-XXXXXXXXX-X" autocomplete="off"></div>
+            <div class="field sec-g"><label>Relationship to Borrower</label><input name="k_gRelationship"></div>
+            <div class="field sec-g"><label>Guarantor Service No. &amp; Rank</label><input name="k_gServiceRank"></div>
+            <div class="field sec-g"><label>Guarantor Station / Unit</label><input name="k_gStation"></div>
+            <div class="field span2 sec-g"><label>Guarantor Address / GhanaPost GPS</label><input name="k_gAddress"></div>
             <div class="kyc-head span2">Witness <span class="cell-sub" style="font-weight:400;">— required; signs with a code on their own phone</span></div>
             <div class="field"><label>Witness Name</label><input name="k_witnessName" placeholder="Not the borrower, guarantor or approving staff"></div>
             <div class="field"><label>Witness Phone</label><input name="k_witnessPhone" inputmode="tel" placeholder="024XXXXXXX"></div>
             <div class="kyc-head span2">Checked in person by staff</div>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_cardChecked"> <span>Borrower's original Ghana Card checked (photo, number and expiry match). <span class="cell-sub">No copy of the card is kept.</span></span></label>
-            <label class="field span2 auto-check tick"><input type="checkbox" name="k_gCardChecked"> <span>Guarantor's original Ghana Card checked</span></label>
+            <label class="field span2 auto-check tick sec-g"><input type="checkbox" name="k_gCardChecked"> <span>Guarantor's original Ghana Card checked</span></label>
             <label class="field span2 auto-check tick"><input type="checkbox" name="k_incomeChecked"> <span>Proof of income / employment ID seen</span></label>
             <div class="kyc-head span2">Passport photos <span class="cell-sub" style="font-weight:400;">— take them live in the office: plain wall, face fully visible, no cap or sunglasses</span></div>
             <div class="field"><label>Borrower photo</label>
@@ -1259,7 +1294,7 @@
                 <div class="photo-btns"><button type="button" class="btn small" data-camera="borrower" data-icon="camera">Take photo</button>
                   <label class="btn ghost small file-btn">Upload picture<input type="file" accept="image/*" id="photoBorrower" hidden></label></div></div>
               <span class="calc-note" id="photoBorrowerNote"></span></div>
-            <div class="field"><label>Guarantor photo</label>
+            <div class="field sec-g"><label>Guarantor photo</label>
               <div class="photo-row"><img id="photoGuarantorPrev" class="kyc-photo" alt="" style="display:none;">
                 <div class="photo-btns"><button type="button" class="btn small" data-camera="guarantor" data-icon="camera">Take photo</button>
                   <label class="btn ghost small file-btn">Upload picture<input type="file" accept="image/*" id="photoGuarantor" hidden></label></div></div>
@@ -1449,7 +1484,7 @@
   <div class="modal" style="max-width:460px;">
     <button class="modal-close" data-close>&times;</button>
     <h3 id="cameraTitle">Take Photo</h3>
-    <div class="modal-sub">Plain wall behind the customer, face fully visible, no cap or sunglasses, good light. Keep the face inside the outline.</div>
+    <div class="modal-sub" id="cameraSub">Plain wall behind the customer, face fully visible, no cap or sunglasses, good light. Keep the face inside the outline.</div>
     <div class="cam-wrap"><video id="camVideo" autoplay playsinline muted></video><img id="camStill" alt="" style="display:none;"><div class="cam-guide" id="camGuide"></div></div>
     <div class="form-error" id="camErr" style="min-height:0; margin-top:8px;"></div>
     <div class="modal-actions">
@@ -2972,6 +3007,23 @@
         issues.push(`${l.borrowerName} already has an active loan ${l.refNo} (${pct}% repaid${m.isOverdue ? ', overdue' : ''}). Use Top-Up on that loan instead — allowed once half is repaid, with no late payments.`);
       }
     });
+    // Security: a guarantor, collateral, or both — never neither.
+    const sec = securityOf(app), col = sec === 'guarantor' ? null : (app.collateral || {});
+    if (sec !== 'collateral' && !(String(app.guarantorName || '').trim() && phoneKey(app.guarantorPhone))) {
+      issues.push(sec === 'both' ? "Enter the guarantor's name and phone (security: guarantor and collateral)." : "No guarantor: enter the guarantor's name and phone, or choose Collateral as the security.");
+    }
+    if (col) {
+      if (!col.type || !String(col.description || '').trim() || !(Number(col.value) > 0)) issues.push('Collateral details missing: choose the type, describe the item and enter its estimated value.');
+      else if (sec === 'collateral' && (Number(app.principal) || 0) > round2(Number(col.value) * MAX_LTV) + 0.005) {
+        issues.push(`The loan is more than ${MAX_LTV * 100}% of the collateral's value (${fmtGHS(col.value)}). The most allowed is ${fmtGHS(round2(Number(col.value) * MAX_LTV))}, or add a guarantor as well.`);
+      }
+      const idk = normId(col.identifier);
+      if (idk) {
+        const other = loans.find(l => l.refNo !== excludeRef && l.refNo !== app.topUpOf && loanStage(l) !== 'declined' && collateralOf(l) && collateralOf(l).status !== 'returned'
+          && normId(collateralOf(l).identifier) === idk && (loanStage(l) === 'pending' || computeLoanMetrics(l).totalPayableWithPenalty > 0.005));
+        if (other) issues.push(`This item (${col.identifier}) is already pledged for ${other.refNo} (${other.borrowerName}).`);
+      }
+    }
     const g = {name: normName(app.guarantorName), phone: phoneKey(app.guarantorPhone), card: ''};
     if (g.name || g.phone) {
       if (samePerson(g, {name: me.name, phone: me.phone, card: ''})) issues.push('The guarantor cannot be the borrower.');
@@ -2996,7 +3048,8 @@
     const box = document.getElementById('eligibilityBox');
     if (editingLoanRefNo) { box.style.display = 'none'; return; }
     const issues = eligibilityIssues({borrowerName: f.borrowerName.value, borrowerPhone: f.borrowerPhone.value, ghanaCardNo: f.ghanaCardNo.value,
-      guarantorName: f.guarantorName.value, guarantorPhone: f.guarantorPhone.value, topUpOf: (f.topUpOf.value || '').trim(), principal: parseFloat(f.principal.value) || 0}, null);
+      guarantorName: f.guarantorName.value, guarantorPhone: f.guarantorPhone.value, topUpOf: (f.topUpOf.value || '').trim(), principal: parseFloat(f.principal.value) || 0,
+      security: securityChoice(), collateral: securityChoice() === 'guarantor' ? null : readCollateral()}, null);
     box.style.display = issues.length ? '' : 'none';
     box.innerHTML = issues.map(i => '⛔ ' + escapeHtml(i)).join('<br>');
   }
@@ -3070,6 +3123,17 @@
     }
     if (pending) notes.push(`<div class="profile-note info">${ICON.clock} Application pending — nothing has been paid out. Due dates below assume it is paid out on ${fmtDate(loan.disbursementDate || todayISO())}; they are recalculated from the actual pay-out date.</div>`);
     if (m.stage === 'declined') notes.push(`<div class="profile-note risk">${ICON.close} Application declined${loan.declinedBy ? ' by ' + escapeHtml(loan.declinedBy) : ''}${loan.declinedOn ? ' on ' + fmtDate(loan.declinedOn) : ''}.</div>`);
+    const colD = collateralOf(loan);
+    if (colD) {
+      const movedTo = loans.find(x => x.topUpOf === loan.refNo && loanStage(x) !== 'declined' && collateralOf(x) && normId(collateralOf(x).identifier) === normId(colD.identifier)
+        && normId(colD.description) === normId(collateralOf(x).description));
+      const paidOff = live && m.totalPayableWithPenalty <= 0.005;
+      const where = colD.status === 'returned' ? `Returned to the borrower on ${fmtDate(colD.returnedOn)}${colD.returnedBy ? ' by ' + escapeHtml(colD.returnedBy) : ''}.`
+        : movedTo ? `Now secures the top-up ${escapeHtml(movedTo.refNo)}.` : escapeHtml(keptByText(colD)) + '.';
+      const btn = colD.status !== 'returned' && !movedTo && paidOff && can('edit') ? ` <button class="btn small" data-return-collateral="${ref}" style="margin-left:6px;">${ICON.check}Record Collateral Returned</button>` : '';
+      const tip = colD.status !== 'returned' && !movedTo && paidOff ? ' <strong>The loan is fully paid — return the collateral within 3 working days.</strong>' : '';
+      notes.push(`<div class="profile-note ${colD.status === 'returned' ? 'good' : 'warn'}">${ICON.loans} <span><strong>Collateral:</strong> ${escapeHtml(collateralSummary(colD))}. ${where}${tip}${btn}</span></div>`);
+    } else if (securityOf(loan) !== 'guarantor') notes.push(`<div class="profile-note risk">${ICON.alert} Security is set to collateral, but no collateral details are recorded — click Edit and add them.</div>`);
     if (loan.topUpOf) notes.push(`<div class="profile-note info">${ICON.plus} Top-up of ${escapeHtml(loan.topUpOf)}${live ? ` — ${fmtGHS(m.topUpSettlement)} of this loan cleared the old balance; ${fmtGHS(m.cashToCustomer)} was paid to the customer.` : ' — the old balance will be cleared from this loan when it is paid out.'}</div>`);
     if (m.extension) {
       const e = m.extension;
@@ -3176,6 +3240,7 @@
     if ((b = t('[data-send-received]'))) { const l = loans.find(x => x.refNo === b.dataset.sendReceived); if (l && needs('sms')) { b.disabled = true; sendAutoText(stripId(l), '0A', 'Application Received'); } return; }
     if ((b = t('[data-sign-enter]'))) { openSignModal(b.dataset.ref, b.dataset.signEnter, false); return; }
     if ((b = t('[data-agreement]'))) { openAgreement(b.dataset.agreement); return; }
+    if ((b = t('[data-return-collateral]'))) { returnCollateral(b.dataset.returnCollateral); return; }
     if ((b = t('[data-agreement-pdf]'))) { agreementPdf(b.dataset.agreementPdf); return; }
     if ((b = t('[data-unhold]'))) { removeHold(b.dataset.unhold); return; }
     if ((b = t('[data-reopen]'))) { reopenApplication(b.dataset.reopen); return; }
@@ -4777,7 +4842,7 @@
     ['borrowerName', 'Borrower'], ['borrowerPhone', 'Phone'], ['ghanaCardNo', 'Ghana Card'],
     ['guarantorName', 'Guarantor'], ['guarantorPhone', 'Guarantor phone'], ['disbursementDate', 'Disbursed'],
     ['loanTermMonths', 'Term'], ['principal', 'Principal'], ['interestRatePct', 'Rate'],
-    ['processingFeePct', 'Processing fee'], ['purpose', 'Purpose'], ['processedBy', 'Processed by']
+    ['processingFeePct', 'Processing fee'], ['purpose', 'Purpose'], ['processedBy', 'Processed by'], ['security', 'Security']
   ];
   const PAYMENT_FIELDS = [
     ['amountPaid', 'Amount'], ['paymentDate', 'Date'], ['paymentMethod', 'Method'],
@@ -4826,6 +4891,8 @@
       form.purpose.value = loan.purpose || "";
       form.processedBy.value = loan.processedBy || "";
       fillKyc(form, loan.kyc);
+      form.querySelector(`input[name=security][value=${securityOf(loan)}]`).checked = true;
+      fillCollateral(loan.collateral);
     } else {
       editingLoanRefNo = null;
       modalTitle.textContent = opts.topUpOf ? "Top-Up — " + opts.topUpOf : (opts.remote ? "Remote Repeat Loan" : (prefill ? "New Loan — Repeat Customer" : "New Application"));
@@ -4842,6 +4909,9 @@
         form.guarantorPhone.value = prefill.guarantorPhone || "";
       }
       fillKyc(form, prefill && prefill.kyc ? prefill.kyc : null);
+      form.querySelector(`input[name=security][value=${prefill && prefill.security ? securityOf(prefill) : 'guarantor'}]`).checked = true;
+      fillCollateral(prefill && prefill.collateral ? collateralCopy(prefill.collateral) : null);
+      if (!form.c_valuedBy.value) form.c_valuedBy.value = lastStaffName || myName() || '';
     }
     pendingPhotos = {}; remoteFill = null;
     formNewLoan.querySelector(`input[name=channel][value=${!loan && opts.remote ? 'remote' : 'office'}]`).checked = true;
@@ -4849,6 +4919,7 @@
     showPhotosInForm(loan ? loan.refNo : null);
     updateStageUI();
     updateRemoteBox();
+    updateSecurityUI();
     updateCalcPreview();
     updateEligibilityBox();
     updateCardNote();
@@ -4888,6 +4959,47 @@
     }
     return k;
   }
+  // ---- Security for the loan: a guarantor, collateral, or both ----
+  const MAX_LTV = 0.70;   // a loan secured only by collateral may be at most 70% of the item's estimated value
+  const securityOf = loan => (loan && ['guarantor', 'collateral', 'both'].includes(loan.security)) ? loan.security : 'guarantor';
+  const collateralOf = loan => loan && securityOf(loan) !== 'guarantor' && loan.collateral && loan.collateral.type ? loan.collateral : null;
+  const normId = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const COLLATERAL_FIELDS = ['type', 'value', 'description', 'identifier', 'owner', 'documents', 'keptBy', 'valuedBy'];
+  const securityChoice = () => { const r = formNewLoan.querySelector('input[name=security]:checked'); return r ? r.value : 'guarantor'; };
+  const keptByText = c => c && c.keptBy === 'borrower' ? 'Borrower keeps the item; BFS holds the documents' : 'Held at the BFS office (item or documents)';
+  function fillCollateral(c) {
+    c = c || {};
+    COLLATERAL_FIELDS.forEach(n => { formNewLoan['c_' + n].value = c[n] == null ? (n === 'keptBy' ? 'office' : '') : c[n]; });
+    formNewLoan.c_ownershipChecked.checked = !!c.ownershipChecked;
+  }
+  function readCollateral(before) {
+    const c = {};
+    COLLATERAL_FIELDS.forEach(n => { const v = formNewLoan['c_' + n].value.trim(); if (v) c[n] = n === 'value' ? Number(v) : v; });
+    if (formNewLoan.c_ownershipChecked.checked) c.ownershipChecked = true;
+    const b = before || {};
+    c.valuedOn = b.valuedOn && Number(b.value) === Number(c.value) ? b.valuedOn : todayISO();
+    ['status', 'returnedOn', 'returnedBy'].forEach(k => { if (b[k]) c[k] = b[k]; });
+    return c;
+  }
+  // Collateral carried to a new loan (top-up, repeat loan): the item, not its old status.
+  const collateralCopy = c => { if (!c) return null; const o = Object.assign({}, c); ['status', 'returnedOn', 'returnedBy', 'valuedOn'].forEach(k => delete o[k]); return o; };
+  function updateSecurityUI() {
+    const sec = securityChoice();
+    document.querySelectorAll('#formNewLoan .sec-g').forEach(el => { el.style.display = sec === 'collateral' ? 'none' : ''; });
+    document.querySelectorAll('#formNewLoan .sec-c').forEach(el => { el.style.display = sec === 'guarantor' ? 'none' : ''; });
+    const v = parseFloat(formNewLoan.c_value.value) || 0, p = parseFloat(formNewLoan.principal.value) || 0, note = document.getElementById('ltvNote');
+    note.style.color = '';
+    if (v > 0) {
+      const max = round2(v * MAX_LTV);
+      note.textContent = sec === 'collateral' ? `Most this collateral allows: ${fmtGHS(max)} (${MAX_LTV * 100}% of its value)` : `${MAX_LTV * 100}% of its value: ${fmtGHS(max)}`;
+      if (sec === 'collateral' && p > max + 0.005) note.style.color = 'var(--danger)';
+    } else note.textContent = 'What it would sell for today, not what it cost new.';
+  }
+  function collateralSummary(c) {
+    if (!c) return '';
+    return `${c.type}${c.description ? ' — ' + c.description : ''}${c.identifier ? ' (' + c.identifier + ')' : ''}, valued ${fmtGHS(c.value)}`;
+  }
+
   // Passport photos: resized in the browser to a small JPEG (about 30–60 KB).
   let pendingPhotos = {};
   function resizePhoto(file) {
@@ -4910,9 +5022,10 @@
   // Each photo remembers how it was taken: live in the office, from a file,
   // or carried over from the customer's previous loan (remote repeat loan).
   const isPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-  const photoEl = who => document.getElementById(who === 'guarantor' ? 'photoGuarantorPrev' : 'photoBorrowerPrev');
+  const PHOTO_IDS = {borrower: 'photoBorrower', guarantor: 'photoGuarantor', collateral: 'photoCollateral'};
+  const photoEl = who => document.getElementById(PHOTO_IDS[who] + 'Prev');
   function photoNote(who, info) {
-    const el = document.getElementById(who === 'guarantor' ? 'photoGuarantorNote' : 'photoBorrowerNote');
+    const el = document.getElementById(PHOTO_IDS[who] + 'Note');
     if (!el) return;
     el.style.color = '';
     if (!info) { el.textContent = ''; return; }
@@ -4929,7 +5042,7 @@
     const prev = photoEl(who); prev.src = dataUrl; prev.style.display = '';
     photoNote(who, info);
   }
-  [['photoBorrower', 'borrower'], ['photoGuarantor', 'guarantor']].forEach(([id, who]) => {
+  [['photoBorrower', 'borrower'], ['photoGuarantor', 'guarantor'], ['photoCollateral', 'collateral']].forEach(([id, who]) => {
     document.getElementById(id).addEventListener('change', async e => {
       const f = e.target.files && e.target.files[0];
       if (!f) return;
@@ -4940,7 +5053,7 @@
   });
   async function savePhotos(refNo) {
     const p = pendingPhotos; pendingPhotos = {};
-    if (!p.borrower && !p.guarantor) return;
+    if (!p.borrower && !p.guarantor && !p.collateral) return;
     try {
       const ref = db.collection("photos").doc(refNo);
       const old = await ref.get();
@@ -4948,6 +5061,7 @@
       await ref.set(Object.assign({}, cur,
         p.borrower ? {borrower: p.borrower, borrowerInfo: p.borrowerInfo || null} : {},
         p.guarantor ? {guarantor: p.guarantor, guarantorInfo: p.guarantorInfo || null} : {},
+        p.collateral ? {collateral: p.collateral, collateralInfo: p.collateralInfo || null} : {},
         {refNo, updatedBy: myName() || lastStaffName || '', updatedAt: new Date().toISOString()}));
       photoCache[refNo] = null;
     } catch (err) { showToast("Loan saved, but the photos could not be saved — try again from Edit", 6000); }
@@ -4962,10 +5076,10 @@
     return photoCache[refNo];
   }
   async function showPhotosInForm(refNo) {
-    ['borrower', 'guarantor'].forEach(who => { const el = photoEl(who); el.style.display = 'none'; el.removeAttribute('src'); photoNote(who, null); });
+    ['borrower', 'guarantor', 'collateral'].forEach(who => { const el = photoEl(who); el.style.display = 'none'; el.removeAttribute('src'); photoNote(who, null); });
     if (!refNo) return;
     const ph = await loadPhotos(refNo);
-    ['borrower', 'guarantor'].forEach(who => {
+    ['borrower', 'guarantor', 'collateral'].forEach(who => {
       if (!ph[who] || pendingPhotos[who]) return;
       const el = photoEl(who); el.src = ph[who]; el.style.display = '';
       photoNote(who, ph[who + 'Info'] || {source: 'file', at: ph.updatedAt});
@@ -4981,7 +5095,7 @@
   }
   function camView(still) {
     camVideo.style.display = still ? 'none' : ''; camStill.style.display = still ? '' : 'none';
-    document.getElementById('camGuide').style.display = still ? 'none' : '';
+    document.getElementById('camGuide').style.display = still || cam.who === 'collateral' ? 'none' : '';
     document.getElementById('btnCamSnap').style.display = still ? 'none' : '';
     document.getElementById('btnCamRetake').style.display = still ? '' : 'none';
     document.getElementById('btnCamUse').style.display = still ? '' : 'none';
@@ -5015,7 +5129,10 @@
   }
   function openCamera(who) {
     cam.who = who; cam.shot = null;
-    document.getElementById('cameraTitle').textContent = who === 'guarantor' ? 'Guarantor Photo' : 'Borrower Photo';
+    document.getElementById('cameraTitle').textContent = who === 'guarantor' ? 'Guarantor Photo' : who === 'collateral' ? 'Collateral Photo' : 'Borrower Photo';
+    document.getElementById('cameraSub').textContent = who === 'collateral'
+      ? 'Show the whole item clearly in good light. For a vehicle, include the number plate; for documents, the first page.'
+      : 'Plain wall behind the customer, face fully visible, no cap or sunglasses, good light. Keep the face inside the outline.';
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
       // Very old phone browsers: open the phone's own camera instead.
       const inp = document.createElement('input');
@@ -5139,6 +5256,9 @@
     const k = Object.assign({}, last.kyc || {});
     ['witnessName', 'witnessPhone', 'cardChecked', 'gCardChecked', 'incomeChecked', 'checkedBy', 'checkedOn'].forEach(x => delete k[x]);
     fillKyc(f, k);
+    f.querySelector(`input[name=security][value=${securityOf(last)}]`).checked = true;
+    fillCollateral(collateralCopy(collateralOf(last)));
+    updateSecurityUI();
     remoteFill = {fromRef: ref, photoFrom: null, photoOn: null};
     updateEligibilityBox(); updateCardNote(); updateStageUI(); updateCalcPreview(); updateRemoteBox();
     // The newest photo on file for this customer.
@@ -5263,7 +5383,10 @@
     else if (ghanaCardValid(v)) { note.textContent = '✓ Format correct. Check it against the physical card.'; note.style.color = 'var(--good)'; }
     else { note.textContent = `${digits} of 10 digits entered.`; note.style.color = 'var(--danger)'; }
   }
-  ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone', 'principal'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
+  ['borrowerName', 'borrowerPhone', 'ghanaCardNo', 'guarantorName', 'guarantorPhone', 'principal', 'c_value', 'c_description', 'c_identifier'].forEach(n => formNewLoan[n].addEventListener('input', updateEligibilityBox));
+  formNewLoan.c_type.addEventListener('change', updateEligibilityBox);
+  ['c_value', 'principal'].forEach(n => formNewLoan[n].addEventListener('input', updateSecurityUI));
+  formNewLoan.querySelectorAll('input[name=security]').forEach(r => r.addEventListener('change', () => { updateSecurityUI(); updateEligibilityBox(); }));
   formNewLoan.borrowerPhone.addEventListener('input', updateStageUI);
   formNewLoan.disbursedVia.addEventListener('change', updateStageUI);
 
@@ -5336,6 +5459,15 @@
         showToast("The witness must be a different person — their phone cannot be the borrower's or guarantor's", 5500); formNewLoan.k_witnessPhone.focus(); return;
       }
     }
+    const security = securityChoice();
+    fields.security = security;
+    if (security === 'collateral') {      // no guarantor on this loan
+      fields.guarantorName = ''; fields.guarantorPhone = '';
+      ['gCard', 'gRelationship', 'gServiceRank', 'gStation', 'gAddress', 'gCardChecked'].forEach(k => delete kyc[k]);
+      delete pendingPhotos.guarantor;
+    }
+    if (security === 'guarantor') delete pendingPhotos.collateral;
+    fields.collateral = security === 'guarantor' ? null : readCollateral(editing ? (loans.find(l => l.refNo === editing) || {}).collateral : null);
     if (Object.keys(kyc).length || kycBefore) fields.kyc = kyc;
     if (fields.ghanaCardNo === 'GHA-') fields.ghanaCardNo = '';
     if (fields.ghanaCardNo && !ghanaCardValid(fields.ghanaCardNo)) {
@@ -5362,7 +5494,8 @@
         try {
           await db.collection("loans").doc(refNo).set(merged);
           await savePhotos(refNo);
-          let changes = describeChanges(Object.assign({processingFeePct: feePctOf(before)}, before), merged, LOAN_FIELDS);
+          let changes = describeChanges(Object.assign({processingFeePct: feePctOf(before), security: securityOf(before)}, before), merged, LOAN_FIELDS);
+          if (stableJson(before.collateral || null) !== stableJson(merged.collateral || null)) changes = (changes ? changes + "; " : "") + "collateral details updated";
           if (stableJson(before.kyc || {}) !== stableJson(merged.kyc || {})) changes = (changes ? changes + "; " : "") + "application details updated";
           logActivity("Loan Edited", `${refNo} (${merged.borrowerName}) — ${changes || "saved with no changes"}`, editAuthName);
           showToast("Loan " + refNo + " updated");
@@ -5536,6 +5669,22 @@
       }, {title: "Reopen Application", yesLabel: "Reopen"});
   }
 
+  // ---------------- Collateral returned after full repayment ----------------
+  function returnCollateral(refNo) {
+    if (!needs('edit')) return;
+    const loan = loans.find(l => l.refNo === refNo), c = loan && collateralOf(loan);
+    if (!c) return;
+    if (computeLoanMetrics(loan).totalPayableWithPenalty > 0.005) { showToast("Return the collateral only after the loan is fully paid", 5000); return; }
+    showConfirm(`${confirmLead()} record that the collateral for ${refNo} — ${collateralSummary(c)} — was returned to ${loan.borrowerName} today.`,
+      async name => {
+        try {
+          await db.collection("loans").doc(refNo).update({collateral: Object.assign({}, c, {status: 'returned', returnedOn: todayISO(), returnedBy: name})});
+          logActivity("Collateral Returned", `${refNo} (${loan.borrowerName}) — ${collateralSummary(c)} returned to the borrower`, name);
+          showToast("Collateral return recorded");
+        } catch (e) { showToast("Could not save — try again"); }
+      }, {title: "Collateral Returned", yesLabel: "Record Return"});
+  }
+
   // ---------------- Top-up ----------------
   function startTopUp(refNo) {
     if (!needs('applications')) return;
@@ -5545,7 +5694,8 @@
     if (why) { showToast(why, 5000); return; }
     openLoanModal(null, {
       borrowerName: loan.borrowerName, borrowerPhone: loan.borrowerPhone, ghanaCardNo: loan.ghanaCardNo,
-      guarantorName: loan.guarantorName, guarantorPhone: loan.guarantorPhone
+      guarantorName: loan.guarantorName, guarantorPhone: loan.guarantorPhone,
+      security: securityOf(loan), collateral: collateralOf(loan)          // the same item secures the top-up
     }, {topUpOf: refNo});
   }
 
@@ -5898,7 +6048,18 @@
     const b = loan && loan.sign && loan.sign.borrower;
     return b && b.agreement && AGREEMENT_TEXTS[b.agreement] && signStatus(loan).b.state === 'ok' ? b.agreement : AGREEMENT_VERSION;
   }
-  const clausesOf = loan => AGREEMENT_TEXTS[agreementVersionOf(loan)];
+  // Collateral loans add a Collateral clause (Clause 13); with no guarantor, the guarantor clause does not apply.
+  const COLLATERAL_CLAUSE = ["Collateral", "The Borrower pledges the collateral described in Section 2 as security for this loan, and confirms that they own it and that it is free of any other pledge, loan or claim. While any amount under this Agreement is unpaid, the Borrower shall not sell, transfer, pledge, hide or damage it. Any item or documents held by Benansah Financial Solutions will be returned within 3 working days after the loan is fully repaid. If the Borrower defaults and does not pay within 14 days after written notice (including by SMS), Benansah Financial Solutions may sell the collateral at a fair market price to recover the outstanding balance, late charges and reasonable costs of sale. Any amount left over will be paid to the Borrower; any shortfall remains payable by the Borrower."];
+  const clausesOf = loan => {
+    const base = AGREEMENT_TEXTS[agreementVersionOf(loan)];
+    if (!collateralOf(loan)) return base;
+    return base.map(c => c[0] === 'Guarantor Liability' && securityOf(loan) === 'collateral'
+      ? ['Guarantor Liability', 'Not applicable: this loan has no guarantor. It is secured by the collateral described in Section 2 (see Clause 13).'] : c).concat([COLLATERAL_CLAUSE]);
+  };
+  const witnessDeclarationOf = loan => guarantorNeeded(loan) ? WITNESS_DECLARATION
+    : "I confirm that I witnessed the Borrower agree to this Agreement voluntarily and without pressure. I am not a party to this loan (not the Borrower, or a Benansah Financial Solutions staff member involved in approving it).";
+  const borrowerDeclarationOf = loan => BORROWER_DECLARATION + (collateralOf(loan)
+    ? ' I confirm that I own the collateral described in Section 2, that it is free of any other claim, and I pledge it as security for this loan.' : '');
   const BORROWER_DECLARATION = "I confirm that all details given are true and accurate, and that I am not currently blacklisted or in default with any other lender. I have read, understood and agree to be bound by all terms of this Agreement, including the interest rate, the 2% processing fee, the repayment schedule and the late charge terms.";
   const WITNESS_DECLARATION = "I confirm that I witnessed the Borrower and Guarantor agree to this Agreement voluntarily and without pressure. I am not a party to this loan (not the Borrower, the Guarantor, or a Benansah Financial Solutions staff member involved in approving it).";
   const GUARANTOR_DECLARATION = "I confirm that I have read and understood this Agreement and voluntarily guarantee this loan. I accept responsibility for the outstanding balance, including late charges, if the Borrower defaults, as described in Clause 5.";
@@ -5920,7 +6081,16 @@
     return {borrowerName: (loan.borrowerName || '').trim(), borrowerPhone: (loan.borrowerPhone || '').replace(/\D/g, ''),
       guarantorName: (loan.guarantorName || '').trim(), guarantorPhone: (loan.guarantorPhone || '').replace(/\D/g, ''),
       principal: num(loan.principal), interestRatePct: num(loan.interestRatePct), loanTermMonths: num(loan.loanTermMonths),
-      processingFeePct: num(feePctOf(loan))};
+      processingFeePct: num(feePctOf(loan)), ...(collateralKey(loan) ? {collateral: collateralKey(loan)} : {})};
+  }
+  // The pledged item is part of what is signed: changing it means signing again.
+  // (Must match collateralKey() in netlify/functions/sign.mjs.)
+  function collateralKey(loan) {
+    const sec = ['guarantor', 'collateral', 'both'].includes(loan.security) ? loan.security : 'guarantor';
+    const c = loan.collateral;
+    if (sec === 'guarantor' || !c || !c.type) return '';
+    const num = v => String(Math.round((Number(v) || 0) * 10000) / 10000);
+    return [c.type, c.description, c.identifier].map(x => String(x || '').trim()).join('|') + '|' + num(c.value);
   }
   // The database returns stored fields in alphabetical order, so records are
   // compared field by field — never by their written order.
@@ -5928,7 +6098,7 @@
     const sort = v => Array.isArray(v) ? v.map(sort) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sort(v[k])])) : v;
     return JSON.stringify(sort(o));
   }
-  const TERM_KEYS = ['borrowerName', 'borrowerPhone', 'guarantorName', 'guarantorPhone', 'principal', 'interestRatePct', 'loanTermMonths', 'processingFeePct'];
+  const TERM_KEYS = ['borrowerName', 'borrowerPhone', 'guarantorName', 'guarantorPhone', 'principal', 'interestRatePct', 'loanTermMonths', 'processingFeePct', 'collateral'];
   const sameTerms = (a, b) => !!a && !!b && TERM_KEYS.every(k => String(a[k] == null ? '' : a[k]) === String(b[k] == null ? '' : b[k]));
   const guarantorNeeded = loan => (loan.guarantorPhone || '').replace(/\D/g, '').length >= 9;
   const last9 = p => String(p || '').replace(/\D/g, '').slice(-9);
@@ -5952,7 +6122,7 @@
     const s = signStatus(loan), ref = escapeHtml(loan.refNo), online = storageMode === 'firebase';
     const pending = loanStage(loan) === 'pending';
     const row = (who, label, name, phone, st) => {
-      if (st.state === 'na') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state">No guarantor phone — not needed</div></div></div>`;
+      if (st.state === 'na') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state">${collateralOf(loan) && securityOf(loan) === 'collateral' ? 'Not needed — this loan is secured by collateral' : 'No guarantor phone — not needed'}</div></div></div>`;
       if (st.state === 'missing') return `<div class="sign-row"><div><strong>${label}</strong><div class="sign-state no">No witness yet — click Edit and add the witness's name and phone (Full application details)</div></div></div>`;
       const ok = st.state === 'ok';
       const stateTxt = ok ? `✓ Signed ${escapeHtml(fmtStamp(st.rec.at))} · code sent to ${escapeHtml(maskPhone(st.rec.phone))}`
@@ -6051,6 +6221,7 @@
   function agreementHtml(loan) {
     const m = computeLoanMetrics(loan), k = loan.kyc || {}, s = signStatus(loan), wv = witnessOf(loan);
     const rm = loan.channel === 'remote' ? (loan.remote || {}) : null;
+    const colA = collateralOf(loan), secA = securityOf(loan);
     const E = v => escapeHtml(v === undefined || v === null || v === '' ? '—' : String(v));
     const cell = (label, val, wide) => `<div class="agr-cell${wide ? ' wide' : ''}"><span>${escapeHtml(label)}</span><b>${E(val)}</b></div>`;
     const sec = (title, tag, body) => `<div class="agr-sec"><div class="agr-bar">${escapeHtml(title)}${tag ? `<i>${escapeHtml(tag)}</i>` : ''}</div>${body}</div>`;
@@ -6073,7 +6244,7 @@
         <div class="agr-meta"><div><span>Agreement No.</span>${escapeHtml('BFS-LN-' + loan.refNo.replace(/^BFS-/, ''))}</div><div><span>Loan Ref</span>${escapeHtml(loan.refNo)}</div>
           <div><span>Date</span>${escapeHtml(fmtDate((loan.createdAt || todayISO()).slice(0, 10)))}</div><div><span>Status</span>${escapeHtml(status)}${rm ? ' · Remote' : ''}</div></div>
       </div>
-      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}. ${tf ? `<strong>Top-up of ${escapeHtml(tf.ref)}:</strong> on the pay-out day the remaining balance of ${escapeHtml(tf.ref)} is cleared from this loan and the Borrower receives the rest (Section 4). ` : ''}${rm ? `<strong>Remote repeat loan:</strong> a returning customer applying by phone; identity is confirmed by the signing code sent to the phone number on file. Send this agreement to the customer before anyone signs.` : 'Read it together before anyone signs.'}</p>
+      <p class="agr-parties">This Loan Agreement is made between <strong>Benansah Financial Solutions</strong> ("the Lender") and <strong>${E(loan.borrowerName)}</strong> ("the Borrower")${secA !== 'collateral' && loan.guarantorName ? `, with <strong>${E(loan.guarantorName)}</strong> as Guarantor` : ''}${colA ? `${secA !== 'collateral' && loan.guarantorName ? ' and' : ','} secured by the collateral described in Section 2 (${E(colA.type)})` : ''}. ${tf ? `<strong>Top-up of ${escapeHtml(tf.ref)}:</strong> on the pay-out day the remaining balance of ${escapeHtml(tf.ref)} is cleared from this loan and the Borrower receives the rest (Section 4). ` : ''}${rm ? `<strong>Remote repeat loan:</strong> a returning customer applying by phone; identity is confirmed by the signing code sent to the phone number on file. Send this agreement to the customer before anyone signs.` : 'Read it together before anyone signs.'}</p>
       <div class="agr-keys">
         ${tf ? `<div><span>${tf.final ? 'Cash paid to you' : 'Cash you receive'}</span><b>${fmtGHS(tf.cash)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee (${fmtGHS(m.processingFee)}) and ${fmtGHS(tf.settled)} clearing ${escapeHtml(tf.ref)}${tf.final ? '' : ' (balance today)'}</small></div>`
           : `<div><span>You receive</span><b>${fmtGHS(m.netDisbursed)}</b><small>after the ${(m.feePct * 100).toFixed(0)}% fee of ${fmtGHS(m.processingFee)}</small></div>`}
@@ -6085,8 +6256,14 @@
         cell('Station / unit / division', k.station), cell('Alternate contact', k.altContact), cell('Residential address / GPS', k.address, true),
         cell('Employer / occupation', k.employer), cell('Monthly income', k.income ? fmtGHS(k.income) : ''), cell('Next of kin', k.nokName ? `${k.nokName}${k.nokRelationship ? ' (' + k.nokRelationship + ')' : ''}` : ''), cell('Next of kin phone', k.nokPhone),
         cell('Preferred language', k.language), cell('Other active loans', k.otherLoans || 'None declared')]))}
-      ${sec('2. Guarantor information', '', loan.guarantorName || loan.guarantorPhone ? grid([cell('Guarantor name', loan.guarantorName), cell('Service No. & rank', k.gServiceRank), cell('Ghana Card No.', k.gCard), cell('Phone / MoMo No.', loan.guarantorPhone),
-        cell('Station / unit / division', k.gStation), cell('Relationship to borrower', k.gRelationship), cell('Residential address / GPS', k.gAddress, true)]) : '<div class="cell-sub" style="padding:6px 2px;">No guarantor on this loan.</div>')}
+      ${sec(secA === 'collateral' ? '2. Collateral (security)' : secA === 'both' ? '2. Guarantor & collateral' : '2. Guarantor information', secA === 'guarantor' ? '' : 'Security for this loan',
+        (secA === 'collateral' ? '' : (loan.guarantorName || loan.guarantorPhone ? grid([cell('Guarantor name', loan.guarantorName), cell('Service No. & rank', k.gServiceRank), cell('Ghana Card No.', k.gCard), cell('Phone / MoMo No.', loan.guarantorPhone),
+          cell('Station / unit / division', k.gStation), cell('Relationship to borrower', k.gRelationship), cell('Residential address / GPS', k.gAddress, true)]) : '<div class="cell-sub" style="padding:6px 2px;">No guarantor on this loan.</div>')) +
+        (secA === 'guarantor' ? '' : (secA === 'both' ? '<div class="agr-subhead">Collateral</div>' : '') + (colA ? grid([cell('Type of collateral', colA.type), cell('Estimated value', fmtGHS(colA.value)),
+          cell('Description', colA.description, true), cell('Serial / reg. / chassis / plot no.', colA.identifier), cell('Registered owner', colA.owner),
+          cell('Documents or item held by BFS', colA.documents, true), cell('Where it is kept', keptByText(colA)), cell('Valued by & date', [colA.valuedBy, colA.valuedOn ? fmtDate(colA.valuedOn) : ''].filter(Boolean).join(', ')),
+          cell('Proof of ownership', colA.ownershipChecked ? 'Checked by BFS staff' : 'Not recorded'), cell('Loan as % of value', colA.value ? Math.round(m.principal / colA.value * 100) + '%' : '')])
+          : '<div class="cell-sub" style="padding:6px 2px;">Collateral details not recorded.</div>')))}
       ${sec('3. Verification', rm ? 'Remote repeat loan' : 'By BFS staff', grid((rm ? [cell('Application channel', 'Remote repeat loan (by phone / WhatsApp)'), cell('Identity confirmed by', `Signing code sent to the phone number on file since ${rm.fromRef || 'an earlier loan'}`),
           cell("Borrower's Ghana Card", rm.idCheckedOn ? `Checked in person ${fmtDate(rm.idCheckedOn)}${rm.idCheckedBy ? ' by ' + rm.idCheckedBy : ''} (${rm.fromRef})` : `Checked at an earlier visit (${rm.fromRef})`),
           cell('Borrower photo', rm.photoFrom ? `From ${rm.photoFrom}${rm.photoOn ? ', taken ' + fmtDate(rm.photoOn) : ''}` : 'No photo on file')] : [])
@@ -6103,9 +6280,9 @@
       ${sec('5. Terms, conditions & declarations', '', `<ol class="agr-terms">${clausesOf(loan).map(c => `<li><strong>${escapeHtml(c[0])}:</strong> ${escapeHtml(c[1])}</li>`).join('')}</ol>
         <div class="agr-pay"><span>How to pay</span><b>MTN MoMo ${escapeHtml(COMPANY.payTo)}</b><small>Quote Loan Ref ${escapeHtml(loan.refNo)}. Pay only to this number — never to any other number, even if someone claims to be BFS staff.</small></div>`)}
       ${sec('6. Electronic signatures', 'Signed by SMS one-time code', `<div class="agr-sigs">
-        ${sigCard('Borrower declaration', loan.borrowerName, s.b, BORROWER_DECLARATION)}
+        ${sigCard('Borrower declaration', loan.borrowerName, s.b, borrowerDeclarationOf(loan))}
         ${guarantorNeeded(loan) ? sigCard('Guarantor undertaking', loan.guarantorName, s.g, GUARANTOR_DECLARATION) : ''}
-        ${sigCard('Witness attestation', wv.name, s.w.state === 'missing' ? {state: 'none'} : s.w, WITNESS_DECLARATION)}</div>
+        ${sigCard('Witness attestation', wv.name, s.w.state === 'missing' ? {state: 'none'} : s.w, witnessDeclarationOf(loan))}</div>
         ${s.paper ? `<div class="agr-sigstate" style="margin-top:6px;">A paper agreement was signed for this loan (recorded by ${escapeHtml(s.paper.by || '')} on ${escapeHtml(fmtDate(s.paper.on || ''))}).</div>` : ''}`)}
       ${sec('7. Lender verification & approval', 'Official use only', grid([cell('Application processed by', loan.processedBy), cell('Application date', fmtDate((loan.createdAt || '').slice(0, 10))),
         cell('Approved & paid out by', isDisbursed(loan) ? loan.disbursedBy : 'Not yet paid out'), cell('Paid out via & date', isDisbursed(loan) ? `${loan.disbursedVia || ''}, ${fmtDate(loan.disbursementDate)}` : 'At pay-out')]))}`;
@@ -6127,6 +6304,7 @@
     const ph = storageMode ? await loadPhotos(refNo) : {};
     const m = computeLoanMetrics(loan), k = loan.kyc || {}, s = signStatus(loan), wv = witnessOf(loan);
     const rm = loan.channel === 'remote' ? (loan.remote || {}) : null;
+    const colP = collateralOf(loan), secP = securityOf(loan);
     const doc = new JsPDF({unit: 'pt', format: 'a4'});
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 34, CW = W - 2 * M, TOP = 40, BOTTOM = 44;
     const NAVY = [11, 61, 107], RED = [168, 39, 26], INK = [20, 30, 40], MUTE = [91, 107, 124], LINE = [201, 209, 219], LBG = [241, 243, 246], GOOD = [21, 128, 61];
@@ -6180,7 +6358,7 @@
     info.forEach((r, i) => { font('bold', 7.6, MUTE); doc.text(pdfSafe(r[0] + ':'), M + (i % 2) * 175, y + 58 + Math.floor(i / 2) * 12);
       font('normal', 8.4, INK); doc.text(pdfSafe(r[1]), M + 62 + (i % 2) * 175, y + 58 + Math.floor(i / 2) * 12); });
     // Passport photos: borrower first, then guarantor.
-    [['borrower', 'BORROWER'], ['guarantor', 'GUARANTOR']].forEach(([w, label], i) => {
+    [['borrower', 'BORROWER'], secP === 'collateral' ? ['collateral', 'COLLATERAL'] : ['guarantor', 'GUARANTOR']].forEach(([w, label], i) => {
       const bx = W - M - 70 - (1 - i) * 78, by = y;
       doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.rect(bx, by, 70, 86);
       if (ph && ph[w]) { try { doc.addImage(ph[w], 'JPEG', bx + 1, by + 1, 68, 84); } catch (e) {} }
@@ -6190,11 +6368,13 @@
     y += 104;
     doc.setDrawColor(...RED); doc.setLineWidth(1.4); doc.line(M, y, M + CW, y); y += 6;
     const tfp = topUpFigures(loan, m);
-    para(`This Loan Agreement is made between Benansah Financial Solutions ("the Lender") and the Borrower named in Section 1, with the Guarantor named in Section 2. ` +
+    para(`This Loan Agreement is made between Benansah Financial Solutions ("the Lender") and the Borrower named in Section 1, ` +
+      (secP === 'collateral' ? `secured by the collateral described in Section 2. ` : secP === 'both' ? `with the Guarantor named in Section 2 and secured by the collateral described there. ` : `with the Guarantor named in Section 2. `) +
       (tfp ? `It is a top-up of loan ${tfp.ref}: on the pay-out day the remaining balance of ${tfp.ref} is cleared from the Principal Amount and the Borrower receives the rest (Section 4). ` : '') +
       (rm ? `This is a remote repeat loan: the Borrower, a returning customer, applied by phone. The Agreement was sent to the Borrower before signing, and the Borrower's identity was confirmed by the code sent to the phone number on file since loan ${rm.fromRef || ''}. ` +
             `It was signed electronically by the Borrower, the Guarantor and an independent Witness, each using a one-time code sent by SMS to their own phone (Section 6).`
-          : `It was explained to the Borrower and Guarantor in person and signed electronically by each of them, and by an independent Witness, using a one-time code sent by SMS to their own phone (Section 6).`), 8.2, 'normal', INK);
+          : guarantorNeeded(loan) ? `It was explained to the Borrower and Guarantor in person and signed electronically by each of them, and by an independent Witness, using a one-time code sent by SMS to their own phone (Section 6).`
+          : `It was explained to the Borrower in person and signed electronically by the Borrower and by an independent Witness, each using a one-time code sent by SMS to their own phone (Section 6).`), 8.2, 'normal', INK);
 
     // ---- 1. Borrower
     section('1. BORROWER INFORMATION');
@@ -6208,11 +6388,23 @@
     row1('Other Active Loans', k.otherLoans || 'None declared');
 
     // ---- 2. Guarantor
-    section('2. GUARANTOR INFORMATION');
-    row2('Guarantor Name', loan.guarantorName, 'Service No. & Rank', k.gServiceRank);
-    row2('Ghana Card No.', k.gCard, 'Phone / MoMo No.', loan.guarantorPhone);
-    row2('Station / Unit / Division', k.gStation, 'Relationship to Borrower', k.gRelationship);
-    row1('Residential Address / GPS', k.gAddress);
+    section(secP === 'collateral' ? '2. COLLATERAL (SECURITY)' : secP === 'both' ? '2. GUARANTOR & COLLATERAL' : '2. GUARANTOR INFORMATION', secP === 'guarantor' ? null : 'SECURITY FOR THIS LOAN');
+    if (secP !== 'collateral') {
+      row2('Guarantor Name', loan.guarantorName, 'Service No. & Rank', k.gServiceRank);
+      row2('Ghana Card No.', k.gCard, 'Phone / MoMo No.', loan.guarantorPhone);
+      row2('Station / Unit / Division', k.gStation, 'Relationship to Borrower', k.gRelationship);
+      row1('Residential Address / GPS', k.gAddress);
+    }
+    if (secP !== 'guarantor') {
+      const c = colP || {};
+      if (secP === 'both') { y += 3; font('bold', 7.6, NAVY); doc.text('COLLATERAL', M + 2, y + 8); y += 11; }
+      row2('Type of Collateral', c.type, 'Estimated Value', c.value ? money(c.value) : '');
+      row1('Description', c.description);
+      row2('Serial / Reg. / Chassis / Plot No.', c.identifier, 'Registered Owner', c.owner);
+      row1('Documents or Item Held by BFS', c.documents);
+      row2('Where It Is Kept', keptByText(c), 'Valued By & Date', [c.valuedBy, c.valuedOn ? fmtDate(c.valuedOn) : ''].filter(Boolean).join(', '));
+      row2('Proof of Ownership', c.ownershipChecked ? 'Checked by BFS staff' : 'Not recorded', 'Loan as % of Value', c.value ? Math.round(m.principal / c.value * 100) + '%' : '');
+    }
 
     // ---- 3. Verification
     section('3. VERIFICATION', rm ? 'REMOTE REPEAT LOAN' : 'BY BFS STAFF');
@@ -6282,9 +6474,9 @@
 
     // ---- 6. Signatures
     section('6. ELECTRONIC SIGNATURES', 'SIGNED BY SMS ONE-TIME CODE', 150);
-    const parties = [['BORROWER DECLARATION', loan.borrowerName, s.b, BORROWER_DECLARATION]];
+    const parties = [['BORROWER DECLARATION', loan.borrowerName, s.b, borrowerDeclarationOf(loan)]];
     if (guarantorNeeded(loan)) parties.push(['GUARANTOR UNDERTAKING', loan.guarantorName, s.g, GUARANTOR_DECLARATION]);
-    parties.push(['WITNESS ATTESTATION', wv.name, s.w.state === 'missing' ? {state: 'none'} : s.w, WITNESS_DECLARATION]);
+    parties.push(['WITNESS ATTESTATION', wv.name, s.w.state === 'missing' ? {state: 'none'} : s.w, witnessDeclarationOf(loan)]);
     const gap = 8, colw = (CW - gap * (parties.length - 1)) / parties.length;
     const declH = Math.max(...parties.map(p => lines(p[3], colw - 10, 7.6).length)) * 9.4;
     const boxH = 22 + declH + 78;
@@ -6936,6 +7128,7 @@
         ML.f(r, 21, `IF(T${r}<=0,"Excellent","${quote(m.performanceRating)}")`, m.performanceRating, cs('center', b));
       }
       const notes = [l.purpose, l.topUpOf ? 'Top-up of ' + l.topUpOf : '', l.channel === 'remote' ? 'Remote repeat loan' : '',
+        collateralOf(l) ? `Collateral: ${collateralSummary(collateralOf(l))}${collateralOf(l).status === 'returned' ? ' — returned ' + fmtDate(collateralOf(l).returnedOn) : ''}` : '',
         m.extActive ? 'Extended to ' + fmtDate(m.extension.date) : (m.extBreached ? 'Extension date ' + fmtDate(m.extension.date) + ' missed' : ''),
         m.overpaid > 0.005 ? 'Overpaid ' + fmtGHS(m.overpaid) : ''].filter(Boolean).join('; ');
       ML.cell(r, 22, notes, cs('text', b));
@@ -7196,7 +7389,7 @@
     LA.widths = [15, 22, 14, 16, 10, 14, 34, 18, 22, 16];
     LA.cell(1, 0, 'BENANSAH FINANCIAL SOLUTIONS - LOAN APPLICATIONS', T.title); LA.heights[1] = 21;
     LA.cell(2, 0, `Applications that have not been paid out (pending, on hold or declined), as at ${stamp}.`, T.sub);
-    header(LA, 4, ['Ref No.', 'Applicant', 'Phone Number', 'Amount Requested (GHS)', 'Term (months)', 'Applied On', 'Status', 'Agreement', 'Guarantor', 'Processed By']); LA.heights[4] = 30;
+    header(LA, 4, ['Ref No.', 'Applicant', 'Phone Number', 'Amount Requested (GHS)', 'Term (months)', 'Applied On', 'Status', 'Agreement', 'Security (guarantor / collateral)', 'Processed By']); LA.heights[4] = 30;
     const apps = loans.filter(l => !isDisbursed(l)).sort((a, b) => (b.createdAt || b.disbursementDate || '').localeCompare(a.createdAt || a.disbursementDate || ''));
     apps.forEach((l, i) => {
       const r = 5 + i, b = i % 2 === 1, m = computeLoanMetrics(l), stg = loanStage(l);
@@ -7205,7 +7398,7 @@
       LA.cell(r, 0, l.refNo, cs('center', b)); LA.cell(r, 1, l.borrowerName || '', cs('text', b)); LA.cell(r, 2, l.borrowerPhone || '', cs('center', b));
       LA.cell(r, 3, m.principal, cs('money', b)); LA.cell(r, 4, m.term, cs('int', b)); LA.date(r, 5, (l.createdAt || l.disbursementDate || '').slice(0, 10), cs('date', b));
       LA.cell(r, 6, status, cs('text', b)); LA.cell(r, 7, !s ? '—' : (s.complete ? 'Signed' : (s.paper ? 'Paper agreement' : 'Not fully signed')), cs('center', b));
-      LA.cell(r, 8, l.guarantorName || '', cs('text', b)); LA.cell(r, 9, l.processedBy || '', cs('text', b));
+      LA.cell(r, 8, [securityOf(l) !== 'collateral' ? l.guarantorName : '', collateralOf(l) ? 'Collateral: ' + collateralOf(l).type : ''].filter(Boolean).join(' + '), cs('text', b)); LA.cell(r, 9, l.processedBy || '', cs('text', b));
     });
     if (!apps.length) LA.cell(5, 0, 'No applications waiting.', S.get({i: 1, color: '595959'}));
     LA.freeze = {rows: 4, cols: 0}; LA.titleRow = 4;
