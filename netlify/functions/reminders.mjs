@@ -99,6 +99,8 @@ const MAX_LATE_CHARGES = 2;
 
 const DEFAULT_FEE_PCT = 0.02;
 
+const ALLOC_RULE_FROM = "2026-10-07";
+
 const HOLD_FOLLOWUP_DAYS = 7;   // one follow-up text (0E) after this many days on hold
 
 const HOLD_EXPIRY_DAYS = 30;    // flagged as expired after this many days on hold
@@ -183,26 +185,52 @@ function computeLoanMetricsRaw(loan) {
   // Once an extension is granted, every installment due up to the new date moves to that date.
   const effDue = (k, d) => (ext && d >= grantDay && schedule[k].dueDay <= extDay) ? extDay : schedule[k].dueDay;
   const firstUnpaid = paidPI => schedule.findIndex(s => paidPI < s.cumulative - 0.005);
+  // Payments clear the OLDEST amount owed first (standard "oldest debt first"):
+  // an installment, then the late charge added after it, then the next
+  // installment. So paying "installment + its late charge" clears both, and
+  // the next installment is untouched.
+  const ruleDay = dayNum(ALLOC_RULE_FROM);
+  const allocate = (paidOld, paidNew, chs, d) => {
+    const instPaid = schedule.map(() => 0), chPaid = chs.map(() => 0);
+    // Payments before the change: installments in order, then late charges.
+    let left = paidOld;
+    schedule.forEach((s, i) => { const t = Math.max(Math.min(left, s.amount), 0); instPaid[i] = t; left -= t; });
+    chs.forEach((c, j) => { const t = Math.max(Math.min(left, c.amount), 0); chPaid[j] = t; left -= t; });
+    // Payments since the change: oldest amount still owed first.
+    left = Math.max(left, 0) + paidNew;
+    const items = schedule.map((s, i) => ({inst: true, idx: i, day: effDue(i, d), amt: s.amount}))
+      .concat(chs.map((c, j) => ({inst: false, idx: j, day: dayNum(c.date), amt: c.amount})))
+      .sort((a, b) => a.day - b.day || (a.inst === b.inst ? a.idx - b.idx : (a.inst ? 1 : -1)));
+    for (const it of items) {
+      if (left <= 0.005) break;
+      const arr = it.inst ? instPaid : chPaid;
+      const take = Math.min(left, it.amt - arr[it.idx]);
+      if (take <= 0) continue;
+      arr[it.idx] += take;
+      left -= take;
+    }
+    return {instPaid, chPaid, left: Math.max(round2(left), 0)};
+  };
 
   // Walk day by day from the first due date to today, adding late charges
   // per installment (see the rule above).
   const charges = [];
   const charged = schedule.map(() => 0);           // charges added so far, per installment
-  const unpaidOf = (i, paidPI) => round2(Math.min(Math.max(schedule[i].cumulative - paidPI, 0), schedule[i].amount));
-  let pi = 0, paidToDate = 0;
+  let pi = 0, paidOld = 0, paidNew = 0;
+  const addPay = x => { if (x.day < ruleDay) paidOld += x.amt; else paidNew += x.amt; };
   const loopStart = schedule[0].dueDay + 1;
-  while (pi < loanPayments.length && loanPayments[pi].day < loopStart) paidToDate += loanPayments[pi++].amt;
+  while (pi < loanPayments.length && loanPayments[pi].day < loopStart) addPay(loanPayments[pi++]);
   for (let d = loopStart; d <= today; d++) {
-    while (pi < loanPayments.length && loanPayments[pi].day <= d) paidToDate += loanPayments[pi++].amt;
+    while (pi < loanPayments.length && loanPayments[pi].day <= d) addPay(loanPayments[pi++]);
     if (ext && d >= grantDay && d <= extDay) {     // charges paused during an extension;
       schedule.forEach((s, i) => { if (s.dueDay <= extDay) charged[i] = 0; });   // missed new date = start again
       continue;
     }
-    const paidPI = Math.min(paidToDate, totalRepayment);
+    const al = allocate(paidOld, paidNew, charges, d);   // what each installment has received so far
     for (let i = 0; i < term; i++) {
       const due = effDue(i, d);
       if (d <= due) break;                           // later installments are not due yet
-      const unpaid = unpaidOf(i, paidPI);
+      const unpaid = round2(Math.max(schedule[i].amount - al.instPaid[i], 0));
       if (unpaid <= 0.005) continue;
       const tier = Math.min(MAX_LATE_CHARGES, (d - due) >= SECOND_CHARGE_DAY ? 2 : 1);
       while (charged[i] < tier) {
@@ -213,11 +241,14 @@ function computeLoanMetricsRaw(loan) {
   }
 
   const lateFee = round2(charges.reduce((s, c) => s + c.amount, 0));
-  const paidPI = Math.min(amountPaid, totalRepayment);
-  const lateFeePaid = round2(Math.min(Math.max(amountPaid - totalRepayment, 0), lateFee));
-  const overpaid = round2(Math.max(amountPaid - totalRepayment - lateFee, 0));
-  const remainingBalance = round2(Math.max(totalRepayment - amountPaid, 0));
-  const lateFeeOutstanding = round2(lateFee - lateFeePaid);
+  const fin = allocate(round2(loanPayments.filter(x => x.day < ruleDay).reduce((t, x) => t + x.amt, 0)),
+    round2(loanPayments.filter(x => x.day >= ruleDay).reduce((t, x) => t + x.amt, 0)), charges, today);
+  charges.forEach((c, j) => { c.paid = round2(fin.chPaid[j]); });
+  const paidPI = round2(fin.instPaid.reduce((s, x) => s + x, 0));
+  const lateFeePaid = round2(fin.chPaid.reduce((s, x) => s + x, 0));
+  const overpaid = fin.left;
+  const remainingBalance = round2(Math.max(totalRepayment - paidPI, 0));
+  const lateFeeOutstanding = round2(Math.max(lateFee - lateFeePaid, 0));
   const totalPayableWithPenalty = round2(remainingBalance + lateFeeOutstanding);
 
   let deferredCumAll = 0;
@@ -231,13 +262,17 @@ function computeLoanMetricsRaw(loan) {
   const lateStart = kLate >= 0 ? effDue(kLate, today) : NaN;
   const piOverdue = kLate >= 0 && today >= loopStart && today > lateStart && !(ext && today >= grantDay && today <= extDay);
   const episode = piOverdue ? {startDay: lateStart, tier: Math.max(1, charged[kLate])} : null;
+  // Only late charges left after the last installment: shown as overdue. A late
+  // charge still unpaid earlier in the loan is added to the next amount due
+  // (it is cleared first), and does not by itself make the loan overdue.
   const feesOnlyOverdue = !piOverdue && !extActive && remainingBalance <= 0.005 && lateFeeOutstanding > 0.005;
+  const oldestUnpaidCharge = charges.find(c => c.amount - c.paid > 0.005);
   const isOverdue = piOverdue || feesOnlyOverdue;
   const overdueTier = piOverdue ? episode.tier : 0;
   const lateFeePct = overdueTier * LATE_FEE_RATE;
   const lastDue = effDue(term - 1, today);
   const daysOverdue = piOverdue ? today - episode.startDay
-    : (feesOnlyOverdue ? Math.max(1, today - Math.max(lastDue, charges.length ? dayNum(charges[charges.length - 1].date) : lastDue)) : 0);
+    : (feesOnlyOverdue ? Math.max(1, today - (oldestUnpaidCharge ? dayNum(oldestUnpaidCharge.date) : lastDue)) : 0);
   const overdueLabel = piOverdue
     ? `${(lateFeePct * 100).toFixed(0)}% late charges — ${today - episode.startDay} day${today - episode.startDay === 1 ? '' : 's'} late${overdueTier < MAX_LATE_CHARGES ? ` · another 10% on ${fmtDate(isoFromDay(episode.startDay + SECOND_CHARGE_DAY))} if unpaid` : ' · maximum reached'}`
     : (feesOnlyOverdue ? 'Late charges still unpaid' : '');
@@ -263,7 +298,7 @@ function computeLoanMetricsRaw(loan) {
     nextInstallmentNo = kNext + 1;
     let cumThrough = 0;
     schedule.forEach((s, i) => { if (effDue(i, today) <= nd) cumThrough = s.cumulative; });
-    amountDueNext = round2(Math.max(cumThrough - paidPI, 0));
+    amountDueNext = round2(Math.max(cumThrough - paidPI, 0) + lateFeeOutstanding);   // unpaid late charges are cleared first
   } else if (lateFeeOutstanding > 0.005) {
     amountDueNext = lateFeeOutstanding;
   }
