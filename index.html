@@ -854,6 +854,10 @@
   .login-card .btn { justify-content: center; padding: 11px; }
   .login-error { color: var(--danger); font-size: 12.5px; font-weight: 600; min-height: 1px; }
   #forgotPw { font-size: 12.5px; color: var(--navy-text); text-align: center; }
+  .login-first { font-size: 12.5px; color: var(--text-faint); text-align: center; }
+  .login-first a { color: var(--navy-text); font-weight: 600; }
+  #verifyText { line-height: 1.5; }
+  .login-error.ok { color: #1f7a3d; }
   .login-or { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 12px; }
   .login-or::before, .login-or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
   .google-btn { justify-content: center; gap: 10px; }
@@ -1618,7 +1622,28 @@
     <a href="#" id="forgotPw">Forgot password?</a>
     <div class="login-or"><span>or</span></div>
     <button type="button" class="btn ghost google-btn" id="btnGoogle"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Sign in with Google</button>
+    <div class="login-first">New staff? <a href="#" id="showSignup">Create your password</a></div>
   </form>
+  <form class="login-card" id="signupForm" autocomplete="on" style="display:none;">
+    <div class="brand-mark">B</div>
+    <h2>Create your password</h2>
+    <p class="login-sub">For staff the owner has added under Staff Access</p>
+    <div class="field"><label>Your email (the one the owner added)</label><input type="email" name="email" required autocomplete="username"></div>
+    <div class="field"><label>Choose a password (at least 8 characters)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></div>
+    <div class="field"><label>Type the password again</label><input type="password" name="password2" required minlength="8" autocomplete="new-password"></div>
+    <div class="login-error" id="signupError"></div>
+    <button class="btn red" type="submit">Create Password</button>
+    <div class="login-first"><a href="#" id="backToLogin">Back to sign in</a></div>
+  </form>
+  <div class="login-card" id="verifyPanel" style="display:none;">
+    <div class="brand-mark">B</div>
+    <h2>Confirm your email</h2>
+    <p class="login-sub" id="verifyText"></p>
+    <div class="login-error" id="verifyError"></div>
+    <button class="btn red" type="button" id="btnVerified">I have confirmed — continue</button>
+    <button class="btn ghost" type="button" id="btnResendVerify">Send the link again</button>
+    <div class="login-first"><a href="#" id="verifySignOut">Use a different account</a></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2151,6 +2176,9 @@
     document.getElementById('restoreRow').style.display = '';
     document.getElementById('restoreNote').textContent = "Owner only. Records are saved online and shared by all staff. Restoring a Full Backup replaces all loans, payments, capital and expenses online (a safety backup of the current records downloads first).";
     A.onAuthStateChanged(fbAuth, user => {
+      // Staff with an email/password account must confirm their email first
+      // (the database rules only let in staff whose email is confirmed).
+      if (user && needsVerify(user)) { showLoginCard('verify', user.email); return; }
       if (user) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('userBox').style.display = '';
@@ -2159,6 +2187,7 @@
       } else {
         document.getElementById('userBox').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
+        if (loginCardMode === 'verify') showLoginCard('login');
         setConn(false, "Signed out");
         setTimeout(() => document.querySelector('#loginForm [name=email]').focus(), 50);
       }
@@ -2223,6 +2252,75 @@
         : /network/.test(c) ? "No internet connection." : "Could not sign in — try again.";
     } finally { btn.disabled = false; btn.textContent = "Sign In"; }
   });
+  // ---- Staff create their own password (owner never knows it) ----
+  let loginCardMode = 'login';
+  function needsVerify(user) {
+    const em = (user.email || "").toLowerCase();
+    if (user.emailVerified || em === "oansah717@gmail.com") return false;
+    return (user.providerData || []).some(p => p && p.providerId === 'password');
+  }
+  function showLoginCard(mode, email) {
+    loginCardMode = mode;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('userBox').style.display = 'none';
+    document.getElementById('loginForm').style.display = mode === 'login' ? '' : 'none';
+    document.getElementById('signupForm').style.display = mode === 'signup' ? '' : 'none';
+    document.getElementById('verifyPanel').style.display = mode === 'verify' ? '' : 'none';
+    if (mode === 'verify') {
+      document.getElementById('verifyText').innerHTML = `We sent a confirmation link to <strong>${escapeHtml(email || "")}</strong>. Open that email, tap the link, then come back here and tap <strong>I have confirmed</strong>. If you can't find it, check the Spam or Promotions folder.`;
+      document.getElementById('verifyError').textContent = "";
+    }
+    if (mode === 'signup') { const sf = document.getElementById('signupForm'); sf.email.value = document.querySelector('#loginForm [name=email]').value.trim(); document.getElementById('signupError').textContent = ""; setTimeout(() => sf.email.focus(), 50); }
+  }
+  document.getElementById('showSignup').addEventListener('click', e => { e.preventDefault(); showLoginCard('signup'); });
+  document.getElementById('backToLogin').addEventListener('click', e => { e.preventDefault(); showLoginCard('login'); });
+  document.getElementById('signupForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target, errBox = document.getElementById('signupError');
+    errBox.textContent = "";
+    const email = f.email.value.trim();
+    if (f.password.value.length < 8) { errBox.textContent = "The password must be at least 8 characters."; return; }
+    if (f.password.value !== f.password2.value) { errBox.textContent = "The two passwords are not the same — type them again."; return; }
+    if (!fbAuthMod) { errBox.textContent = "Still connecting — try again in a moment."; return; }
+    const btn = f.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = "Creating…";
+    try {
+      const cred = await fbAuthMod.createUserWithEmailAndPassword(fbAuth, email, f.password.value);
+      try { await fbAuthMod.sendEmailVerification(cred.user); } catch (err) {}
+      f.password.value = ""; f.password2.value = "";
+      showLoginCard('verify', email);
+    } catch (err) {
+      const c = err && err.code || "";
+      errBox.textContent = /email-already-in-use/.test(c) ? "This email already has a password. Go back and sign in — or use Forgot password if you don't remember it."
+        : /invalid-email/.test(c) ? "That email address is not valid — check it."
+        : /weak-password/.test(c) ? "That password is too weak — use at least 8 characters with letters and numbers."
+        : /operation-not-allowed/.test(c) ? "Email sign-in is switched off in Firebase (Authentication → Sign-in method → Email/Password)."
+        : /network/.test(c) ? "No internet connection." : "Could not create the password — try again.";
+    } finally { btn.disabled = false; btn.textContent = "Create Password"; }
+  });
+  document.getElementById('btnVerified').addEventListener('click', async () => {
+    const errBox = document.getElementById('verifyError'); errBox.classList.remove('ok');
+    const u = fbAuth && fbAuth.currentUser;
+    if (!u) { showLoginCard('login'); return; }
+    try { await u.reload(); } catch (e) {}
+    const fresh = fbAuth.currentUser;
+    if (fresh && !needsVerify(fresh)) {
+      try { await fresh.getIdToken(true); } catch (e) {}
+      location.reload();
+    } else errBox.textContent = "Not confirmed yet. Open the email and tap the link first, then try again.";
+  });
+  document.getElementById('btnResendVerify').addEventListener('click', async () => {
+    const errBox = document.getElementById('verifyError'); errBox.classList.remove('ok');
+    const u = fbAuth && fbAuth.currentUser;
+    if (!u) { showLoginCard('login'); return; }
+    try { await fbAuthMod.sendEmailVerification(u); errBox.classList.add('ok'); errBox.textContent = "A new link has been sent to " + u.email + "."; }
+    catch (err) { errBox.textContent = /too-many-requests/.test(err && err.code || "") ? "Too many tries — wait a few minutes, then send again." : "Could not send the link — try again."; }
+  });
+  document.getElementById('verifySignOut').addEventListener('click', async e => {
+    e.preventDefault();
+    try { await fbAuthMod.signOut(fbAuth); } catch (err) {}
+    showLoginCard('login');
+  });
   document.getElementById('btnGoogle').addEventListener('click', async () => {
     const errBox = document.getElementById('loginError');
     errBox.textContent = "";
@@ -2253,7 +2351,7 @@
     const na = sessionStorage.getItem("bfsNotAllowed");
     if (na) {
       sessionStorage.removeItem("bfsNotAllowed");
-      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access. Ask the owner to add this email under Settings → Staff Access, then sign in with Google."; }, 800);
+      setTimeout(() => { document.getElementById('loginError').textContent = na + " does not have access. Ask the owner to add this exact email under Settings → Staff Access, then sign in again."; }, 800);
     }
   } catch (e) {}
 
@@ -3891,7 +3989,7 @@
         await db.collection("staff").doc(email).set({name, email, perms: presetPerms(role), addedBy: who, addedAt: new Date().toISOString()});
         logActivity("Staff Added", `${name} (${email}) can now sign in as ${ROLE_PRESETS[role].label}`, who);
         f.reset();
-        showToast(`${name} added — they can sign in with Google now`, 4000);
+        showToast(`${name} added — tell them: open the site, tap “Create your password” (or Sign in with Google)`, 7000);
       } catch (err) { showToast(err && err.code === 'revoked' ? "Only the owner can add staff" : "Could not add — try again"); }
     }, {title: "Add Staff", yesLabel: "Add"});
   });
