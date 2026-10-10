@@ -1053,9 +1053,16 @@
         <option value="all">All dates</option><option value="today">Today</option><option value="7">Last 7 days</option>
         <option value="month">This month</option><option value="30">Last 30 days</option><option value="90">Last 3 months</option>
       </select>
-      <input class="search-input" id="activitySearch" placeholder="Search action, details or name...">
+      <select class="search-input" id="activityType" style="max-width:190px;">
+        <option value="">All types</option><option value="loans">Loans &amp; applications</option><option value="payments">Payments</option>
+        <option value="sms">SMS</option><option value="signing">Agreements &amp; signing</option><option value="money">Capital &amp; expenses</option>
+        <option value="staff">Staff &amp; settings</option><option value="deletes">Edits &amp; deletions</option>
+      </select>
+      <select class="search-input" id="activityWho" style="max-width:190px;"><option value="">Everyone</option></select>
+      <input class="search-input" id="activitySearch" placeholder="Search a customer name, phone or Ref No....">
       <span class="search-count" id="activityCount"></span>
     </div>
+    <div class="cell-sub" id="activityStartNote" style="margin:-4px 0 10px;"></div>
     <div class="table-wrap">
       <table class="mid">
         <thead><tr><th>When</th><th>Action</th><th>Details</th><th>By</th></tr></thead>
@@ -1064,6 +1071,15 @@
       <div class="empty-state" id="activityEmpty" style="display:none;">No activity yet. New loans, payments, edits and deletions will be recorded here.</div>
     </div>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost small" id="btnActivityMore" style="display:none;">Show more</button></div>
+    <div class="subcard" id="activityStartCard" style="display:none; margin-top:12px;">
+      <h4>Hide test entries <span class="cell-sub" style="font-weight:500;">— owner only</span></h4>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Pick the day you started using the system for real. Entries before that day are hidden for everyone (nothing is deleted — tick "Show hidden entries" to see them).</p>
+      <div class="export-row">
+        <input type="date" class="search-input" id="activityStartDate" style="max-width:190px;">
+        <button type="button" class="btn small" id="btnActivityStartSave">Save</button>
+        <button type="button" class="btn ghost small" id="btnActivityStartClear">Show everything again</button>
+      </div>
+    </div>
     <div class="subcard" id="activityArchiveCard" style="display:none; margin-top:12px;">
       <h4>Archive &amp; clear old entries <span class="cell-sub" style="font-weight:500;">— owner only</span></h4>
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 10px 0;">Removes old entries from the app to keep it tidy. An archive file (Excel/CSV) of everything removed downloads first — keep it safe, it is your proof if a dispute ever comes up. The last 3 months are always kept.</p>
@@ -2520,7 +2536,7 @@
     });
     else secureLoaded = true;
     subscribeCollection("settings", docs => {
-      settingsDocs = docs;
+      settingsDocs = docs; try { renderActivity(); } catch (e) {}
       const sms = docs.find(d => d._id === "sms");
       if (sms && Array.isArray(sms.swaps)) smsSwaps = sms.swaps.map(x => ({from: x.from || "", to: x.to || ""}));
       if (!swapDraft) renderSwapEditor();
@@ -3620,20 +3636,56 @@
     if (a.includes("reset")) return "act-system";
     return "act-create";
   }
+  const ACT_TYPES = {
+    loans: /application|loan|top-up|collateral|extension|hold|rule override/i,
+    payments: /payment|top-up settlement/i,
+    sms: /sms/i,
+    signing: /sign|agreement/i,
+    money: /capital|expense/i,
+    staff: /staff|settings|wording|backup|restore|reset|archiv|excel/i,
+    deletes: /edited|deleted|removed|declined|reopened|restored/i
+  };
+  let showHiddenActivity = false;
+  function activityStartFrom() { const d = settingsDocs.find(x => x._id === "activity"); return d && /^\d{4}-\d{2}-\d{2}$/.test(d.startFrom || "") ? d.startFrom : ""; }
   function activityFiltered() {
     const range = document.getElementById('activityRange').value;
+    const type = document.getElementById('activityType').value;
+    const who = document.getElementById('activityWho').value;
     const q = (document.getElementById('activitySearch').value || '').trim().toLowerCase();
     const now = new Date();
     const start = range === 'today' ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
       : range === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1)
       : /^\d+$/.test(range) ? new Date(now.getTime() - (+range) * 86400000) : null;
-    return auditLog.filter(e => (!start || new Date(e.timestamp) >= start) &&
-      (!q || `${e.action} ${e.description} ${e.performedBy}`.toLowerCase().includes(q)));
+    const from = showHiddenActivity ? "" : activityStartFrom();
+    // Searching a customer's name or phone also finds entries that only mention their Ref No.
+    const qDigits = q.replace(/\D/g, "");
+    const refs = q.length >= 2 ? loans.filter(l => (l.borrowerName || "").toLowerCase().includes(q) ||
+      (qDigits.length >= 4 && String(l.borrowerPhone || "").replace(/\D/g, "").includes(qDigits))).map(l => (l.refNo || "").toLowerCase()).filter(Boolean) : [];
+    return auditLog.filter(e => {
+      if (from && fmtStampDay(e.timestamp) < from) return false;
+      if (start && new Date(e.timestamp) < start) return false;
+      if (type && ACT_TYPES[type] && !ACT_TYPES[type].test(e.action || "")) return false;
+      if (who && (e.performedBy || "") !== who) return false;
+      if (!q) return true;
+      const text = `${e.action} ${e.description} ${e.performedBy} ${e.account || ""}`.toLowerCase();
+      return text.includes(q) || refs.some(r => text.includes(r));
+    });
   }
+  function fmtStampDay(ts) { const d = new Date(ts); return isNaN(d) ? "" : d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function hiddenActivityCount() { const from = activityStartFrom(); return from ? auditLog.filter(e => fmtStampDay(e.timestamp) < from).length : 0; }
   function renderActivity() {
     const list = activityFiltered();
     const shown = list.slice(0, activityLimit);
     document.getElementById('activityCount').textContent = list.length === auditLog.length ? `${auditLog.length} entries` : `${list.length} of ${auditLog.length} entries`;
+    const whoSel = document.getElementById('activityWho'), whoNow = whoSel.value;
+    const people = [...new Set(auditLog.map(e => e.performedBy || "").filter(Boolean))].sort();
+    whoSel.innerHTML = '<option value="">Everyone</option>' + people.map(n => `<option${n === whoNow ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    const from = activityStartFrom(), hid = hiddenActivityCount();
+    document.getElementById('activityStartNote').innerHTML = from && hid
+      ? `Showing from <strong>${fmtDate(from)}</strong> — ${hid} earlier test entr${hid === 1 ? 'y is' : 'ies are'} ${showHiddenActivity ? 'shown' : 'hidden'}. <label class="auto-check" style="display:inline-flex;"><input type="checkbox" id="activityShowHidden"${showHiddenActivity ? ' checked' : ''}> <span>Show hidden entries</span></label>` : '';
+    const sc = document.getElementById('activityStartCard');
+    sc.style.display = (storageMode !== 'firebase' || isOwnerUser()) ? '' : 'none';
+    const sd = document.getElementById('activityStartDate'); if (document.activeElement !== sd) sd.value = from;
     document.getElementById('activityArchiveCard').style.display = (storageMode !== 'firebase' || isOwnerUser()) && auditLog.length ? '' : 'none';
     document.getElementById('activityEmpty').style.display = shown.length ? 'none' : 'block';
     document.getElementById('activityTableBody').innerHTML = shown.map(e => `
@@ -3647,7 +3699,23 @@
     more.style.display = list.length > activityLimit ? 'inline-flex' : 'none';
     more.textContent = `Show more (${list.length - activityLimit} older)`;
   }
-  ['activityRange', 'activitySearch'].forEach(id => document.getElementById(id).addEventListener(id === 'activitySearch' ? 'input' : 'change', () => { activityLimit = 100; renderActivity(); }));
+  document.getElementById('activityStartNote').addEventListener('change', e => { if (e.target.id === 'activityShowHidden') { showHiddenActivity = e.target.checked; activityLimit = 100; renderActivity(); } });
+  async function saveActivityStart(value) {
+    if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can change this"); return; }
+    try {
+      await db.collection("settings").doc("activity").set({startFrom: value, updatedBy: currentEmail ? currentEmail() : "", updatedAt: new Date().toISOString()});
+      showHiddenActivity = false;
+      showToast(value ? `Entries before ${fmtDate(value)} are now hidden` : "All entries are shown again", 3500);
+    } catch (err) { showToast("Could not save — try again"); }
+  }
+  document.getElementById('btnActivityStartSave').addEventListener('click', () => {
+    const v = document.getElementById('activityStartDate').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { showToast("Pick a date first"); return; }
+    if (v > todayISO()) { showToast("The date cannot be in the future"); return; }
+    saveActivityStart(v);
+  });
+  document.getElementById('btnActivityStartClear').addEventListener('click', () => saveActivityStart(""));
+  ['activityRange', 'activitySearch', 'activityType', 'activityWho'].forEach(id => document.getElementById(id).addEventListener(id === 'activitySearch' ? 'input' : 'change', () => { activityLimit = 100; renderActivity(); }));
   document.getElementById('btnActivityArchive').addEventListener('click', () => {
     if (storageMode === 'firebase' && !isOwnerUser()) { showToast("Only the owner can clear the activity log"); return; }
     const keep = Math.max(3, +document.getElementById('activityKeep').value || 6);
